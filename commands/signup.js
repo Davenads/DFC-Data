@@ -1,7 +1,6 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { AutocompleteInteraction } = require('discord.js');
 
-// Unique build options per class
 const classBuildOptions = {
     druid: ['Wind', 'Shaman', 'Fire Druid', 'Summon', 'Fury', 'Other Druid'],
     assassin: ['Ghost', 'Trapper', 'Spider', 'Blade', 'Kicker', 'Hybrid WOF', 'Hybrid LS', 'Hybrid WW', 'Other Assassin'],
@@ -62,14 +61,24 @@ module.exports = {
                 return interaction.reply('You must be registered in the roster before signing up for the weekly event. Use /register to get started.');
             }
 
-            // Append the new signup to the Weekly Signups tab
-            await sheets.spreadsheets.values.append({
+            // Fetch current data from Weekly Signups tab to determine the first available row
+            const weeklyRes = await sheets.spreadsheets.values.get({
                 auth: authClient,
                 spreadsheetId: process.env.SHEET_ID,
-                range: 'Weekly Signups!A:D',
+                range: 'Weekly Signups!A:F', // Fetch enough columns to locate empty rows
+            });
+
+            const weeklySignups = weeklyRes.data.values || [];
+            const firstAvailableRow = weeklySignups.length + 2; // Account for header row (1) and array index (0-based)
+
+            // Append the new signup to the Weekly Signups tab
+            await sheets.spreadsheets.values.update({
+                auth: authClient,
+                spreadsheetId: process.env.SHEET_ID,
+                range: `Weekly Signups!A${firstAvailableRow}:F${firstAvailableRow}`,
                 valueInputOption: 'RAW',
                 requestBody: {
-                    values: [[discordName, chosenClass, chosenBuild, 'Pending']],
+                    values: [[discordName, chosenClass, chosenBuild, 'HLD', '', 'Available']],
                 },
             });
 
