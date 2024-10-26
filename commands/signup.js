@@ -1,5 +1,5 @@
-// commands/signup.js
 const { SlashCommandBuilder } = require('@discordjs/builders');
+const { AutocompleteInteraction } = require('discord.js');
 
 // Unique build options per class
 const classBuildOptions = {
@@ -34,19 +34,14 @@ module.exports = {
             option.setName('build')
                 .setDescription('Specify your build')
                 .setRequired(true)
-                .addChoices(...Object.entries(classBuildOptions).flatMap(([className, builds]) =>
-                    builds.map(build => ({ name: build, value: `${className}:${build}` }))
-                ))
+                .setAutocomplete(true)
         ),
-    role: 'DFC Dueler', // Required role to execute this command
+    role: 'DFC Dueler',
 
     async execute(interaction, sheets, auth) {
         const discordName = interaction.user.username;
         const chosenClass = interaction.options.getString('class');
         const chosenBuild = interaction.options.getString('build');
-
-        // Extract actual build name from chosen build
-        const [, buildName] = chosenBuild.split(':');
 
         try {
             // Authenticate with Google Sheets
@@ -74,7 +69,7 @@ module.exports = {
                 range: 'Weekly Signups!A:D',
                 valueInputOption: 'RAW',
                 requestBody: {
-                    values: [[discordName, chosenClass, buildName, 'Pending']],
+                    values: [[discordName, chosenClass, chosenBuild, 'Pending']],
                 },
             });
 
@@ -83,6 +78,24 @@ module.exports = {
         } catch (error) {
             console.error('Error signing up for the weekly event:', error);
             await interaction.reply('Failed to sign you up. Please try again later.');
+        }
+    },
+
+    async autocomplete(interaction) {
+        if (interaction instanceof AutocompleteInteraction) {
+            const chosenClass = interaction.options.getString('class');
+            const focusedValue = interaction.options.getFocused();
+
+            if (chosenClass && classBuildOptions[chosenClass]) {
+                const filteredOptions = classBuildOptions[chosenClass].filter(option =>
+                    option.toLowerCase().includes(focusedValue.toLowerCase())
+                );
+                await interaction.respond(
+                    filteredOptions.slice(0, 25).map(option => ({ name: option, value: option }))
+                );
+            } else {
+                await interaction.respond([]);
+            }
         }
     }
 };
