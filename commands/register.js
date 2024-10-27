@@ -1,6 +1,6 @@
 const NodeCache = require('node-cache');
 const { SlashCommandBuilder } = require('@discordjs/builders');
-const { MessageEmbed } = require('discord.js');
+const { EmbedBuilder } = require('discord.js');
 
 // Create a cache instance
 const cache = new NodeCache({ stdTTL: 300 }); // Cache expires in 300 seconds (5 minutes)
@@ -21,9 +21,9 @@ module.exports = {
         try {
             // Check cached data to verify if the user is already registered
             if (process.env.FORCE_CACHE_REFRESH === 'true') {
-            cache.del('uuids'); // Delete the cache to force a refresh if FORCE_CACHE_REFRESH is set
-        }
-        let cachedUuids = cache.get('uuids');
+                cache.del('uuids'); // Delete the cache to force a refresh if FORCE_CACHE_REFRESH is set
+            }
+            let cachedUuids = cache.get('uuids');
             if (!cachedUuids) {
                 // Authenticate with Google Sheets
                 const authClient = await auth.getClient();
@@ -59,28 +59,38 @@ module.exports = {
             // Find the first available row
             const nextRow = roster.length + 1;
 
-            // Append new user to the roster with the required columns
-            await sheets.spreadsheets.values.update({
-                auth: authClient,
-                spreadsheetId: process.env.SPREADSHEET_ID,
-                range: `Roster!A${nextRow}:D${nextRow}`,
-                valueInputOption: 'RAW',
-                requestBody: {
-                    values: [[duelerName, duelerName, discordName, userId]],
-                },
-            });
+            try {
+                // Append new user to the roster with the required columns
+                await sheets.spreadsheets.values.update({
+                    auth: authClient,
+                    spreadsheetId: process.env.SPREADSHEET_ID,
+                    range: `Roster!A${nextRow}:D${nextRow}`,
+                    valueInputOption: 'RAW',
+                    requestBody: {
+                        values: [[duelerName, duelerName, discordName, userId]],
+                    },
+                });
+            } catch (error) {
+                console.error('Error appending new user to Google Sheets:', error);
+                return interaction.reply('Failed to register. Please try again later.');
+            }
 
-            // Re-cache UUID data for /signup command
-            const updatedRes = await sheets.spreadsheets.values.get({
-                auth: authClient,
-                spreadsheetId: process.env.SHEET_ID,
-                range: 'Roster!D:D',
-            });
-            const uuids = updatedRes.data.values.flat();
-            cache.set('uuids', uuids);
+            try {
+                // Re-cache UUID data for /signup command
+                const updatedRes = await sheets.spreadsheets.values.get({
+                    auth: authClient,
+                    spreadsheetId: process.env.SPREADSHEET_ID,
+                    range: 'Roster!D:D',
+                });
+                const uuids = updatedRes.data.values.flat();
+                cache.set('uuids', uuids);
+            } catch (error) {
+                console.error('Error updating cache with new UUID data:', error);
+                // Continue, as this is a non-critical failure
+            }
 
             // Create an embed to confirm successful registration
-            const embed = new MessageEmbed()
+            const embed = new EmbedBuilder()
                 .setTitle('🎉 Registration Successful 🎉')
                 .setColor('#00FF00')
                 .setDescription('✅ You have been successfully added into the data! 🏆')
@@ -88,11 +98,11 @@ module.exports = {
                     { name: '🏟️ Arena Name', value: duelerName, inline: true },
                     { name: '👤 Discord Name', value: discordName, inline: true }
                 )
-                .setFooter('Good luck in the arena! ⚔️');
+                .setFooter({ text: 'Good luck in the arena! ⚔️' });
 
             await interaction.reply({ embeds: [embed] });
         } catch (error) {
-            console.error('Error registering user:', error);
+            console.error('Unexpected error during registration process:', error);
             await interaction.reply('Failed to register. Please try again later.');
         }
     }
