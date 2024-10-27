@@ -1,14 +1,30 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
+const { SlashCommandBuilder, EmbedBuilder } = require('@discordjs/builders');
 const { AutocompleteInteraction } = require('discord.js');
 
 const classBuildOptions = {
-    druid: ['Wind', 'Shaman', 'Fire Druid', 'Summon', 'Fury', 'Other Druid'],
-    assassin: ['Ghost', 'Trapper', 'Spider', 'Blade', 'Kicker', 'Hybrid WOF', 'Hybrid LS', 'Hybrid WW', 'Other Assassin'],
-    amazon: ['Tribrid', 'Telebow', 'Fort Tele Zon', 'CS Hybrid Bowa', 'CS Zon', 'Hybrid', 'Walkbow', 'Jab', 'Javazon', 'Other Amazon'],
-    sorceress: ['Bow Sorc', 'Cold ES', 'Cold Vita', 'Fire ES', 'Lite ES', 'Lite Vita', 'Fire Vita', 'Other Sorceress'],
-    paladin: ['T/V', 'Murderdin', 'Mage', 'Auradin', 'V/T', 'Hammerdin', 'Vanquisher', 'V/C', 'Zealot', 'Ranger', 'Poondin', 'Liberator', 'Zeal/FoH', 'Charger', 'Other Paladin'],
-    necromancer: ['Poison', 'Bone', 'Bone/Psn Hybrid', 'Psn Dagger', 'Other Necromancer'],
-    barbarian: ['Throw/WW Hybrid', 'BvC', 'BvB', 'BvA', 'Singer', 'Concentrate', 'Other Barbarian']
+    druid: ['Wind', 'Shaman', 'Fire Druid', 'Summon', 'Fury', 'Other'],
+    assassin: ['Ghost', 'Trapper', 'Spider', 'Blade', 'Kicker', 'Hybrid WOF', 'Hybrid LS', 'Hybrid WW', 'Other'],
+    amazon: ['Tribrid', 'Telebow', 'Fort Tele Zon', 'CS Hybrid Bowa', 'CS Zon', 'Hybrid', 'Walkbow', 'Jab', 'Javazon', 'Other'],
+    sorceress: ['Bow Sorc', 'Cold ES', 'Cold Vita', 'Fire ES', 'Lite ES', 'Lite Vita', 'Fire Vita', 'Other'],
+    paladin: ['T/V', 'Murderdin', 'Mage', 'Auradin', 'V/T', 'Hammerdin', 'Vanquisher', 'V/C', 'Zealot', 'Ranger', 'Poondin', 'Liberator', 'Zeal/FoH', 'Charger', 'Other'],
+    necromancer: ['Poison', 'Bone', 'Bone/Psn Hybrid', 'Psn Dagger', 'Other'],
+    barbarian: ['Throw/WW Hybrid', 'BvC', 'BvB', 'BvA', 'Singer', 'Concentrate', 'Other']
+};
+
+const classEmojis = {
+    Paladin: '⚔️',
+    Necromancer: '💀',
+    Assassin: '🗡️',
+    Druid: '🐺',
+    Amazon: '🏹',
+    Sorceress: '🔮',
+    Barbarian: '🛡️'
+};
+
+const matchTypeEmojis = {
+    HLD: '🏆',
+    LLD: '🥇',
+    Melee: '⚔️'
 };
 
 module.exports = {
@@ -49,11 +65,14 @@ module.exports = {
 
     async execute(interaction, sheets, auth) {
         const discordName = interaction.user.username;
-        const chosenClass = interaction.options.getString('class');
+        let chosenClass = interaction.options.getString('class');
+        chosenClass = chosenClass.charAt(0).toUpperCase() + chosenClass.slice(1);
         const chosenBuild = interaction.options.getString('build');
         const matchType = interaction.options.getString('match_type');
 
         try {
+            // Defer the reply to prevent timeout
+            await interaction.deferReply();
             // Authenticate with Google Sheets
             const authClient = await auth.getClient();
 
@@ -67,50 +86,71 @@ module.exports = {
             const roster = res.data.values || [];
 
             // Verify that the user is registered in the Roster tab and get their name
-            const rosterEntry = roster.find(row => row[2] === discordName);
+            const discordId = interaction.user.id;
+            const rosterEntry = roster.find(row => row[3] === discordId);
             if (!rosterEntry) {
-                return interaction.reply('You must be registered in the roster before signing up for the weekly event. Use /register to get started.');
+                return interaction.editReply('You must be registered in the roster before signing up for the weekly event. Use /register to get started.');
             }
             const rosterName = rosterEntry[0];
 
-            // Fetch current data from Weekly Signups tab to determine the first available row
+            // Fetch current data from Weekly Signups tab to determine if match type already exists for the user
             const weeklyRes = await sheets.spreadsheets.values.get({
                 auth: authClient,
                 spreadsheetId: process.env.SPREADSHEET_ID,
-                range: 'Weekly Signups!A:F', // Fetch enough columns to locate empty rows
+                range: 'Weekly Signups!A:F',
                 majorDimension: 'ROWS'
             });
 
             const weeklySignups = weeklyRes.data.values || [];
-            let firstAvailableRow = weeklySignups.length + 2; // Default to appending at the end
+            const existingSignup = weeklySignups.find(row => row[0] === rosterName && row[3] === matchType);
 
-            // Find the first empty row based on the Name column (Column A)
-            for (let i = 0; i < weeklySignups.length; i++) {
-                if (!weeklySignups[i][0]) { // Check if Column A (Name) is empty
-                    firstAvailableRow = i + 2;
-                    break;
+            if (existingSignup) {
+                return interaction.editReply('You have already signed up for this match type. Please choose a different match type or update your existing signup.');
+            }
+
+            // Determine the first available empty row
+            let firstEmptyRow;
+            if (weeklySignups.length === 0 || weeklySignups[1] === undefined || weeklySignups[1].every(cell => cell === '')) {
+                firstEmptyRow = 2; // Start at row 2 if the sheet is empty or only has headers
+            } else {
+                firstEmptyRow = weeklySignups.findIndex(row => !row || row.every(cell => cell === '')) + 2;
+                if (firstEmptyRow === 1) { // If no empty row was found, append to the end
+                    firstEmptyRow = weeklySignups.length + 2;
                 }
             }
 
             // Get the current date for sDate
             const currentDate = new Date().toISOString().split('T')[0];
 
-            // Append the new signup to the Weekly Signups tab
+            // Update the new signup to the first available row in the Weekly Signups tab
             await sheets.spreadsheets.values.update({
                 auth: authClient,
                 spreadsheetId: process.env.SPREADSHEET_ID,
-                range: `Weekly Signups!A${firstAvailableRow}:F${firstAvailableRow}`,
+                range: `Weekly Signups!A${firstEmptyRow}:F${firstEmptyRow}`,
                 valueInputOption: 'RAW',
                 requestBody: {
                     values: [[rosterName, chosenClass, chosenBuild, matchType, currentDate, 'Available']],
                 },
             });
 
-            // Reply with success message
-            await interaction.reply('You have successfully signed up for the weekly event!');
+            // Create an embed to display the signup details
+            const embed = new EmbedBuilder()
+                .setColor(0xFFA500)
+                .setTitle('📜 Weekly Event Signup')
+                .addFields(
+                    { name: 'Player', value: `**${rosterName}**`, inline: true },
+                    { name: 'Class', value: `${classEmojis[chosenClass]} **${chosenClass}**`, inline: true },
+                    { name: 'Build', value: `**${chosenBuild}**`, inline: true },
+                    { name: 'Match Type', value: `${matchTypeEmojis[matchType]} **${matchType}**`, inline: true }
+                )
+                .setTimestamp()
+                .setFooter({ text: 'Successfully signed up for the weekly event!' });
+
+            // Edit the deferred reply with the embed message
+            await interaction.editReply({ embeds: [embed] });
         } catch (error) {
             console.error('Error signing up for the weekly event:', error);
-            await interaction.reply('Failed to sign you up. Please try again later.');
+            await interaction.editReply('Failed to sign you up. Please try again later.');
         }
     },
 
