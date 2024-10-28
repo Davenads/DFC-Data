@@ -29,7 +29,7 @@ module.exports = {
                 .setDescription('Type of ELO ranking')
                 .setRequired(true)
                 .addChoices(
-                    { name: 'Overall', value: 'Current Elo' },
+                    { name: 'Career', value: 'Career Elo' },
                     { name: 'Seasonal', value: 'Seasonal Elo' }
                 )
         ),
@@ -72,7 +72,7 @@ module.exports = {
                 .map(row => ({
                     timestamp: new Date(row[0]), // Timestamp (Column B, adjusted to index 0)
                     player: row[1], // Player name (Column C, adjusted to index 1)
-                    elo: parseInt(parseFloat(row[eloType === 'Current Elo' ? 4 : 10])), // Current or Seasonal Elo (Columns F or L, adjusted to index 4 or 10), rounded to int
+                    elo: parseInt(parseFloat(row[eloType === 'Career Elo' ? 4 : 10])), // Career or Seasonal Elo (Columns F or L, adjusted to index 4 or 10), rounded to int
                 }))
                 .sort((a, b) => b.timestamp - a.timestamp) // Sort by timestamp descending to get the latest entries first
                 .reduce((acc, row) => {
@@ -99,13 +99,13 @@ module.exports = {
 
             // Construct the embed message with emojis and styling
             const embed = new EmbedBuilder()
-                .setTitle(`📊 Top 10 Players - ${matchType} (${eloType}) 📊`)
+                .setTitle(`📊 Top 10 Player ELOs - ${matchType} (${eloType}) `)
                 .setColor('#FFD700')
-                .setThumbnail('https://example.com/elo-icon.png') // Replace with a relevant icon URL
-                .setDescription(`Here are the top 10 players for **${matchType}** (${eloType}):`);
+                .setImage('https://i.imgur.com/TSGdGgw.png') // Replace with a relevant icon URL, moved to be an image instead of thumbnail
+                .setDescription(`Parsed from gsheets "Elo Summary" tab`);
 
             filteredRows.forEach((row, index) => {
-                embed.addFields({ name: `${rankEmojis[index]} - ${row.player}`, value: `ELO: ${row.elo}`, inline: false });
+                embed.addFields({ name: `${rankEmojis[index]} - ${row.player} (${row.elo})`, value: '​​​', inline: false });
             });
 
             await interaction.reply({ embeds: [embed] });
