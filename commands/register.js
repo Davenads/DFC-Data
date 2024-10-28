@@ -91,16 +91,16 @@ module.exports = {
 
             // Create an embed to confirm successful registration
             const embed = new EmbedBuilder()
-                .setTitle('🎉 Registration Successful 🎉')
-                .setColor('#00FF00')
-                .setDescription('✅ You have been successfully added into the data! 🏆')
+                .setTitle('🎉 DFC Registration Successful 🎉')
+                .setColor('#FF4500') // DFC branded color
+                .setDescription("✅ You have been successfully added into the DFC roster! 🏆 You can now use signup to join the weekly events.")
                 .addFields(
                     { name: '🏟️ Arena Name', value: duelerName, inline: true },
                     { name: '👤 Discord Name', value: discordName, inline: true }
                 )
                 .setFooter({ text: 'Good luck in the arena! ⚔️' });
 
-            await interaction.reply({ embeds: [embed] });
+            await interaction.channel.send({ embeds: [embed] });
         } catch (error) {
             console.error('Unexpected error during registration process:', error);
             await interaction.reply('Failed to register. Please try again later.');
