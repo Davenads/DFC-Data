@@ -92,6 +92,11 @@ module.exports = {
                 return;
             }
 
+            // Emojis for ranks
+            const rankEmojis = [
+                '🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'
+            ];
+
             // Construct the embed message with emojis and styling
             const embed = new EmbedBuilder()
                 .setTitle(`📊 Top 10 Players - ${matchType} (${eloType}) 📊`)
@@ -100,7 +105,7 @@ module.exports = {
                 .setDescription(`Here are the top 10 players for **${matchType}** (${eloType}):`);
 
             filteredRows.forEach((row, index) => {
-                embed.addFields({ name: `#${index + 1} - ${row.player}`, value: `ELO: ${row.elo}`, inline: false });
+                embed.addFields({ name: `${rankEmojis[index]} - ${row.player}`, value: `ELO: ${row.elo}`, inline: false });
             });
 
             await interaction.reply({ embeds: [embed] });
