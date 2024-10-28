@@ -13,10 +13,10 @@ const SHEET_NAME = 'Elo Summary';
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('rankings')
-        .setDescription('Get the top 10 ELO rankings by match type and ELO type.')
+        .setDescription('Get the top 10 players by ELO for a specific match type and ELO type.')
         .addStringOption(option =>
             option.setName('match_type')
-                .setDescription('Match type to view rankings for')
+                .setDescription('Type of match')
                 .setRequired(true)
                 .addChoices(
                     { name: 'HLD', value: 'HLD' },
@@ -26,7 +26,7 @@ module.exports = {
         )
         .addStringOption(option =>
             option.setName('elo_type')
-                .setDescription('ELO type to view rankings for')
+                .setDescription('Type of ELO ranking')
                 .setRequired(true)
                 .addChoices(
                     { name: 'Overall', value: 'Current Elo' },
@@ -52,7 +52,7 @@ module.exports = {
             const res = await sheets.spreadsheets.values.get({
                 auth: client,
                 spreadsheetId: SPREADSHEET_ID,
-                range: `${SHEET_NAME}!B:L`, // Adjust range if necessary to include all relevant columns
+                range: `${SHEET_NAME}!B:L`, // Adjust range to include relevant columns
             });
 
             const rows = res.data.values;
@@ -62,43 +62,51 @@ module.exports = {
                 return;
             }
 
-            // Filter rows based on match type and extract ELOs
-            const filteredRows = rows.filter(row => row[10] === matchType); // Assuming column K is "Match Type"
-            const eloColumnIndex = eloType === 'Current Elo' ? 5 : 11; // Column F for Current Elo, Column L for Seasonal Elo
+            // Log match type for debugging
+            console.log('Selected Match Type:', matchType);
+            rows.slice(1).forEach(row => console.log('Row Match Type:', row[9]));
 
-            // Sort rows by ELO and take the top 10, making sure to use the latest timestamp for each player
-            const sortedRows = filteredRows
+            // Filter rows based on match type and ELO type, and get the latest entry for each player
+            const filteredRows = rows.slice(1) // Remove header row
+                .filter(row => row[9] === matchType) // Match type (Column K, adjusted to index 9)
                 .map(row => ({
-                    player: row[2], // Assuming column C is "Player Name"
-                    elo: parseFloat(row[eloColumnIndex]),
-                    timestamp: new Date(row[1]), // Column B is "Timestamp"
+                    timestamp: new Date(row[0]), // Timestamp (Column B, adjusted to index 0)
+                    player: row[1], // Player name (Column C, adjusted to index 1)
+                    elo: parseInt(parseFloat(row[eloType === 'Current Elo' ? 4 : 10])), // Current or Seasonal Elo (Columns F or L, adjusted to index 4 or 10), rounded to int
                 }))
-                .sort((a, b) => b.elo - a.elo || b.timestamp - a.timestamp)
-                .slice(0, 10);
+                .sort((a, b) => b.timestamp - a.timestamp) // Sort by timestamp descending to get the latest entries first
+                .reduce((acc, row) => {
+                    if (!acc.some(r => r.player === row.player)) {
+                        acc.push(row); // Add only the latest entry for each player
+                    }
+                    return acc;
+                }, [])
+                .sort((a, b) => b.elo - a.elo) // Sort by ELO descending
+                .slice(0, 10); // Get top 10 players
 
-            if (sortedRows.length === 0) {
-                await interaction.reply(`No rankings found for match type: ${matchType}.`);
+            // Log filtered data for debugging
+            console.log('Filtered Rows:', filteredRows);
+
+            if (filteredRows.length === 0) {
+                await interaction.reply('No players found for the specified match type and ELO type.');
                 return;
             }
 
             // Construct the embed message with emojis and styling
             const embed = new EmbedBuilder()
-                .setTitle(`🏆 Top 10 ${eloType} Rankings for ${matchType} 🏆`)
+                .setTitle(`📊 Top 10 Players - ${matchType} (${eloType}) 📊`)
                 .setColor('#FFD700')
-                .setThumbnail('https://example.com/rankings-icon.png') // Replace with a relevant icon URL
+                .setThumbnail('https://example.com/elo-icon.png') // Replace with a relevant icon URL
                 .setDescription(`Here are the top 10 players for **${matchType}** (${eloType}):`);
 
-            sortedRows.forEach((row, index) => {
-                const rankEmoji = [
-                    '🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'
-                ][index];
-                embed.addFields({ name: `${rankEmoji} ${row.player}`, value: `ELO: ${row.elo}`, inline: false });
+            filteredRows.forEach((row, index) => {
+                embed.addFields({ name: `#${index + 1} - ${row.player}`, value: `ELO: ${row.elo}`, inline: false });
             });
 
             await interaction.reply({ embeds: [embed] });
         } catch (error) {
-            console.error('Error fetching rankings data:', error);
-            await interaction.reply('An error occurred while fetching the rankings. Please try again later.');
+            console.error('Error fetching ELO data:', error);
+            await interaction.reply('An error occurred while fetching the ELO data. Please try again later.');
         }
     },
 };
