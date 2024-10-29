@@ -24,7 +24,7 @@ module.exports = {
     try {
       const response = await sheets.spreadsheets.values.get({
         auth,
-        spreadsheetId: process.env.SPREADSHEET_ID,
+        spreadsheetId: process.env.QUERY_SPREADSHEET_ID,
         range: 'Current ELO!A2:A',
       });
 
@@ -61,8 +61,8 @@ module.exports = {
     try {
       const response = await sheets.spreadsheets.values.get({
         auth,
-        spreadsheetId: process.env.SPREADSHEET_ID,
-        range: 'Current ELO!A2:G',
+        spreadsheetId: process.env.QUERY_SPREADSHEET_ID,
+        range: 'Current ELO!A2:M',
       });
 
       const rows = response.data.values || [];
@@ -77,7 +77,7 @@ module.exports = {
 
       const embed = {
         color: 0x0099ff,
-        title: `Stats for ${playerName}`,
+        title: `📊 Stats for ${playerName}`,
         fields: [],
         footer: { text: 'DFC Stats' },
       };
@@ -85,19 +85,28 @@ module.exports = {
       // Use only the most recent row for each match type
       const processedMatchTypes = new Set();
       playerRows.forEach(playerData => {
-        const [player, timestamp, matchType, sElo, elo, sEIndex, eIndex] = playerData;
+        const [player, timestamp, matchType, sElo, elo, sEIndex, eIndex, sWins, sLoss, sWinRate, cWins, cLoss, cWinRate] = playerData;
 
         if (!processedMatchTypes.has(matchType)) {
           processedMatchTypes.add(matchType);
 
           const matchTypeFields = [];
-          if (sElo) matchTypeFields.push({ name: 'Seasonal ELO', value: `🏆 ${sElo}`, inline: true });
-          if (elo) matchTypeFields.push({ name: 'Career ELO', value: `📊 ${elo}`, inline: true });
-          if (sEIndex) matchTypeFields.push({ name: 'Seasonal Efficiency Index', value: `⚡ ${sEIndex}`, inline: true });
-          if (eIndex) matchTypeFields.push({ name: 'Career Efficiency Index', value: `💯 ${eIndex}`, inline: true });
+          if (sElo) matchTypeFields.push({ name: 'Seasonal ELO', value: `${sElo}`, inline: true });
+          if (sEIndex) matchTypeFields.push({ name: 'Seasonal Efficiency Index', value: `${sEIndex}`, inline: true });
+          if (sWins || sLoss) matchTypeFields.push({ name: 'Season W/L', value: `${sWins || 0}/${sLoss || 0}`, inline: true });
+          if (sWinRate) matchTypeFields.push({ name: 'Season Winrate', value: `${sWinRate}`, inline: true });
+
+          if (elo) matchTypeFields.push({ name: 'Career ELO', value: `${elo}`, inline: true });
+          if (eIndex) matchTypeFields.push({ name: 'Career Efficiency Index', value: `${eIndex}`, inline: true });
+          if (cWins || cLoss) matchTypeFields.push({ name: 'Career W/L', value: `${cWins || 0}/${cLoss || 0}`, inline: true });
+          if (cWinRate) matchTypeFields.push({ name: 'Career Winrate', value: `${cWinRate}`, inline: true });
 
           if (matchTypeFields.length > 0) {
-            embed.fields.push({ name: `Match Type: ${matchType}`, value: matchTypeFields.map(field => `${field.name}: ${field.value}`).join('\n'), inline: false });
+            embed.fields.push({ name: `${
+        matchType === 'Melee' ? 'Match Type: Melee ⚔️' :
+        matchType === 'HLD' ? 'Match Type: HLD 9️⃣9️⃣' :
+        matchType === 'LLD' ? '30 Match Type: LLD 3️⃣0️⃣' :
+        `Match Type: ${matchType}`}`, value: matchTypeFields.map(field => `${field.name}: ${field.value}`).join('\n'), inline: false });
           }
         }
       });
