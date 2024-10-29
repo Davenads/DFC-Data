@@ -252,7 +252,7 @@ module.exports = {
                 currentPage.forEach((entry, index) => {
                     const rankDisplay = rankEmojis[i + index] || `#${i + index + 1}`;
                     embed.addFields(
-                        { name: `${rankDisplay} - ${entry.player}`, value: `Efficiency Index: ${entry.value.toFixed(2)}`, inline: false }
+                        { name: `${rankDisplay} - ${entry.player}`, value: `Index: ${entry.value.toFixed(2)}`, inline: false }
                     );
                 });
 
