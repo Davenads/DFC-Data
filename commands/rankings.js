@@ -63,8 +63,17 @@ module.exports = {
 
       const rows = response.data.values || [];
 
-      // Filter rows based on match type and parse ELO properly
-      const filteredRows = rows.filter(row => row[2] === matchType) // Match type (Column C)
+      // Filter rows based on match type, remove duplicate entries, and parse ELO properly
+      const uniquePlayers = new Map();
+      rows.filter(row => row[2] === matchType) // Match type (Column C)
+        .forEach(row => {
+          const player = row[0];
+          if (!uniquePlayers.has(player)) {
+            uniquePlayers.set(player, row);
+          }
+        });
+
+      const filteredRows = Array.from(uniquePlayers.values())
         .map(row => {
           const eloValue = row[timeFrame === 'career' ? 4 : 3].replace(/,/g, '');
           console.log(`Parsing ELO for player ${row[0]}: ${eloValue}`);
