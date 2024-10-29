@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { google } = require('googleapis');
 
 module.exports = {
@@ -85,27 +85,76 @@ module.exports = {
         .sort((a, b) => rankType === 'elo' ? b.elo - a.elo : b.eIndex - a.eIndex) // Sort by ELO or Efficiency Index descending
         .slice(0, limit); // Get top players up to the limit specified
 
-      // Build the embed
-      const embed = {
-        color: 0x0099ff,
-        title: `🏆 ${timeFrame === 'career' ? 'Career' : 'Seasonal'} Rankings - ${rankType === 'elo' ? 'ELO' : 'Efficiency Index'} (${matchType})`,
-        fields: [],
-        footer: { text: 'DFC Rankings' },
+      // Emojis for the top 10 ranks
+      const rankEmojis = [
+        '🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'
+      ];
+
+      // Paginate the rankings
+      let currentPage = 0;
+      const totalPages = Math.ceil(filteredRows.length / 10);
+
+      const generateEmbed = (page) => {
+        const embed = {
+          color: 0x0099ff,
+          title: `🏆 ${timeFrame === 'career' ? 'Career' : 'Seasonal'} Rankings - ${rankType === 'elo' ? 'ELO' : 'Efficiency Index'} (${matchType}) - Page ${page + 1}/${totalPages}`,
+          fields: [],
+          footer: { text: 'DFC Rankings' },
+        };
+
+        filteredRows.slice(page * 10, (page + 1) * 10).forEach((player, index) => {
+          const rank = page * 10 + index + 1;
+          const rankEmoji = rank <= 10 ? rankEmojis[rank - 1] : `#${rank}`;
+          console.log(`Player ${player.player} - ELO: ${player.elo}`);
+          embed.fields.push({
+            name: `${rankEmoji} - ${player.player}`,
+            value: `ELO: ${player.elo}
+            Efficiency Index: ${player.eIndex}
+            Wins/Losses: ${timeFrame === 'career' ? player.wins : player.sWins}/${timeFrame === 'career' ? player.loss : player.sLoss}
+            Win Rate: ${timeFrame === 'career' ? player.winRate : player.sWinRate}`,
+            inline: false,
+          });
+        });
+        return embed;
       };
 
-      filteredRows.forEach((player, index) => {
-        console.log(`Player ${player.player} - ELO: ${player.elo}`);
-        embed.fields.push({
-          name: `#${index + 1} - ${player.player}`,
-          value: `ELO: ${player.elo}
-          Efficiency Index: ${player.eIndex}
-          Wins/Losses: ${timeFrame === 'career' ? player.wins : player.sWins}/${timeFrame === 'career' ? player.loss : player.sLoss}
-          Win Rate: ${timeFrame === 'career' ? player.winRate : player.sWinRate}`,
-          inline: false,
-        });
+      const updateReply = async () => {
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('prev_page')
+            .setLabel('Previous')
+            .setStyle(ButtonStyle.Primary)
+            .setDisabled(currentPage === 0),
+          new ButtonBuilder()
+            .setCustomId('next_page')
+            .setLabel('Next')
+            .setStyle(ButtonStyle.Primary)
+            .setDisabled(currentPage === totalPages - 1),
+        );
+
+        await interaction.editReply({ embeds: [generateEmbed(currentPage)], components: [row] });
+      };
+
+      await updateReply();
+
+      const collector = interaction.channel.createMessageComponentCollector({
+        filter: i => i.user.id === interaction.user.id,
+        time: 60000,
       });
 
-      await interaction.editReply({ embeds: [embed] });
+      collector.on('collect', async i => {
+        if (i.customId === 'prev_page' && currentPage > 0) {
+          currentPage--;
+        } else if (i.customId === 'next_page' && currentPage < totalPages - 1) {
+          currentPage++;
+        }
+        await i.deferUpdate();
+        await updateReply();
+      });
+
+      collector.on('end', async () => {
+        await interaction.editReply({ components: [] });
+      });
     } catch (error) {
       console.error('Error fetching rankings:', error);
       await interaction.editReply({ content: 'There was an error while retrieving the rankings.', ephemeral: true });
