@@ -83,14 +83,15 @@ module.exports = {
             matchType: row[2],
             elo: parseFloat(eloValue), // Remove commas and parse ELO (Columns E or D)
             eIndex: parseFloat(row[timeFrame === 'career' ? 6 : 5]), // Career or Seasonal Efficiency Index (Columns G or F)
-            sWins: parseInt(row[7]),
-            sLoss: parseInt(row[8]),
-            sWinRate: row[9],
-            wins: parseInt(row[10]),
-            loss: parseInt(row[11]),
-            winRate: row[12],
+            sWins: parseInt(row[7]) || 0,
+            sLoss: parseInt(row[8]) || 0,
+            sWinRate: row[9] || '0%',
+            wins: parseInt(row[10]) || 0,
+            loss: parseInt(row[11]) || 0,
+            winRate: row[12] || '0%',
           };
         })
+        .filter(player => timeFrame === 'career' || player.sWins > 0 || player.sLoss > 0) // Exclude players with no seasonal data
         .sort((a, b) => rankType === 'elo' ? b.elo - a.elo : b.eIndex - a.eIndex) // Sort by ELO or Efficiency Index descending
         .slice(0, limit); // Get top players up to the limit specified
 
@@ -99,9 +100,9 @@ module.exports = {
         '🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'
       ];
 
-      // Paginate the rankings
+      // Paginate the rankings, 5 per page
       let currentPage = 0;
-      const totalPages = Math.ceil(filteredRows.length / 10);
+      const totalPages = Math.ceil(filteredRows.length / 5);
 
       const generateEmbed = (page) => {
         const embed = {
@@ -111,8 +112,8 @@ module.exports = {
           footer: { text: 'DFC Rankings' },
         };
 
-        filteredRows.slice(page * 10, (page + 1) * 10).forEach((player, index) => {
-          const rank = page * 10 + index + 1;
+        filteredRows.slice(page * 5, (page + 1) * 5).forEach((player, index) => {
+          const rank = page * 5 + index + 1;
           const rankEmoji = rank <= 10 ? rankEmojis[rank - 1] : `#${rank}`;
           console.log(`Player ${player.player} - ELO: ${player.elo}`);
           embed.fields.push({

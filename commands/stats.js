@@ -90,24 +90,25 @@ module.exports = {
         if (!processedMatchTypes.has(matchType)) {
           processedMatchTypes.add(matchType);
 
-          const matchTypeFields = [];
-          if (sElo) matchTypeFields.push({ name: 'Seasonal ELO', value: `${sElo}`, inline: true });
-          if (sEIndex) matchTypeFields.push({ name: 'Seasonal Efficiency Index', value: `${sEIndex}`, inline: true });
-          if (sWins || sLoss) matchTypeFields.push({ name: 'Season W/L', value: `${sWins || 0}/${sLoss || 0}`, inline: true });
-          if (sWinRate) matchTypeFields.push({ name: 'Season Winrate', value: `${sWinRate}`, inline: true });
+          const seasonalStats = [
+            sElo && `ELO: ${sElo}`,
+            sEIndex && `Efficiency Index: ${sEIndex}`,
+            (sWins || sLoss) && `W/L: ${sWins || 0}/${sLoss || 0}`,
+            sWinRate && `Winrate: ${sWinRate}`
+          ].filter(Boolean).join('\n');
 
-          if (elo) matchTypeFields.push({ name: 'Career ELO', value: `${elo}`, inline: true });
-          if (eIndex) matchTypeFields.push({ name: 'Career Efficiency Index', value: `${eIndex}`, inline: true });
-          if (cWins || cLoss) matchTypeFields.push({ name: 'Career W/L', value: `${cWins || 0}/${cLoss || 0}`, inline: true });
-          if (cWinRate) matchTypeFields.push({ name: 'Career Winrate', value: `${cWinRate}`, inline: true });
+          const careerStats = [
+            elo && `ELO: ${elo}`,
+            eIndex && `Efficiency Index: ${eIndex}`,
+            (cWins || cLoss) && `W/L: ${cWins || 0}/${cLoss || 0}`,
+            cWinRate && `Winrate: ${cWinRate}`
+          ].filter(Boolean).join('\n');
 
-          if (matchTypeFields.length > 0) {
-            embed.fields.push({ name: `${
-        matchType === 'Melee' ? 'Match Type: Melee ⚔️' :
-        matchType === 'HLD' ? 'Match Type: HLD 9️⃣9️⃣' :
-        matchType === 'LLD' ? '30 Match Type: LLD 3️⃣0️⃣' :
-        `Match Type: ${matchType}`}`, value: matchTypeFields.map(field => `${field.name}: ${field.value}`).join('\n'), inline: false });
-          }
+          embed.fields.push({
+            name: matchType,
+            value: `**Seasonal Stats**:\n${seasonalStats}\n\n**Career Stats**:\n${careerStats}`,
+            inline: true
+          });
         }
       });
 
