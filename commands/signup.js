@@ -69,6 +69,7 @@ module.exports = {
         chosenClass = chosenClass.charAt(0).toUpperCase() + chosenClass.slice(1);
         const chosenBuild = interaction.options.getString('build');
         const matchType = interaction.options.getString('match_type');
+        const discordId = interaction.user.id;
 
         try {
             // Defer the reply to prevent timeout
@@ -76,60 +77,42 @@ module.exports = {
             // Authenticate with Google Sheets
             const authClient = await auth.getClient();
 
-            // Fetch data from the Roster tab to cross-check the user
-            const res = await sheets.spreadsheets.values.get({
+            // Fetch current data from Signups tab to determine if user already signed up for this match type
+            const signupsRes = await sheets.spreadsheets.values.get({
                 auth: authClient,
                 spreadsheetId: process.env.SPREADSHEET_ID,
-                range: 'Roster!A:D',
-            });
-
-            const roster = res.data.values || [];
-
-            // Verify that the user is registered in the Roster tab and get their name
-            const discordId = interaction.user.id;
-            const rosterEntry = roster.find(row => row[3] === discordId);
-            if (!rosterEntry) {
-                return interaction.editReply('You must be registered in the roster before signing up for the weekly event. Use /register to get started.');
-            }
-            const rosterName = rosterEntry[0];
-
-            // Fetch current data from Weekly Signups tab to determine if match type already exists for the user
-            const weeklyRes = await sheets.spreadsheets.values.get({
-                auth: authClient,
-                spreadsheetId: process.env.SPREADSHEET_ID,
-                range: 'Weekly Signups!A:F',
+                range: 'DFC Bot Signups!A:G',
                 majorDimension: 'ROWS'
             });
 
-            const weeklySignups = weeklyRes.data.values || [];
-            const existingSignup = weeklySignups.find(row => row[0] === rosterName && row[3] === matchType);
+            const signups = signupsRes.data.values || [];
 
+            // Check if the user is already signed up for the specified match type
+            const existingSignup = signups.find(row => row[5] === discordId && row[2] === matchType);
             if (existingSignup) {
                 return interaction.editReply('You have already signed up for this match type. Please choose a different match type or update your existing signup.');
             }
 
-            // Determine the first available empty row
-            let firstEmptyRow;
-            if (weeklySignups.length === 0 || weeklySignups[1] === undefined || weeklySignups[1].every(cell => cell === '')) {
-                firstEmptyRow = 2; // Start at row 2 if the sheet is empty or only has headers
-            } else {
-                firstEmptyRow = weeklySignups.findIndex(row => !row || row.every(cell => cell === '')) + 2;
-                if (firstEmptyRow === 1) { // If no empty row was found, append to the end
-                    firstEmptyRow = weeklySignups.length + 2;
+            // Determine the first available empty row based on column B (Discord Handle)
+            let firstEmptyRow = signups.length + 1;
+            for (let i = 1; i < signups.length; i++) {
+                if (!signups[i] || !signups[i][1]) { // Check if column B (Discord Handle) is empty
+                    firstEmptyRow = i + 1;
+                    break;
                 }
             }
 
-            // Get the current date for sDate
-            const currentDate = new Date().toISOString().split('T')[0];
+            // Get the current timestamp
+            const timestamp = new Date().toLocaleString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(',', '');
 
-            // Update the new signup to the first available row in the Weekly Signups tab
+            // Update the new signup to the first available row in the DFC Bot Signups tab
             await sheets.spreadsheets.values.update({
                 auth: authClient,
                 spreadsheetId: process.env.SPREADSHEET_ID,
-                range: `Weekly Signups!A${firstEmptyRow}:F${firstEmptyRow}`,
+                range: `DFC Bot Signups!A${firstEmptyRow}:G${firstEmptyRow}`,
                 valueInputOption: 'RAW',
                 requestBody: {
-                    values: [[rosterName, chosenClass, chosenBuild, matchType, currentDate, 'Available']],
+                    values: [[timestamp, discordName, matchType, chosenClass, chosenBuild, discordId, '']]
                 },
             });
 
@@ -138,7 +121,7 @@ module.exports = {
                 .setColor(0xFFA500)
                 .setTitle('📜 Weekly Event Signup')
                 .addFields(
-                    { name: 'Player', value: `**${rosterName}**`, inline: true },
+                    { name: 'Player', value: `**${discordName}**`, inline: true },
                     { name: 'Class', value: `${classEmojis[chosenClass]} **${chosenClass}**`, inline: true },
                     { name: 'Build', value: `**${chosenBuild}**`, inline: true },
                     { name: 'Match Type', value: `${matchTypeEmojis[matchType]} **${matchType}**`, inline: true }
