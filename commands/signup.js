@@ -103,14 +103,14 @@ module.exports = {
             }
 
             // Get the current timestamp
-            const timestamp = new Date().toLocaleString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(',', '');
+            const timestamp = new Date().toLocaleString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(',', '');
 
             // Update the new signup to the first available row in the DFC Bot Signups tab
             await sheets.spreadsheets.values.update({
-                auth: authClient,
-                spreadsheetId: process.env.SPREADSHEET_ID,
-                range: `DFC Bot Signups!A${firstEmptyRow}:G${firstEmptyRow}`,
-                valueInputOption: 'RAW',
+auth: authClient,
+spreadsheetId: process.env.SPREADSHEET_ID,
+range: `DFC Bot Signups!A${firstEmptyRow}:G${firstEmptyRow}`,
+valueInputOption: 'USER_ENTERED',
                 requestBody: {
                     values: [[timestamp, discordName, matchType, chosenClass, chosenBuild, discordId, '']]
                 },
