@@ -1,1 +1,1 @@
-web: npm start
+web: NODE_OPTIONS=--openssl-legacy-provider npm start
