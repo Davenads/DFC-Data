@@ -1,4 +1,5 @@
 const { google } = require('googleapis');
+const { JWT } = require('google-auth-library');
 
 /**
  * Properly formats the Google private key from environment variables
@@ -8,10 +9,34 @@ const { google } = require('googleapis');
  */
 function getPrivateKey() {
   try {
-    const key = process.env.GOOGLE_PRIVATE_KEY;
+    // First try to use base64 encoded key (most reliable method across platforms)
+    if (process.env.GOOGLE_PRIVATE_KEY_BASE64) {
+      try {
+        console.log('Using base64 encoded private key');
+        const decodedKey = Buffer.from(process.env.GOOGLE_PRIVATE_KEY_BASE64, 'base64').toString('utf8');
+        // If it's a JSON service account key file, extract the private_key property
+        if (decodedKey.includes('"private_key":')) {
+          try {
+            const keyObj = JSON.parse(decodedKey);
+            if (keyObj.private_key) {
+              console.log('Extracted private_key from decoded JSON');
+              return keyObj.private_key;
+            }
+          } catch (e) {
+            console.log('Decoded content is not valid JSON, using as-is');
+          }
+        }
+        return decodedKey;
+      } catch (e) {
+        console.error('Error decoding base64 key:', e.message);
+      }
+    }
+    
+    // Fall back to regular key if base64 is not provided or fails
+    let key = process.env.GOOGLE_PRIVATE_KEY;
     
     if (!key) {
-      throw new Error('GOOGLE_PRIVATE_KEY environment variable is not set');
+      throw new Error('No Google private key found. Set either GOOGLE_PRIVATE_KEY or GOOGLE_PRIVATE_KEY_BASE64');
     }
     
     // Log key format information for debugging (without exposing actual key content)
@@ -25,59 +50,27 @@ function getPrivateKey() {
     console.log(`- First 10 chars (sanitized): ${key.substring(0, 10).replace(/[A-Za-z0-9+/=]/g, '*')}`);
     console.log(`- Last 10 chars (sanitized): ${key.substring(key.length - 10).replace(/[A-Za-z0-9+/=]/g, '*')}`);
     
-    // Check if the key is already properly formatted with PEM headers
-    if (key.includes('-----BEGIN PRIVATE KEY-----') && key.includes('-----END PRIVATE KEY-----')) {
-      console.log('Using key with existing PEM headers');
-      return key;
-    }
-    
-    // Handle escaped newlines
-    if (key.includes('\\n')) {
-      console.log('Replacing escaped newlines in key');
-      return key.replace(/\\n/g, '\n');
-    }
-    
-    // Try to handle if key is JSON stringified
+    // Remove any surrounding quotes
     if (key.startsWith('"') && key.endsWith('"')) {
-      try {
-        console.log('Attempting to parse key as JSON string');
-        // Parse the JSON string and check if the result has newlines to replace
-        const parsedKey = JSON.parse(key);
-        if (typeof parsedKey === 'string' && parsedKey.includes('\\n')) {
-          console.log('Replacing escaped newlines in JSON parsed key');
-          return parsedKey.replace(/\\n/g, '\n');
-        }
-        console.log('Using JSON parsed key');
-        return parsedKey;
-      } catch (e) {
-        console.log('Failed to parse key as JSON string, proceeding with original key');
-      }
+      key = key.substring(1, key.length - 1);
+      console.log('Removed surrounding quotes from key');
     }
     
-    // If key seems to be base64 encoded, try to decode it
-    if (!key.includes('-----BEGIN') && /^[A-Za-z0-9+/=]+$/.test(key)) {
-      try {
-        console.log('Attempting to decode key as base64');
-        const decodedKey = Buffer.from(key, 'base64').toString('ascii');
-        // Check if decoded result looks like a private key
-        if (decodedKey.includes('-----BEGIN PRIVATE KEY-----')) {
-          console.log('Using base64 decoded key');
-          return decodedKey;
-        }
-      } catch (e) {
-        console.log('Failed to decode key as base64, proceeding with original key');
-      }
+    // Always replace escaped newlines with actual newlines
+    if (key.includes('\\n')) {
+      key = key.replace(/\\n/g, '\n');
+      console.log('Replaced escaped newlines in key');
     }
     
-    // If we can't determine format but key has no PEM headers, assume it's the raw key content
-    // and add PEM headers manually
-    if (!key.includes('-----BEGIN')) {
-      console.log('Adding PEM headers to key');
-      return `-----BEGIN PRIVATE KEY-----\n${key}\n-----END PRIVATE KEY-----`;
+    // Check if the key is properly formatted
+    if (!key.startsWith('-----BEGIN PRIVATE KEY-----')) {
+      console.log('Key does not start with proper header');
     }
     
-    // If all else fails, return the key as is
-    console.log('Using key as-is - no format transformations applied');
+    if (!key.endsWith('-----END PRIVATE KEY-----')) {
+      console.log('Key does not end with proper footer');
+    }
+    
     return key;
   } catch (error) {
     console.error('Error formatting private key:', error.message);
@@ -91,13 +84,39 @@ function getPrivateKey() {
  * @returns {google.auth.GoogleAuth} Google Auth instance
  */
 function createGoogleAuth(scopes = ['https://www.googleapis.com/auth/spreadsheets']) {
-  return new google.auth.GoogleAuth({
-    credentials: {
-      client_email: process.env.GOOGLE_CLIENT_EMAIL,
-      private_key: getPrivateKey(),
-    },
-    scopes,
-  });
+  try {
+    // Try the direct JWT approach first - more reliable on Heroku
+    console.log('Creating JWT client directly');
+    
+    // Get the email and key
+    const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
+    const privateKey = getPrivateKey();
+    
+    if (!clientEmail) {
+      throw new Error('GOOGLE_CLIENT_EMAIL environment variable is not set');
+    }
+    
+    // Create JWT client
+    const jwt = new JWT({
+      email: clientEmail,
+      key: privateKey,
+      scopes: scopes
+    });
+    
+    return jwt;
+  } catch (error) {
+    console.error('Error creating JWT client:', error);
+    
+    // Fall back to GoogleAuth if JWT fails
+    console.log('Falling back to GoogleAuth');
+    return new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_CLIENT_EMAIL,
+        private_key: getPrivateKey(),
+      },
+      scopes,
+    });
+  }
 }
 
 module.exports = {
