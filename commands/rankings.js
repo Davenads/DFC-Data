@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { google } = require('googleapis');
+const { createGoogleAuth } = require('../utils/googleAuth');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -44,13 +45,7 @@ module.exports = {
     const limit = interaction.options.getInteger('limit');
 
     const sheets = google.sheets('v4');
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\n/g, '\n'),
-      },
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
+    const auth = createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
 
     await interaction.deferReply(); // Defer the reply to avoid timeouts
 

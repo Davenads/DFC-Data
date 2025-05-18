@@ -22,6 +22,8 @@ DFC-DATA/
 │   └── commandHandler.js
 ├── config/              # Configuration files for credentials and settings
 │   └── googleConfig.js
+├── utils/               # Utility functions
+│   └── googleAuth.js    # Google authentication utilities
 ├── .env                 # Environment variables (API keys, tokens)
 ├── .gitignore           # To exclude node_modules, .env, etc.
 ├── index.js             # Main entry point of the bot
@@ -62,6 +64,25 @@ DFC-DATA/
    SHEET_ID=your-google-sheet-id
    ```
 
+   **Important Note for Google Private Key:**
+   When setting the `GOOGLE_PRIVATE_KEY` in environment variables, especially for hosting platforms like Heroku, you must ensure the private key is properly formatted:
+
+   - **Local Development**: In your `.env` file, surround the private key with double quotes and use `\\n` for newlines:
+     ```
+     GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYour_Key_Here\n-----END PRIVATE KEY-----"
+     ```
+
+   - **Heroku Deployment**: Set the private key using the Heroku CLI with the following command:
+     ```bash
+     heroku config:set GOOGLE_PRIVATE_KEY="$(cat your-key-file.json | jq -r '.private_key')"
+     ```
+     Alternatively, in the Heroku dashboard, paste the private key exactly as it appears in your JSON file, with actual newlines, not `\n` characters.
+
+   - **Node.js Version**: Ensure your Heroku app uses Node.js 18 or later, as the application requires more recent crypto libraries to work properly with Google authentication.
+     ```bash
+     heroku stack:set heroku-22
+     ```
+
 ### Running the Bot
 
 To start the bot, run the following command:
@@ -79,6 +100,13 @@ node index.js
 ## Google Sheets Integration
 
 The bot uses Google Sheets to store player data, matchups, and results. The `googleConfig.js` file handles Google Sheets API authentication and provides an interface for commands to interact with the Sheets.
+
+### Google Authentication Utilities
+
+The `utils/googleAuth.js` provides utility functions for Google API authentication:
+
+- `getPrivateKey()`: Formats the Google API private key from environment variables by handling various possible formats (escaped newlines, base64 encoded)
+- `createGoogleAuth(scopes)`: Creates a Google Auth instance with the necessary credentials and scopes, properly handling the private key format
 
 ## Deployment
 

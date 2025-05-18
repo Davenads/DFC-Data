@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { google } = require('googleapis');
 const http = require('http');
+const { createGoogleAuth } = require('./utils/googleAuth');
 
 // Initialize the Discord client with the necessary intents
 const client = new Client({
@@ -17,13 +18,7 @@ const client = new Client({
 
 // Google Sheets API setup
 const sheets = google.sheets('v4');
-const auth = new google.auth.GoogleAuth({
-    credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-    },
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-});
+const auth = createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
 
 // Create a collection to store commands
 client.commands = new Collection();

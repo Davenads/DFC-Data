@@ -2,6 +2,7 @@ require('dotenv').config();
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { google } = require('googleapis');
 const { EmbedBuilder } = require('discord.js');
+const { createGoogleAuth } = require('../utils/googleAuth');
 
 // Initialize Google Sheets API
 const sheets = google.sheets('v4');
@@ -35,13 +36,7 @@ module.exports = {
 
         try {
             // Fetch data from the Google Sheet
-            const auth = new google.auth.GoogleAuth({
-                credentials: {
-                    client_email: process.env.GOOGLE_CLIENT_EMAIL,
-                    private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\n/g, '\n'),
-                },
-                scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-            });
+            const auth = createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets.readonly']);
 
             const client = await auth.getClient();
 
@@ -111,13 +106,7 @@ module.exports = {
 
         try {
             // Fetch data from the Google Sheet to get all dueler names for autocomplete
-            const auth = new google.auth.GoogleAuth({
-                credentials: {
-                    client_email: process.env.GOOGLE_CLIENT_EMAIL,
-                    private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\n/g, '\n'),
-                },
-                scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-            });
+            const auth = createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets.readonly']);
 
             const client = await auth.getClient();
 
