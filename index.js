@@ -3,6 +3,7 @@ const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const { google } = require('googleapis');
+const http = require('http');
 
 // Initialize the Discord client with the necessary intents
 const client = new Client({
@@ -79,3 +80,20 @@ client.on('interactionCreate', async interaction => {
 
 // Login to Discord with your bot token
 client.login(process.env.BOT_TOKEN);
+
+// Create a basic HTTP server to satisfy Heroku's port binding requirement
+// Only create an HTTP server if we're in a production environment or PORT is explicitly set
+if (process.env.PORT || process.env.NODE_ENV === 'production') {
+    const PORT = process.env.PORT || 3000;
+    const server = http.createServer((req, res) => {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'text/plain');
+        res.end('Discord bot is running!\n');
+    });
+
+    server.listen(PORT, () => {
+        console.log(`HTTP server running on port ${PORT} (environment: ${process.env.NODE_ENV || 'development'})`);
+    });
+} else {
+    console.log('Running in development mode without HTTP server');
+}
