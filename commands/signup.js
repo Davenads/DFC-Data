@@ -1,157 +1,43 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('@discordjs/builders');
-const { AutocompleteInteraction } = require('discord.js');
-
-const classBuildOptions = {
-    druid: ['Wind', 'Shaman', 'Fire Druid', 'Summon', 'Fury', 'Other'],
-    assassin: ['Ghost', 'Trapper', 'Spider', 'Blade', 'Kicker', 'Hybrid WOF', 'Hybrid LS', 'Hybrid WW', 'Other'],
-    amazon: ['Tribrid', 'Telebow', 'Fort Tele Zon', 'CS Hybrid Bowa', 'CS Zon', 'Hybrid', 'Walkbow', 'Jab', 'Javazon', 'Other'],
-    sorceress: ['Bow Sorc', 'Cold ES', 'Cold Vita', 'Fire ES', 'Lite ES', 'Lite Vita', 'Fire Vita', 'Other'],
-    paladin: ['T/V', 'Murderdin', 'Mage', 'Auradin', 'V/T', 'Hammerdin', 'Vanquisher', 'V/C', 'Zealot', 'Ranger', 'Poondin', 'Liberator', 'Zeal/FoH', 'Charger', 'Other'],
-    necromancer: ['Poison', 'Bone', 'Bone/Psn Hybrid', 'Psn Dagger', 'Other'],
-    barbarian: ['Throw/WW Hybrid', 'BvC', 'BvB', 'BvA', 'Singer', 'Concentrate', 'Other']
-};
-
-const classEmojis = {
-    Paladin: '⚔️',
-    Necromancer: '💀',
-    Assassin: '🗡️',
-    Druid: '🐺',
-    Amazon: '🏹',
-    Sorceress: '🔮',
-    Barbarian: '🛡️'
-};
-
-const matchTypeEmojis = {
-    HLD: '🏆',
-    LLD: '🥇',
-    Melee: '⚔️'
-};
+const { SlashCommandBuilder } = require('@discordjs/builders');
+const { EmbedBuilder } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('signup')
-        .setDescription('Sign up for the weekly event')
-        .addStringOption(option =>
-            option.setName('class')
-                .setDescription('Choose your class')
-                .setRequired(true)
-                .addChoices(
-                    { name: 'Paladin', value: 'paladin' },
-                    { name: 'Necromancer', value: 'necromancer' },
-                    { name: 'Assassin', value: 'assassin' },
-                    { name: 'Druid', value: 'druid' },
-                    { name: 'Amazon', value: 'amazon' },
-                    { name: 'Sorceress', value: 'sorceress' },
-                    { name: 'Barbarian', value: 'barbarian' }
-                )
-        )
-        .addStringOption(option =>
-            option.setName('build')
-                .setDescription('Specify your build')
-                .setRequired(true)
-                .setAutocomplete(true)
-        )
-        .addStringOption(option =>
-            option.setName('match_type')
-                .setDescription('Specify the match type (HLD, LLD, Melee)')
-                .setRequired(true)
-                .addChoices(
-                    { name: 'HLD', value: 'HLD' },
-                    { name: 'LLD', value: 'LLD' },
-                    { name: 'Melee', value: 'Melee' }
-                )
-        ),
+        .setDescription('Sign up for the weekly DFC event'),
     role: 'DFC Dueler',
 
-    async execute(interaction, sheets, auth) {
-        const discordName = interaction.user.username;
-        let chosenClass = interaction.options.getString('class');
-        chosenClass = chosenClass.charAt(0).toUpperCase() + chosenClass.slice(1);
-        const chosenBuild = interaction.options.getString('build');
-        const matchType = interaction.options.getString('match_type');
-        const discordId = interaction.user.id;
-
+    async execute(interaction) {
+        const timestamp = new Date().toISOString();
+        const user = interaction.user;
+        const guildName = interaction.guild ? interaction.guild.name : 'DM';
+        const channelName = interaction.channel ? interaction.channel.name : 'Unknown';
+        
+        console.log(`[${timestamp}] Executing signup command:
+        User: ${user.tag} (${user.id})
+        Server: ${guildName} (${interaction.guildId || 'N/A'})
+        Channel: ${channelName} (${interaction.channelId})`);
+        
         try {
-            // Defer the reply to prevent timeout
-            await interaction.deferReply();
-            // Authenticate with Google Sheets
-            const authClient = await auth.getClient();
-
-            // Fetch current data from Signups tab to determine if user already signed up for this match type
-            const signupsRes = await sheets.spreadsheets.values.get({
-                auth: authClient,
-                spreadsheetId: process.env.SPREADSHEET_ID,
-                range: 'DFC Bot Signups!A:G',
-                majorDimension: 'ROWS'
-            });
-
-            const signups = signupsRes.data.values || [];
-
-            // Check if the user is already signed up for the specified match type
-            const existingSignup = signups.find(row => row[5] === discordId && row[2] === matchType);
-            if (existingSignup) {
-                return interaction.editReply('You have already signed up for this match type. Please choose a different match type or update your existing signup.');
-            }
-
-            // Determine the first available empty row based on column B (Discord Handle)
-            let firstEmptyRow = signups.length + 1;
-            for (let i = 1; i < signups.length; i++) {
-                if (!signups[i] || !signups[i][1]) { // Check if column B (Discord Handle) is empty
-                    firstEmptyRow = i + 1;
-                    break;
-                }
-            }
-
-            // Get the current timestamp
-            const timestamp = new Date().toLocaleString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(',', '');
-
-            // Update the new signup to the first available row in the DFC Bot Signups tab
-            await sheets.spreadsheets.values.update({
-auth: authClient,
-spreadsheetId: process.env.SPREADSHEET_ID,
-range: `DFC Bot Signups!A${firstEmptyRow}:G${firstEmptyRow}`,
-valueInputOption: 'USER_ENTERED',
-                requestBody: {
-                    values: [[timestamp, discordName, matchType, chosenClass, chosenBuild, discordId, '']]
-                },
-            });
-
-            // Create an embed to display the signup details
+            // Create an embed with the Google Form link
             const embed = new EmbedBuilder()
                 .setColor(0xFFA500)
-                .setTitle('📜 Weekly Event Signup')
+                .setTitle('📜 Weekly DFC Event Signup')
+                .setDescription('Please fill out the Google Form below to sign up for the weekly DFC event:')
                 .addFields(
-                    { name: 'Player', value: `**${discordName}**`, inline: true },
-                    { name: 'Class', value: `${classEmojis[chosenClass]} **${chosenClass}**`, inline: true },
-                    { name: 'Build', value: `**${chosenBuild}**`, inline: true },
-                    { name: 'Match Type', value: `${matchTypeEmojis[matchType]} **${matchType}**`, inline: true }
+                    { name: 'Registration Form', value: ':fire: [Click here to register](https://voxelfox.co.uk/gforms?f=1FAIpQLSeviV0Uz8ufF6P58TsPmI_F2gsnJDLyJTbiy_-FDZgcmb7TfQ/&u=2092238618&i=) :fire:' }
                 )
+                .setImage('https://i.imgur.com/GQssDxO.png')
                 .setTimestamp()
-                .setFooter({ text: 'Successfully signed up for the weekly event!' });
+                .setFooter({ text: 'DFC Weekly Event' });
 
-            // Edit the deferred reply with the embed message
-            await interaction.editReply({ embeds: [embed] });
+            // Send the embed as an ephemeral reply (only visible to the command user)
+            await interaction.reply({ embeds: [embed], ephemeral: true });
+            console.log(`[${timestamp}] Signup form sent successfully to ${user.tag} (${user.id})`);
         } catch (error) {
-            console.error('Error signing up for the weekly event:', error);
-            await interaction.editReply('Failed to sign you up. Please try again later.');
-        }
-    },
-
-    async autocomplete(interaction) {
-        if (interaction instanceof AutocompleteInteraction) {
-            const chosenClass = interaction.options.getString('class');
-            const focusedValue = interaction.options.getFocused();
-
-            if (chosenClass && classBuildOptions[chosenClass]) {
-                const filteredOptions = classBuildOptions[chosenClass].filter(option =>
-                    option.toLowerCase().includes(focusedValue.toLowerCase())
-                );
-                await interaction.respond(
-                    filteredOptions.slice(0, 25).map(option => ({ name: option, value: option }))
-                );
-            } else {
-                await interaction.respond([]);
-            }
+            const errorMessage = `[${timestamp}] Error sending signup form to ${user.tag} (${user.id}):`;
+            console.error(errorMessage, error);
+            await interaction.reply({ content: 'Failed to send the signup form. Please try again later.', ephemeral: true });
         }
     }
 };

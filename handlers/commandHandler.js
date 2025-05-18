@@ -21,18 +21,27 @@ module.exports = (client) => {
 
         const command = client.commands.get(interaction.commandName);
 
-        console.log(`Command invoked: ${interaction.commandName} by ${interaction.user.tag} (${interaction.user.id})`);
+        const timestamp = new Date().toISOString();
+        const user = interaction.user;
+        const guildName = interaction.guild ? interaction.guild.name : 'DM';
+        const channelName = interaction.channel ? interaction.channel.name : 'Unknown';
+        
+        console.log(`[${timestamp}] Command invoked: ${interaction.commandName} 
+        User: ${user.tag} (${user.id})
+        Server: ${guildName} (${interaction.guildId || 'N/A'})
+        Channel: ${channelName} (${interaction.channelId})
+        Options: ${JSON.stringify(interaction.options?.data || {})}`);
 
         if (!command) {
-            console.warn(`No command found for: ${interaction.commandName}`);
+            console.warn(`[${timestamp}] No command found for: ${interaction.commandName}`);
             return;
         }
 
         try {
             await command.execute(interaction);
-            console.log(`Command ${interaction.commandName} executed successfully.`);
+            console.log(`[${timestamp}] Command ${interaction.commandName} executed successfully.`);
         } catch (error) {
-            console.error(`[${new Date().toISOString()}] Error executing command ${interaction.commandName}:`, error);
+            console.error(`[${timestamp}] Error executing command ${interaction.commandName}:`, error);
             await interaction.reply({ content: 'There was an error executing this command!', ephemeral: true });
         }
     });

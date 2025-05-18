@@ -12,6 +12,14 @@ module.exports = {
         .setRequired(true)),
 
   async autocomplete(interaction) {
+    const timestamp = new Date().toISOString();
+    const focusedValue = interaction.options.getFocused();
+    const user = interaction.user;
+    
+    console.log(`[${timestamp}] Processing stats autocomplete:
+    User: ${user.tag} (${user.id})
+    Search Term: ${focusedValue}`);
+    
     const sheets = google.sheets('v4');
     const auth = new google.auth.GoogleAuth({
       credentials: {
@@ -36,17 +44,29 @@ module.exports = {
         player.toLowerCase().includes(focusedValue)
       ).slice(0, 25); // Limit to 25 players to meet Discord's requirements
 
-      await interaction.respond(
-        filteredPlayers.map(player => ({ name: player, value: player }))
-      );
+      const results = filteredPlayers.map(player => ({ name: player, value: player }));
+      await interaction.respond(results);
+      console.log(`[${timestamp}] Stats autocomplete returned ${results.length} results for user ${user.tag} (${user.id}) search: "${focusedValue}"`);
     } catch (error) {
-      console.error('Error fetching player names:', error);
+      const errorMessage = `[${timestamp}] Error fetching player names for autocomplete by ${user.tag} (${user.id})`;
+      console.error(errorMessage, error);
       await interaction.respond([]);
     }
   },
 
   async execute(interaction) {
     const playerName = interaction.options.getString('player');
+    const timestamp = new Date().toISOString();
+    const user = interaction.user;
+    const guildName = interaction.guild ? interaction.guild.name : 'DM';
+    const channelName = interaction.channel ? interaction.channel.name : 'Unknown';
+    
+    console.log(`[${timestamp}] Executing stats command:
+    User: ${user.tag} (${user.id})
+    Server: ${guildName} (${interaction.guildId || 'N/A'})
+    Channel: ${channelName} (${interaction.channelId})
+    Player: ${playerName}`);
+    
     const sheets = google.sheets('v4');
     const auth = new google.auth.GoogleAuth({
       credentials: {
@@ -69,6 +89,7 @@ module.exports = {
       const playerRows = rows.filter(row => row[0].toLowerCase() === playerName.toLowerCase());
 
       if (playerRows.length === 0) {
+        console.log(`[${timestamp}] Player ${playerName} not found for stats requested by ${user.tag} (${user.id})`);
         return interaction.editReply({ content: `Player **${playerName}** not found.`, ephemeral: true });
       }
 
@@ -113,8 +134,10 @@ module.exports = {
       });
 
       await interaction.editReply({ embeds: [embed] });
+      console.log(`[${timestamp}] Stats for player ${playerName} sent successfully to ${user.tag} (${user.id}) - found ${processedMatchTypes.size} match types`);
     } catch (error) {
-      console.error('Error fetching player stats:', error);
+      const errorMessage = `[${timestamp}] Error fetching stats for player ${playerName} requested by ${user.tag} (${user.id})`;
+      console.error(errorMessage, error);
       await interaction.editReply({ content: 'There was an error while retrieving the player stats.', ephemeral: true });
     }
   },

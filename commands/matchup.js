@@ -5,6 +5,16 @@ module.exports = {
         .setName('matchup')
         .setDescription('Create matchups for the weekly fight card (requires manager role)'),
     async execute(interaction, sheets, auth) {
+        const timestamp = new Date().toISOString();
+        const user = interaction.user;
+        const guildName = interaction.guild ? interaction.guild.name : 'DM';
+        const channelName = interaction.channel ? interaction.channel.name : 'Unknown';
+        
+        console.log(`[${timestamp}] Executing matchup command:
+        User: ${user.tag} (${user.id})
+        Server: ${guildName} (${interaction.guildId || 'N/A'})
+        Channel: ${channelName} (${interaction.channelId})`);
+        
         try {
             // Authenticate with Google Sheets
             const authClient = await auth.getClient();
@@ -22,8 +32,10 @@ module.exports = {
             });
 
             await interaction.reply('Matchups have been created successfully!');
+            console.log(`[${timestamp}] Matchups created successfully by ${user.tag} (${user.id})`);
         } catch (error) {
-            console.error('Error creating matchups:', error);
+            const errorMessage = `[${timestamp}] Error creating matchups requested by ${user.tag} (${user.id})`;
+            console.error(errorMessage, error);
             await interaction.reply('Failed to create matchups. Please try again later.');
         }
     }

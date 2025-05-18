@@ -22,6 +22,16 @@ module.exports = {
         ),
     async execute(interaction) {
         const duelerName = interaction.options.getString('dueler');
+        const timestamp = new Date().toISOString();
+        const user = interaction.user;
+        const guildName = interaction.guild ? interaction.guild.name : 'DM';
+        const channelName = interaction.channel ? interaction.channel.name : 'Unknown';
+        
+        console.log(`[${timestamp}] Executing elo command:
+        User: ${user.tag} (${user.id})
+        Server: ${guildName} (${interaction.guildId || 'N/A'})
+        Channel: ${channelName} (${interaction.channelId})
+        Dueler: ${duelerName}`);
 
         try {
             // Fetch data from the Google Sheet
@@ -89,8 +99,10 @@ module.exports = {
             }
 
             await interaction.reply({ embeds: [embed] });
+            console.log(`[${timestamp}] Elo data for ${duelerName} sent successfully to ${user.tag} (${user.id})`);
         } catch (error) {
-            console.error('Error fetching ELO data:', error);
+            const errorMessage = `[${timestamp}] Error fetching ELO data for ${duelerName} requested by ${user.tag} (${user.id})`;
+            console.error(errorMessage, error);
             await interaction.reply('An error occurred while fetching the ELO data. Please try again later.');
         }
     },
