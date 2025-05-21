@@ -25,10 +25,9 @@ module.exports = {
             }
             let cachedUuids = cache.get('uuids');
             if (!cachedUuids) {
-                // Authenticate with Google Sheets
-                const authClient = await auth.getClient();
+                // Use the auth object directly as it's already a JWT client
                 const updatedRes = await sheets.spreadsheets.values.get({
-                    auth: authClient,
+                    auth: auth,
                     spreadsheetId: process.env.SPREADSHEET_ID,
                     range: 'Roster!D:D',
                 });
@@ -39,12 +38,11 @@ module.exports = {
                 return interaction.reply('You are already registered. Your UUID is already present in our data.');
             }
 
-            // Authenticate with Google Sheets
-            const authClient = await auth.getClient();
-
+            // Use the auth object directly as it's already a JWT client
+            
             // Fetch existing roster data to verify if the user is already registered
             const res = await sheets.spreadsheets.values.get({
-                auth: authClient,
+                auth: auth,
                 spreadsheetId: process.env.SPREADSHEET_ID,
                 range: 'Roster!A:D',
             });
@@ -62,7 +60,7 @@ module.exports = {
             try {
                 // Append new user to the roster with the required columns
                 await sheets.spreadsheets.values.update({
-                    auth: authClient,
+                    auth: auth,
                     spreadsheetId: process.env.SPREADSHEET_ID,
                     range: `Roster!A${nextRow}:D${nextRow}`,
                     valueInputOption: 'RAW',
@@ -78,7 +76,7 @@ module.exports = {
             try {
                 // Re-cache UUID data for /signup command
                 const updatedRes = await sheets.spreadsheets.values.get({
-                    auth: authClient,
+                    auth: auth,
                     spreadsheetId: process.env.SPREADSHEET_ID,
                     range: 'Roster!D:D',
                 });
