@@ -16,15 +16,25 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
 
 (async () => {
     try {
-        console.log('Started refreshing application (/) commands for a specific guild.');
-
-        // Register commands for a specific guild (use GUILD_ID from .env file)
+        // Deploy to test server (GUILD_ID)
+        console.log(`Started refreshing application (/) commands for TEST guild: ${process.env.GUILD_ID}`);
         await rest.put(
             Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
             { body: commands }
         );
+        console.log('Successfully reloaded application (/) commands for the TEST guild.');
 
-        console.log('Successfully reloaded application (/) commands for the guild.');
+        // Deploy to production server if PROD_GUILD_ID is defined
+        if (process.env.PROD_GUILD_ID) {
+            console.log(`Started refreshing application (/) commands for PRODUCTION guild: ${process.env.PROD_GUILD_ID}`);
+            await rest.put(
+                Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.PROD_GUILD_ID),
+                { body: commands }
+            );
+            console.log('Successfully reloaded application (/) commands for the PRODUCTION guild.');
+        } else {
+            console.log('PROD_GUILD_ID not defined. Skipping production deployment.');
+        }
     } catch (error) {
         console.error('Error while updating commands:', error);
     }
