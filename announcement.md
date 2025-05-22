@@ -17,12 +17,8 @@ Get the link to sign up for the upcoming weekly tournament (Google Form), along 
 ### 🔹 `!recentsignups`
 See who's already signed up for the next weekly DFC event.
 
-### 🔹 `!rankings rank_type:<elo|efficiency> match_type:<HLD|LLD|Melee> time_frame:<career|seasonal> limit:<1-50>`
-View customized leaderboards:
-- Compare ELO or Efficiency Index
-- Filter by match type: HLD, LLD, or Melee
-- View career or seasonal stats
-- Set how many players to display
+### 🔹 `!rankings`
+View the top 20 players on Official Rankings.
 
 ### 🔹 `!stats player:<player name>`
 Get comprehensive seasonal and career statistics for any player. This includes w/l, w%, ranking in 'Official Rankings', and any recents matches with details!

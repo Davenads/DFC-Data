@@ -50,6 +50,16 @@ module.exports = {
         .setDescription('View recent tournament signups'),
     
     async execute(interaction, sheets, auth) {
+        const timestamp = new Date().toISOString();
+        const user = interaction.user;
+        const guildName = interaction.guild ? interaction.guild.name : 'DM';
+        const channelName = interaction.channel ? interaction.channel.name : 'Unknown';
+        
+        console.log(`[${timestamp}] Executing recentsignups command:
+        User: ${user.tag} (${user.id})
+        Server: ${guildName} (${interaction.guildId || 'N/A'})
+        Channel: ${channelName} (${interaction.channelId})`);
+
         try {
             await interaction.deferReply({ ephemeral: true });
             const authClient = auth; // Auth is already a JWT client
@@ -208,8 +218,10 @@ module.exports = {
                 });
             }
             
+            console.log(`[${timestamp}] Recentsignups command completed successfully for ${user.tag} (${user.id})`);
         } catch (error) {
-            console.error('Error fetching recent signups:', error);
+            const errorMessage = `[${timestamp}] Error fetching recent signups for ${user.tag} (${user.id})`;
+            console.error(errorMessage, error);
             await interaction.editReply({ content: 'An error occurred while fetching recent signups. Please try again later.', ephemeral: true });
         }
     }

@@ -43,6 +43,19 @@ module.exports = {
     const matchType = interaction.options.getString('match_type');
     const timeFrame = interaction.options.getString('time_frame');
     const limit = interaction.options.getInteger('limit');
+    const timestamp = new Date().toISOString();
+    const user = interaction.user;
+    const guildName = interaction.guild ? interaction.guild.name : 'DM';
+    const channelName = interaction.channel ? interaction.channel.name : 'Unknown';
+    
+    console.log(`[${timestamp}] Executing rankings-legacy command:
+    User: ${user.tag} (${user.id})
+    Server: ${guildName} (${interaction.guildId || 'N/A'})
+    Channel: ${channelName} (${interaction.channelId})
+    Rank Type: ${rankType}
+    Match Type: ${matchType}
+    Time Frame: ${timeFrame}
+    Limit: ${limit}`);
 
     const sheets = google.sheets('v4');
     const auth = createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
@@ -161,8 +174,11 @@ module.exports = {
       collector.on('end', async () => {
         await interaction.editReply({ components: [], ephemeral: true });
       });
+      
+      console.log(`[${timestamp}] Rankings-legacy command completed successfully for ${user.tag} (${user.id})`);
     } catch (error) {
-      console.error('Error fetching rankings:', error);
+      const errorMessage = `[${timestamp}] Error fetching rankings for ${user.tag} (${user.id})`;
+      console.error(errorMessage, error);
       await interaction.editReply({ content: 'There was an error while retrieving the rankings.', ephemeral: true });
     }
   },

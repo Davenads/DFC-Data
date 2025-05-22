@@ -8,6 +8,16 @@ module.exports = {
     .setDescription('Get the official DFC rankings'),
 
   async execute(interaction) {
+    const timestamp = new Date().toISOString();
+    const user = interaction.user;
+    const guildName = interaction.guild ? interaction.guild.name : 'DM';
+    const channelName = interaction.channel ? interaction.channel.name : 'Unknown';
+    
+    console.log(`[${timestamp}] Executing rankings command:
+    User: ${user.tag} (${user.id})
+    Server: ${guildName} (${interaction.guildId || 'N/A'})
+    Channel: ${channelName} (${interaction.channelId})`);
+
     await interaction.deferReply({ ephemeral: true }); // Defer the reply to avoid timeouts
 
     const sheets = google.sheets('v4');
@@ -93,8 +103,10 @@ module.exports = {
 
       // Send the embed
       await interaction.editReply({ embeds: [embed], ephemeral: true });
+      console.log(`[${timestamp}] Rankings command completed successfully for ${user.tag} (${user.id})`);
     } catch (error) {
-      console.error('Error fetching rankings:', error);
+      const errorMessage = `[${timestamp}] Error fetching rankings for ${user.tag} (${user.id})`;
+      console.error(errorMessage, error);
       await interaction.editReply({ content: 'There was an error while retrieving the rankings.', ephemeral: true });
     }
   },

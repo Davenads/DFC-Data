@@ -17,6 +17,16 @@ module.exports = {
         const discordName = interaction.user.username;
         const duelerName = interaction.options.getString('dueler_name');
         const userId = interaction.user.id;
+        const timestamp = new Date().toISOString();
+        const user = interaction.user;
+        const guildName = interaction.guild ? interaction.guild.name : 'DM';
+        const channelName = interaction.channel ? interaction.channel.name : 'Unknown';
+        
+        console.log(`[${timestamp}] Executing register command:
+        User: ${user.tag} (${user.id})
+        Server: ${guildName} (${interaction.guildId || 'N/A'})
+        Channel: ${channelName} (${interaction.channelId})
+        Dueler Name: ${duelerName}`);
 
         try {
             // Check cached data to verify if the user is already registered
@@ -99,8 +109,10 @@ module.exports = {
                 .setFooter({ text: 'Good luck in the arena! ⚔️' });
 
             await interaction.channel.send({ embeds: [embed] });
+            console.log(`[${timestamp}] Registration command completed successfully for ${user.tag} (${user.id}) with dueler name: ${duelerName}`);
         } catch (error) {
-            console.error('Unexpected error during registration process:', error);
+            const errorMessage = `[${timestamp}] Error during registration for ${user.tag} (${user.id})`;
+            console.error(errorMessage, error);
             await interaction.reply({ content: 'Failed to register. Please try again later.', ephemeral: true });
         }
     }
