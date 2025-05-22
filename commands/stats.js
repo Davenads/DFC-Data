@@ -261,7 +261,7 @@ module.exports = {
       // Add a note about more detailed stats
       embed.addFields({ 
         name: 'Need more details?', 
-        value: 'Use `/stats-legacy` for detailed stats including ELO and Efficiency Index',
+        value: 'Use /rankings to list the top DFC Duelers!',
         inline: false 
       });
 
