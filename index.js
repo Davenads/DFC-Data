@@ -225,7 +225,25 @@ client.on('messageCreate', async message => {
         console.log(`[${timestamp}] Prefix command ${commandName} executed successfully.`);
     } catch (error) {
         console.error(`[${timestamp}] Error executing prefix command ${commandName}:`, error);
-        message.reply('There was an error while executing this command!');
+        
+        // Provide more detailed error messages for users
+        let errorMessage = 'There was an error while executing this command!';
+        
+        // For stats command specifically, provide more context
+        if (commandName === 'stats') {
+            // Handle common errors
+            if (!args.length) {
+                errorMessage = '⚠️ **Error**: Missing player name.\n\nPlease provide a player name. Example: `!stats PlayerName`';
+            } else if (error.message?.includes('player not found') || error.message?.includes('not found')) {
+                errorMessage = `⚠️ **Error**: Player "${args[0]}" not found.\n\nPlease check the spelling and try again.`;
+            } else {
+                // Generic error for other cases
+                const errorId = `ERR-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+                errorMessage = `⚠️ **Error**: There was a problem retrieving player stats.\n\nError ID: ${errorId} - Please report this to an administrator if the issue persists.`;
+            }
+        }
+        
+        message.reply(errorMessage);
     }
 });
 

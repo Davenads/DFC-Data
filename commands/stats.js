@@ -56,6 +56,25 @@ module.exports = {
     const guildName = interaction.guild ? interaction.guild.name : 'DM';
     const channelName = interaction.channel ? interaction.channel.name : 'Unknown';
     
+    // Check if player name is provided (mainly for the !stats version)
+    if (!playerName) {
+      console.log(`[${timestamp}] Missing player name for stats command from ${user.tag} (${user.id})`);
+      
+      const commandType = interaction.commandName ? 'slash command' : 'prefix command';
+      let usageMessage = '';
+      
+      if (commandType === 'slash command') {
+        usageMessage = 'Please use the autocomplete feature to select a player name.';
+      } else {
+        usageMessage = 'Please provide a player name. Example: `!stats PlayerName`';
+      }
+      
+      return interaction.reply({ 
+        content: `⚠️ **Error**: Missing player name.\n\n${usageMessage}`, 
+        ephemeral: true 
+      });
+    }
+    
     console.log(`[${timestamp}] Executing stats command:
     User: ${user.tag} (${user.id})
     Server: ${guildName} (${interaction.guildId || 'N/A'})
@@ -80,7 +99,62 @@ module.exports = {
 
       if (playerRows.length === 0) {
         console.log(`[${timestamp}] Player ${playerName} not found for stats requested by ${user.tag} (${user.id})`);
-        return interaction.editReply({ content: `Player **${playerName}** not found.`, ephemeral: true });
+        
+        // Find similar player names for suggestions
+        const allPlayerNames = eloRows.map(row => row[0]);
+        const uniquePlayerNames = [...new Set(allPlayerNames)];
+        
+        // Calculate similarity score (basic implementation using character matching)
+        const getSimilarityScore = (name1, name2) => {
+          name1 = name1.toLowerCase();
+          name2 = name2.toLowerCase();
+          
+          // Simple matching - what percentage of characters match?
+          let score = 0;
+          const minLength = Math.min(name1.length, name2.length);
+          
+          // First check if one name contains the other
+          if (name1.includes(name2) || name2.includes(name1)) {
+            score += 0.5; // Boost score for partial matches
+          }
+          
+          // Check if name starts with the search term
+          if (name2.startsWith(name1)) {
+            score += 0.3;
+          }
+          
+          // Count matching characters
+          for (let i = 0; i < minLength; i++) {
+            if (name1[i] === name2[i]) score += 0.2;
+          }
+          
+          return score;
+        };
+        
+        // Find players with similar names
+        const similarPlayers = uniquePlayerNames
+          .map(name => ({
+            name,
+            score: getSimilarityScore(playerName, name)
+          }))
+          .filter(player => player.score > 0.3) // Only reasonably similar names
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 3); // Get top 3 matches
+        
+        let notFoundMessage = `Player **${playerName}** not found.`;
+        
+        // Add suggestions if any similar players were found
+        if (similarPlayers.length > 0) {
+          notFoundMessage += `\n\nDid you mean one of these players?`;
+          similarPlayers.forEach(player => {
+            notFoundMessage += `\n• ${player.name}`;
+          });
+          notFoundMessage += `\n\nTry using the command again with the correct player name.`;
+        } else {
+          notFoundMessage += `\n\nPlease check the spelling or use the autocomplete feature when using the slash command.`;
+        }
+        
+        return interaction.editReply({ content: notFoundMessage, ephemeral: true });
       }
 
       // Sort player rows by timestamp in descending order to get the most recent data first
@@ -270,7 +344,28 @@ module.exports = {
     } catch (error) {
       const errorMessage = `[${timestamp}] Error fetching stats for player ${playerName} requested by ${user.tag} (${user.id})`;
       console.error(errorMessage, error);
-      await interaction.editReply({ content: 'There was an error while retrieving the player stats.', ephemeral: true });
+      
+      // Provide more descriptive error messages based on the error type
+      let userErrorMessage = '⚠️ **Error**: There was a problem retrieving player stats.';
+      
+      // Common error cases
+      if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT' || error.message?.includes('network')) {
+        userErrorMessage += '\n\nThere seems to be a network issue. Please try again later.';
+      } else if (error.message?.includes('quota')) {
+        userErrorMessage += '\n\nAPI quota limit reached. Please try again later.';
+      } else if (error.message?.includes('permission') || error.message?.includes('forbidden') || error.code === 403) {
+        userErrorMessage += '\n\nPermission denied when accessing data. Please contact an administrator.';
+      } else if (error.message?.includes('not found') || error.code === 404) {
+        userErrorMessage += '\n\nThe requested data could not be found. Please check if the player exists or if there is a typo.';
+      } else if (error.message?.includes('auth') || error.code === 401) {
+        userErrorMessage += '\n\nAuthentication error. Please contact an administrator.';
+      } else {
+        // Generic fallback with unique ID for troubleshooting
+        const errorId = `ERR-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+        userErrorMessage += `\n\nError ID: ${errorId} - Please report this to an administrator if the issue persists.`;
+      }
+      
+      await interaction.editReply({ content: userErrorMessage, ephemeral: true });
     }
   },
 };
