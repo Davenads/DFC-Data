@@ -1,11 +1,11 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { google } = require('googleapis');
 const { createGoogleAuth } = require('../utils/googleAuth');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('stats')
-    .setDescription('Get the current ELO stats for a player')
+    .setDescription('Get simplified stats for a player (W/L, winrate, and rank)')
     .addStringOption(option =>
       option.setName('player')
         .setDescription('The player to get stats for')
@@ -68,14 +68,15 @@ module.exports = {
     await interaction.deferReply({ ephemeral: true }); // Defer the reply to avoid timeouts
 
     try {
-      const response = await sheets.spreadsheets.values.get({
+      // First, get the player's W/L and winrate data
+      const eloResponse = await sheets.spreadsheets.values.get({
         auth,
         spreadsheetId: process.env.QUERY_SPREADSHEET_ID,
         range: 'Current ELO!A2:M',
       });
 
-      const rows = response.data.values || [];
-      const playerRows = rows.filter(row => row[0].toLowerCase() === playerName.toLowerCase());
+      const eloRows = eloResponse.data.values || [];
+      const playerRows = eloRows.filter(row => row[0].toLowerCase() === playerName.toLowerCase());
 
       if (playerRows.length === 0) {
         console.log(`[${timestamp}] Player ${playerName} not found for stats requested by ${user.tag} (${user.id})`);
@@ -85,14 +86,59 @@ module.exports = {
       // Sort player rows by timestamp in descending order to get the most recent data first
       playerRows.sort((a, b) => new Date(b[1]) - new Date(a[1]));
 
-      const embed = {
-        color: 0x0099ff,
-        title: `📊 Stats for ${playerName}`,
-        fields: [],
-        footer: { text: 'DFC Stats' },
-      };
+      // Now, check if player appears in the Official Rankings
+      const rankingsResponse = await sheets.spreadsheets.values.get({
+        auth,
+        spreadsheetId: process.env.SPREADSHEET_ID,
+        range: 'Official Rankings!A1:B30', // Get enough rows for champion + top 20
+      });
 
-      // Use only the most recent row for each match type
+      const rankingsRows = rankingsResponse.data.values || [];
+      
+      // Check if player is the champion
+      let isChampion = false;
+      for (let i = 0; i < rankingsRows.length; i++) {
+        if (rankingsRows[i][0] === 'Champion' && 
+            rankingsRows[i][1] && 
+            rankingsRows[i][1].toLowerCase() === playerName.toLowerCase()) {
+          isChampion = true;
+          break;
+        }
+      }
+
+      // Check player's ranking (if any)
+      let playerRank = null;
+      for (let i = 0; i < rankingsRows.length; i++) {
+        if (rankingsRows[i][1] && rankingsRows[i][1].toLowerCase() === playerName.toLowerCase() && 
+            rankingsRows[i][0] && !isNaN(rankingsRows[i][0])) {
+          playerRank = rankingsRows[i][0].toString();
+          break;
+        }
+      }
+
+      // Create the embed
+      const embed = new EmbedBuilder()
+        .setColor(0x0099ff)
+        .setTitle(`📊 Stats for ${playerName}`)
+        .setFooter({ text: 'DFC Stats' })
+        .setTimestamp();
+
+      // Add rank information if applicable
+      if (isChampion) {
+        embed.addFields({ name: '👑 Rank', value: 'Champion', inline: false });
+      } else if (playerRank) {
+        // Add emojis for top 3 ranks
+        const rankEmojis = {
+          '1': '🥇 1st Place',
+          '2': '🥈 2nd Place',
+          '3': '🥉 3rd Place'
+        };
+        
+        const rankDisplay = rankEmojis[playerRank] || `#${playerRank}`;
+        embed.addFields({ name: '🏆 Rank', value: rankDisplay, inline: false });
+      }
+
+      // Process each unique match type
       const processedMatchTypes = new Set();
       playerRows.forEach(playerData => {
         const [player, timestamp, matchType, sElo, elo, sEIndex, eIndex, sWins, sLoss, sWinRate, cWins, cLoss, cWinRate] = playerData;
@@ -100,26 +146,35 @@ module.exports = {
         if (!processedMatchTypes.has(matchType)) {
           processedMatchTypes.add(matchType);
 
-          const seasonalStats = [
-            sElo && `ELO: ${sElo}`,
-            sEIndex && `Efficiency Index: ${sEIndex}`,
-            (sWins || sLoss) && `W/L: ${sWins || 0}/${sLoss || 0}`,
-            sWinRate && `Winrate: ${sWinRate}`
-          ].filter(Boolean).join('\n');
+          // Only include W/L and winrate stats
+          const stats = [];
+          
+          // Add W/L stats if available
+          if (cWins || cLoss) {
+            stats.push(`W/L: ${cWins || 0}/${cLoss || 0}`);
+          }
+          
+          // Add winrate if available
+          if (cWinRate) {
+            stats.push(`Winrate: ${cWinRate}`);
+          }
 
-          const careerStats = [
-            elo && `ELO: ${elo}`,
-            eIndex && `Efficiency Index: ${eIndex}`,
-            (cWins || cLoss) && `W/L: ${cWins || 0}/${cLoss || 0}`,
-            cWinRate && `Winrate: ${cWinRate}`
-          ].filter(Boolean).join('\n');
-
-          embed.fields.push({
-            name: matchType,
-            value: `**Seasonal Stats**:\n${seasonalStats}\n\n**Career Stats**:\n${careerStats}`,
-            inline: true
-          });
+          // Only add field if we have stats to display
+          if (stats.length > 0) {
+            embed.addFields({
+              name: matchType,
+              value: stats.join('\n'),
+              inline: true
+            });
+          }
         }
+      });
+
+      // Add a note about more detailed stats
+      embed.addFields({ 
+        name: 'Need more details?', 
+        value: 'Use `/stats-legacy` for detailed stats including ELO and Efficiency Index',
+        inline: false 
       });
 
       await interaction.editReply({ embeds: [embed], ephemeral: true });

@@ -71,16 +71,32 @@ function createMessageAdapter(message, commandName, args = []) {
         async deferReply(options = {}) {
             // For message commands, we'll just acknowledge receipt
             const response = await message.channel.send({ 
-                content: 'Processing your request...',
-                ephemeral: false // Message commands can't be ephemeral
+                content: 'Processing your request...'
             });
             this.deferredReply = response;
+            this.ephemeralOptions = options.ephemeral || false;
             return response;
         },
         
         async editReply(options = {}) {
-            // If we've deferred, edit that message, otherwise send a new one
-            if (this.deferredReply) {
+            // Handle ephemeral responses for deferred replies
+            if (this.deferredReply && this.ephemeralOptions) {
+                try {
+                    // Delete the original deferred reply in the channel
+                    await this.deferredReply.delete().catch(e => console.error('Failed to delete deferred reply:', e));
+                    
+                    // Send the updated content as a DM
+                    this.deferredReply = await message.author.send(options);
+                    return this.deferredReply;
+                } catch (error) {
+                    console.error('Failed to send DM or delete deferred message:', error);
+                    // Fallback to editing in channel
+                    options.content = `[Ephemeral] ${options.content || ''}`;
+                    return this.deferredReply.edit(options);
+                }
+            } 
+            // Handle non-ephemeral replies normally
+            else if (this.deferredReply) {
                 return this.deferredReply.edit(options);
             } else {
                 return message.channel.send(options);
@@ -88,7 +104,23 @@ function createMessageAdapter(message, commandName, args = []) {
         },
         
         async reply(options = {}) {
-            // Message commands can't be ephemeral, so we just send a regular message
+            // For ephemeral messages, send the response as a DM to avoid channel bloat
+            if (options.ephemeral) {
+                try {
+                    // Delete the original command message to reduce bloat
+                    await message.delete().catch(e => console.error('Failed to delete command message:', e));
+                    
+                    // Send the response as a DM
+                    return message.author.send(options);
+                } catch (error) {
+                    console.error('Failed to send DM or delete message:', error);
+                    // Fallback: send in channel with a note that it's ephemeral
+                    options.content = `[Ephemeral] ${options.content || ''}`;
+                    return message.channel.send(options);
+                }
+            }
+            
+            // For non-ephemeral messages, just send normally
             return message.channel.send(options);
         },
         
