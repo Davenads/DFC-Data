@@ -223,8 +223,22 @@ client.on('messageCreate', async message => {
         // Execute the command with our adapter and required params
         await command.execute(fakeInteraction, sheets, auth);
         console.log(`[${timestamp}] Prefix command ${commandName} executed successfully.`);
+        
+        // React to the message with a checkmark to indicate success
+        try {
+            await message.react('✅');
+        } catch (reactionError) {
+            console.error(`[${timestamp}] Failed to add reaction to command message:`, reactionError);
+        }
     } catch (error) {
         console.error(`[${timestamp}] Error executing prefix command ${commandName}:`, error);
+        
+        // React to the message with an X to indicate failure
+        try {
+            await message.react('❌');
+        } catch (reactionError) {
+            console.error(`[${timestamp}] Failed to add error reaction to command message:`, reactionError);
+        }
         
         // Provide more detailed error messages for users
         let errorMessage = 'There was an error while executing this command!';
