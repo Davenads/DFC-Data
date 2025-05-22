@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(rg:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(grep:*)"
     ],
     "deny": []
   }

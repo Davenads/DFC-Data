@@ -65,7 +65,7 @@ module.exports = {
     const sheets = google.sheets('v4');
     const auth = createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
 
-    await interaction.deferReply(); // Defer the reply to avoid timeouts
+    await interaction.deferReply({ ephemeral: true }); // Defer the reply to avoid timeouts
 
     try {
       const response = await sheets.spreadsheets.values.get({
@@ -122,7 +122,7 @@ module.exports = {
         }
       });
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply({ embeds: [embed], ephemeral: true });
       console.log(`[${timestamp}] Stats for player ${playerName} sent successfully to ${user.tag} (${user.id}) - found ${processedMatchTypes.size} match types`);
     } catch (error) {
       const errorMessage = `[${timestamp}] Error fetching stats for player ${playerName} requested by ${user.tag} (${user.id})`;

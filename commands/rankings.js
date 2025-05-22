@@ -8,7 +8,7 @@ module.exports = {
     .setDescription('Get the official DFC rankings'),
 
   async execute(interaction) {
-    await interaction.deferReply(); // Defer the reply to avoid timeouts
+    await interaction.deferReply({ ephemeral: true }); // Defer the reply to avoid timeouts
 
     const sheets = google.sheets('v4');
     const auth = createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
@@ -92,7 +92,7 @@ module.exports = {
       }
 
       // Send the embed
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply({ embeds: [embed], ephemeral: true });
     } catch (error) {
       console.error('Error fetching rankings:', error);
       await interaction.editReply({ content: 'There was an error while retrieving the rankings.', ephemeral: true });

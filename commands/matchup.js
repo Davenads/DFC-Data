@@ -31,12 +31,12 @@ module.exports = {
                 },
             });
 
-            await interaction.reply('Matchups have been created successfully!');
+            await interaction.reply({ content: 'Matchups have been created successfully!', ephemeral: true });
             console.log(`[${timestamp}] Matchups created successfully by ${user.tag} (${user.id})`);
         } catch (error) {
             const errorMessage = `[${timestamp}] Error creating matchups requested by ${user.tag} (${user.id})`;
             console.error(errorMessage, error);
-            await interaction.reply('Failed to create matchups. Please try again later.');
+            await interaction.reply({ content: 'Failed to create matchups. Please try again later.', ephemeral: true });
         }
     }
 };

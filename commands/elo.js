@@ -49,7 +49,7 @@ module.exports = {
             const rows = res.data.values;
 
             if (!rows || rows.length === 0) {
-                await interaction.reply('No data found in the sheet.');
+                await interaction.reply({ content: 'No data found in the sheet.', ephemeral: true });
                 return;
             }
 
@@ -57,7 +57,7 @@ module.exports = {
             const duelerRows = rows.filter(row => row[2]?.toLowerCase() === duelerName.toLowerCase());
 
             if (duelerRows.length === 0) {
-                await interaction.reply(`No ELO data found for dueler: ${duelerName}`);
+                await interaction.reply({ content: `No ELO data found for dueler: ${duelerName}`, ephemeral: true });
                 return;
             }
 
@@ -93,12 +93,12 @@ module.exports = {
                 embed.addFields({ name: matchType, value: `ELO: ${data.elo}`, inline: true });
             }
 
-            await interaction.reply({ embeds: [embed] });
+            await interaction.reply({ embeds: [embed], ephemeral: true });
             console.log(`[${timestamp}] Elo data for ${duelerName} sent successfully to ${user.tag} (${user.id})`);
         } catch (error) {
             const errorMessage = `[${timestamp}] Error fetching ELO data for ${duelerName} requested by ${user.tag} (${user.id})`;
             console.error(errorMessage, error);
-            await interaction.reply('An error occurred while fetching the ELO data. Please try again later.');
+            await interaction.reply({ content: 'An error occurred while fetching the ELO data. Please try again later.', ephemeral: true });
         }
     },
     async autocomplete(interaction) {

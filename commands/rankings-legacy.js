@@ -47,7 +47,7 @@ module.exports = {
     const sheets = google.sheets('v4');
     const auth = createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
 
-    await interaction.deferReply(); // Defer the reply to avoid timeouts
+    await interaction.deferReply({ ephemeral: true }); // Defer the reply to avoid timeouts
 
     try {
       const response = await sheets.spreadsheets.values.get({
@@ -137,7 +137,7 @@ module.exports = {
             .setDisabled(currentPage === totalPages - 1),
         );
 
-        await interaction.editReply({ embeds: [generateEmbed(currentPage)], components: [row] });
+        await interaction.editReply({ embeds: [generateEmbed(currentPage)], components: [row], ephemeral: true });
       };
 
       await updateReply();
@@ -158,7 +158,7 @@ module.exports = {
       });
 
       collector.on('end', async () => {
-        await interaction.editReply({ components: [] });
+        await interaction.editReply({ components: [], ephemeral: true });
       });
     } catch (error) {
       console.error('Error fetching rankings:', error);

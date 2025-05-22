@@ -23,10 +23,10 @@ module.exports = {
                 },
             });
 
-            await interaction.reply('The match result has been reported successfully!');
+            await interaction.reply({ content: 'The match result has been reported successfully!', ephemeral: true });
         } catch (error) {
             console.error('Error reporting match result:', error);
-            await interaction.reply('Failed to report match result. Please try again later.');
+            await interaction.reply({ content: 'Failed to report match result. Please try again later.', ephemeral: true });
         }
     }
 };

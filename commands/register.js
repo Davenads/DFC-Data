@@ -35,7 +35,7 @@ module.exports = {
                 cache.set('uuids', cachedUuids);
             }
             if (cachedUuids.includes(userId)) {
-                return interaction.reply('You are already registered. Your UUID is already present in our data.');
+                return interaction.reply({ content: 'You are already registered. Your UUID is already present in our data.', ephemeral: true });
             }
 
             // Use the auth object directly as it's already a JWT client
@@ -51,7 +51,7 @@ module.exports = {
             const isRegistered = roster.some(row => row[3] === userId);
 
             if (isRegistered) {
-                return interaction.reply('You are already registered. Your UUID is already present in our data.');
+                return interaction.reply({ content: 'You are already registered. Your UUID is already present in our data.', ephemeral: true });
             }
 
             // Find the first available row
@@ -70,7 +70,7 @@ module.exports = {
                 });
             } catch (error) {
                 console.error('Error appending new user to Google Sheets:', error);
-                return interaction.reply('Failed to register. Please try again later.');
+                return interaction.reply({ content: 'Failed to register. Please try again later.', ephemeral: true });
             }
 
             try {
@@ -101,7 +101,7 @@ module.exports = {
             await interaction.channel.send({ embeds: [embed] });
         } catch (error) {
             console.error('Unexpected error during registration process:', error);
-            await interaction.reply('Failed to register. Please try again later.');
+            await interaction.reply({ content: 'Failed to register. Please try again later.', ephemeral: true });
         }
     }
 };

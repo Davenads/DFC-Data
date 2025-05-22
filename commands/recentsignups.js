@@ -51,7 +51,7 @@ module.exports = {
     
     async execute(interaction, sheets, auth) {
         try {
-            await interaction.deferReply();
+            await interaction.deferReply({ ephemeral: true });
             const authClient = await auth.getClient();
 
             // Fetch signups from the "DFC Recent Signups" tab
@@ -70,7 +70,7 @@ module.exports = {
             });
             
             if (recentSignups.length === 0) {
-                return interaction.editReply('No recent signups found for the upcoming tournament.');
+                return interaction.editReply({ content: 'No recent signups found for the upcoming tournament.', ephemeral: true });
             }
 
             // Sort by timestamp (newest first)
@@ -210,7 +210,7 @@ module.exports = {
             
         } catch (error) {
             console.error('Error fetching recent signups:', error);
-            await interaction.editReply('An error occurred while fetching recent signups. Please try again later.');
+            await interaction.editReply({ content: 'An error occurred while fetching recent signups. Please try again later.', ephemeral: true });
         }
     }
 };
