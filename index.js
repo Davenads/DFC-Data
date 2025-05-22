@@ -1,10 +1,13 @@
 require('dotenv').config(); // Load environment variables from .env file
-const { Client, GatewayIntentBits, Collection } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const { google } = require('googleapis');
 const http = require('http');
 const { createGoogleAuth } = require('./utils/googleAuth');
+
+// Define the prefix for message commands
+const PREFIX = '!';
 
 // Initialize the Discord client with the necessary intents
 const client = new Client({
@@ -27,16 +30,88 @@ client.commands = new Collection();
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
+// Create a separate collection for command name aliases (for case insensitivity)
+client.commandAliases = new Collection();
+
 for (const file of commandFiles) {
     const filePath = path.join(commandsPath, file);
     const command = require(filePath);
+    
+    // Store the command with its original name
     client.commands.set(command.data.name, command);
+    
+    // Store lowercase version for case-insensitive lookup
+    const lowercaseName = command.data.name.toLowerCase();
+    client.commandAliases.set(lowercaseName, command.data.name);
+    
+    console.log(`Command loaded: ${command.data.name}`);
 }
 
 // Event listener for when the bot becomes ready and online
 client.once('ready', () => {
     console.log(`Logged in as ${client.user.tag}`);
 });
+
+/**
+ * Creates a simplified interaction-like object from a message for prefix commands
+ * This adapter allows message commands to use the same execute function as slash commands
+ */
+function createMessageAdapter(message, commandName, args = []) {
+    return {
+        // Basic properties needed by most commands
+        commandName,
+        user: message.author,
+        member: message.member,
+        guild: message.guild,
+        channel: message.channel,
+        client: message.client,
+        createdTimestamp: message.createdTimestamp,
+        
+        // Methods needed for responses
+        async deferReply(options = {}) {
+            // For message commands, we'll just acknowledge receipt
+            const response = await message.channel.send({ 
+                content: 'Processing your request...',
+                ephemeral: false // Message commands can't be ephemeral
+            });
+            this.deferredReply = response;
+            return response;
+        },
+        
+        async editReply(options = {}) {
+            // If we've deferred, edit that message, otherwise send a new one
+            if (this.deferredReply) {
+                return this.deferredReply.edit(options);
+            } else {
+                return message.channel.send(options);
+            }
+        },
+        
+        async reply(options = {}) {
+            // Message commands can't be ephemeral, so we just send a regular message
+            return message.channel.send(options);
+        },
+        
+        // Mock function to identify as a command
+        isCommand() {
+            return true;
+        },
+        
+        // Simple options mock for commands that use them
+        options: {
+            getString(name) { return args[0] || null; },
+            getUser(name) { return null; },
+            getMember(name) { return null; },
+            getInteger(name) { return args[0] ? parseInt(args[0]) : null; },
+            getNumber(name) { return args[0] ? parseFloat(args[0]) : null; },
+            getBoolean(name) { return args[0] === 'true'; },
+            getChannel(name) { return null; },
+            getRole(name) { return null; },
+            getAttachment(name) { return null; },
+            get data() { return []; } // Empty options data
+        }
+    };
+}
 
 // Event listener for handling interactions (slash commands and autocomplete)
 client.on('interactionCreate', async interaction => {
@@ -70,6 +145,54 @@ client.on('interactionCreate', async interaction => {
         } catch (error) {
             console.error(error);
         }
+    }
+});
+
+// Event listener for handling message commands with "!" prefix
+client.on('messageCreate', async message => {
+    // Ignore messages from bots or messages that don't start with the prefix
+    if (message.author.bot || !message.content.startsWith(PREFIX)) return;
+    
+    // Extract command name and arguments from the message
+    const args = message.content.slice(PREFIX.length).trim().split(/ +/);
+    const commandName = args.shift().toLowerCase(); // Get the command name and remove it from args
+    
+    // Log the command attempt
+    const timestamp = new Date().toISOString();
+    const user = message.author;
+    const guildName = message.guild ? message.guild.name : 'DM';
+    const channelName = message.channel ? message.channel.name : 'Unknown';
+    
+    console.log(`[${timestamp}] Prefix command invoked: ${commandName} 
+    User: ${user.tag} (${user.id})
+    Server: ${guildName} (${message.guild?.id || 'N/A'})
+    Channel: ${channelName} (${message.channel.id})
+    Args: ${args.join(', ')}`);
+    
+    // Find the command in our collection using case-insensitive lookup
+    const originalCommandName = client.commandAliases.get(commandName.toLowerCase());
+    const command = originalCommandName ? client.commands.get(originalCommandName) : null;
+    
+    if (!command) {
+        console.log(`[${timestamp}] Prefix command not found: ${commandName}`);
+        return; // Command not found
+    }
+    
+    try {
+        // Create an interaction-like object from the message
+        const fakeInteraction = createMessageAdapter(message, command.data.name, args);
+        
+        // Check if the command is restricted by role
+        if (command.role && !message.member.roles.cache.some(role => role.name === command.role)) {
+            return message.reply(`You do not have the required ${command.role} role to use this command.`);
+        }
+        
+        // Execute the command with our adapter and required params
+        await command.execute(fakeInteraction, sheets, auth);
+        console.log(`[${timestamp}] Prefix command ${commandName} executed successfully.`);
+    } catch (error) {
+        console.error(`[${timestamp}] Error executing prefix command ${commandName}:`, error);
+        message.reply('There was an error while executing this command!');
     }
 });
 

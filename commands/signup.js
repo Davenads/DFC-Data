@@ -26,7 +26,7 @@ module.exports = {
                 .setDescription('Please fill out the Google Form below to sign up for the weekly DFC event:')
                 .addFields(
                     { name: 'Registration Form', value: ':white_check_mark:  [Click here to register](https://voxelfox.co.uk/gforms?f=1FAIpQLSeviV0Uz8ufF6P58TsPmI_F2gsnJDLyJTbiy_-FDZgcmb7TfQ/&u=2092238618&i=) :white_check_mark: ' },
-                    { name: 'Rules', value: ':file_folder:  [Official DFC Rules for D2R](https://docs.google.com/document/d/1YwECuHx-N-24rsC4wUWYonhnWxKmdzKRpAtcPeHJpXE/edit?tab=t.0)' }
+                    { name: 'Rules', value: ':file_folder:  [Official DFC Rules for D2R Dueling](https://docs.google.com/document/d/1YwECuHx-N-24rsC4wUWYonhnWxKmdzKRpAtcPeHJpXE/edit?tab=t.0) :file_folder:' }
                 )
                 .setImage('https://i.imgur.com/GQssDxO.png')
                 .setTimestamp()
