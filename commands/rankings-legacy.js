@@ -103,8 +103,9 @@ module.exports = {
         const embed = {
           color: 0x0099ff,
           title: `🏆 ${timeFrame === 'career' ? 'Career' : 'Seasonal'} Rankings - ${rankType === 'elo' ? 'ELO' : 'Efficiency Index'} (${matchType}) - Page ${page + 1}/${totalPages}`,
+          description: '⚠️ **DISCLAIMER**: These rankings are not officially endorsed metrics. Please use `/rankings` for the official DFC rankings.',
           fields: [],
-          footer: { text: 'DFC Rankings' },
+          footer: { text: 'DFC Rankings - Legacy Metrics' },
         };
 
         filteredRows.slice(page * 5, (page + 1) * 5).forEach((player, index) => {

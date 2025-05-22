@@ -52,7 +52,7 @@ module.exports = {
     async execute(interaction, sheets, auth) {
         try {
             await interaction.deferReply({ ephemeral: true });
-            const authClient = await auth.getClient();
+            const authClient = auth; // Auth is already a JWT client
 
             // Fetch signups from the "DFC Recent Signups" tab
             const res = await sheets.spreadsheets.values.get({
