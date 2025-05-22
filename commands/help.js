@@ -26,27 +26,27 @@ module.exports = {
         .setDescription('Here are the main commands available for the DFC Bot:')
         .addFields(
           { 
-            name: '🏆 /rankings', 
+            name: '🏆 !rankings', 
             value: 'View the official DFC rankings based on tournament performance.', 
             inline: false 
           },
           { 
-            name: '📝 /register', 
+            name: '📝 !register', 
             value: 'Register as a player in the DFC database with your Discord account.', 
             inline: false 
           },
           { 
-            name: '🗓️ /signup', 
+            name: '🗓️ !signup', 
             value: 'Sign up for upcoming tournaments and events.', 
             inline: false 
           },
           { 
-            name: '🆕 /recentsignups', 
+            name: '🆕 !recentsignups', 
             value: 'View recent tournament signups.', 
             inline: false 
           },
           { 
-            name: '📊 /stats', 
+            name: '📊 !stats', 
             value: 'View player statistics including W/L record, winrate, rank, and recent matches.', 
             inline: false 
           }
@@ -54,12 +54,12 @@ module.exports = {
         .addFields(
           {
             name: '🤖 Technical Issues or Bugs?',
-            value: 'If you encounter any technical issues or bugs with the bot, please report them in <#1335332761237590167> (mod-mail channel).',
+            value: 'If you encounter any technical issues or bugs with the bot, please report them in <#1335332761237590167>.',
             inline: false
           },
           {
             name: '⚠️ Important Note for DFC Duelers',
-            value: 'You can also use these commands with the `!` prefix (e.g., `!stats`, `!rankings`) for quicker access in DFC channels.',
+            value: 'You can also use these commands with the `!` prefix (e.g., `!stats`, `!rankings`) for quicker access in DFC channels. Mods can use `/` instead',
             inline: false
           }
         )
