@@ -170,6 +170,94 @@ module.exports = {
         }
       });
 
+      // Get recent matches for the player from Duel Data tab
+      try {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        const duelDataResponse = await sheets.spreadsheets.values.get({
+          auth,
+          spreadsheetId: process.env.SPREADSHEET_ID,
+          range: 'Duel Data!A2:Q2103', // As per requirement, up to row 2103
+        });
+        
+        const duelRows = duelDataResponse.data.values || [];
+        
+        // Find matches where the player was either winner or loser in the last 30 days
+        const recentMatches = duelRows.filter(row => {
+          // Check if row has sufficient data
+          if (row.length < 5) return false;
+          
+          // Extract date from column A (Event Date)
+          const matchDate = new Date(row[0]);
+          if (isNaN(matchDate.getTime())) return false; // Invalid date
+          
+          // Check if match is within last 30 days
+          if (matchDate < thirtyDaysAgo) return false;
+          
+          // Check if player is Winner (column B) or Loser (column E)
+          const winner = row[1];
+          const loser = row[4];
+          return (winner && winner.toLowerCase() === playerName.toLowerCase()) || 
+                 (loser && loser.toLowerCase() === playerName.toLowerCase());
+        });
+        
+        // Sort by most recent first (date is in column A)
+        recentMatches.sort((a, b) => new Date(b[0]) - new Date(a[0]));
+        
+        // Take only the most recent matches (max 5)
+        const matchesToShow = recentMatches.slice(0, 5);
+        
+        if (matchesToShow.length > 0) {
+          // Class emojis
+          const classEmojis = {
+            'amazon': '🏹',
+            'assassin': '🥷',
+            'barbarian': '⚔️',
+            'druid': '🐺',
+            'necromancer': '💀',
+            'paladin': '🛡️',
+            'sorceress': '🔮'
+          };
+          
+          const matchDetails = matchesToShow.map(match => {
+            const eventDate = new Date(match[0]);
+            const formattedDate = `${eventDate.getMonth() + 1}/${eventDate.getDate()}`;
+            const winner = match[1];
+            const winnerClass = match[2] || '';
+            const winnerBuild = match[3] || '';
+            const loser = match[4];
+            const loserClass = match[5] || '';
+            const loserBuild = match[6] || '';
+            const matchType = match[8] || 'Unknown';
+            
+            const isWinner = winner.toLowerCase() === playerName.toLowerCase();
+            const playerClass = isWinner ? winnerClass.toLowerCase() : loserClass.toLowerCase();
+            const playerBuild = isWinner ? winnerBuild : loserBuild;
+            const opponentClass = isWinner ? loserClass.toLowerCase() : winnerClass.toLowerCase();
+            const opponentBuild = isWinner ? loserBuild : winnerBuild;
+            const opponent = isWinner ? loser : winner;
+            
+            // Get emojis for classes
+            const playerClassEmoji = classEmojis[playerClass] || '👤';
+            const opponentClassEmoji = classEmojis[opponentClass] || '👤';
+            
+            return `${formattedDate} - ${isWinner ? '✅ Win' : '❌ Loss'} vs ${opponent}\n` +
+                   `${playerClassEmoji} ${playerClass} ${playerBuild} vs ${opponentClassEmoji} ${opponentClass} ${opponentBuild}\n` +
+                   `Type: ${matchType}`;
+          }).join('\n\n');
+          
+          embed.addFields({ 
+            name: '🔄 Recent Matches (Last 30 Days)', 
+            value: matchDetails || 'No recent matches found.',
+            inline: false 
+          });
+        }
+      } catch (error) {
+        console.error(`[${timestamp}] Error fetching recent matches for ${playerName}:`, error);
+        // Don't fail the whole command if this part fails
+      }
+      
       // Add a note about more detailed stats
       embed.addFields({ 
         name: 'Need more details?', 
