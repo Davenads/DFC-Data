@@ -1,165 +1,98 @@
-const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { google } = require('googleapis');
 const { createGoogleAuth } = require('../utils/googleAuth');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('rankings')
-    .setDescription('Get the player rankings based on ELO or Efficiency Index')
-    .addStringOption(option =>
-      option.setName('rank_type')
-        .setDescription('Choose ranking type: Efficiency Index or ELO')
-        .setRequired(true)
-        .addChoices(
-          { name: 'ELO', value: 'elo' },
-          { name: 'Efficiency Index', value: 'efficiency' },
-        ))
-    .addStringOption(option =>
-      option.setName('match_type')
-        .setDescription('Choose match type: HLD, LLD, or Melee')
-        .setRequired(true)
-        .addChoices(
-          { name: 'HLD', value: 'HLD' },
-          { name: 'LLD', value: 'LLD' },
-          { name: 'Melee', value: 'Melee' },
-        ))
-    .addStringOption(option =>
-      option.setName('time_frame')
-        .setDescription('Choose timeframe: Career or Seasonal')
-        .setRequired(true)
-        .addChoices(
-          { name: 'Career', value: 'career' },
-          { name: 'Seasonal', value: 'seasonal' },
-        ))
-    .addIntegerOption(option =>
-      option.setName('limit')
-        .setDescription('Number of players to display (max 50)')
-        .setRequired(true)
-        .setMinValue(1)
-        .setMaxValue(50)),
+    .setDescription('Get the official DFC rankings'),
 
   async execute(interaction) {
-    const rankType = interaction.options.getString('rank_type');
-    const matchType = interaction.options.getString('match_type');
-    const timeFrame = interaction.options.getString('time_frame');
-    const limit = interaction.options.getInteger('limit');
+    await interaction.deferReply(); // Defer the reply to avoid timeouts
 
     const sheets = google.sheets('v4');
     const auth = createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
 
-    await interaction.deferReply(); // Defer the reply to avoid timeouts
-
     try {
+      // Fetch rankings data from the Official Rankings tab
       const response = await sheets.spreadsheets.values.get({
         auth,
-        spreadsheetId: process.env.QUERY_SPREADSHEET_ID,
-        range: 'Current ELO!A2:M',
+        spreadsheetId: process.env.SPREADSHEET_ID,
+        range: 'Official Rankings!A1:B30', // Get enough rows for champion + top 20
       });
 
       const rows = response.data.values || [];
-
-      // Filter rows based on match type, remove duplicate entries, and parse ELO properly
-      const uniquePlayers = new Map();
-      rows.filter(row => row[2] === matchType) // Match type (Column C)
-        .forEach(row => {
-          const player = row[0];
-          if (!uniquePlayers.has(player)) {
-            uniquePlayers.set(player, row);
-          }
-        });
-
-      const filteredRows = Array.from(uniquePlayers.values())
-        .map(row => {
-          const eloValue = row[timeFrame === 'career' ? 4 : 3].replace(/,/g, '');
-          console.log(`Parsing ELO for player ${row[0]}: ${eloValue}`);
-          return {
-            player: row[0],
-            timestamp: row[1],
-            matchType: row[2],
-            elo: parseFloat(eloValue), // Remove commas and parse ELO (Columns E or D)
-            eIndex: parseFloat(row[timeFrame === 'career' ? 6 : 5]), // Career or Seasonal Efficiency Index (Columns G or F)
-            sWins: parseInt(row[7]) || 0,
-            sLoss: parseInt(row[8]) || 0,
-            sWinRate: row[9] || '0%',
-            wins: parseInt(row[10]) || 0,
-            loss: parseInt(row[11]) || 0,
-            winRate: row[12] || '0%',
-          };
-        })
-        .filter(player => timeFrame === 'career' || player.sWins > 0 || player.sLoss > 0) // Exclude players with no seasonal data
-        .sort((a, b) => rankType === 'elo' ? b.elo - a.elo : b.eIndex - a.eIndex) // Sort by ELO or Efficiency Index descending
-        .slice(0, limit); // Get top players up to the limit specified
-
-      // Emojis for the top 10 ranks
-      const rankEmojis = [
-        '🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'
-      ];
-
-      // Paginate the rankings, 5 per page
-      let currentPage = 0;
-      const totalPages = Math.ceil(filteredRows.length / 5);
-
-      const generateEmbed = (page) => {
-        const embed = {
-          color: 0x0099ff,
-          title: `🏆 ${timeFrame === 'career' ? 'Career' : 'Seasonal'} Rankings - ${rankType === 'elo' ? 'ELO' : 'Efficiency Index'} (${matchType}) - Page ${page + 1}/${totalPages}`,
-          fields: [],
-          footer: { text: 'DFC Rankings' },
-        };
-
-        filteredRows.slice(page * 5, (page + 1) * 5).forEach((player, index) => {
-          const rank = page * 5 + index + 1;
-          const rankEmoji = rank <= 10 ? rankEmojis[rank - 1] : `#${rank}`;
-          console.log(`Player ${player.player} - ELO: ${player.elo}`);
-          embed.fields.push({
-            name: `${rankEmoji} - ${player.player}`,
-            value: `ELO: ${player.elo}
-            Efficiency Index: ${player.eIndex}
-            Wins/Losses: ${timeFrame === 'career' ? player.wins : player.sWins}/${timeFrame === 'career' ? player.loss : player.sLoss}
-            Win Rate: ${timeFrame === 'career' ? player.winRate : player.sWinRate}`,
-            inline: false,
-          });
-        });
-        return embed;
-      };
-
-      const updateReply = async () => {
-        const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId('prev_page')
-            .setLabel('Previous')
-            .setStyle(ButtonStyle.Primary)
-            .setDisabled(currentPage === 0),
-          new ButtonBuilder()
-            .setCustomId('next_page')
-            .setLabel('Next')
-            .setStyle(ButtonStyle.Primary)
-            .setDisabled(currentPage === totalPages - 1),
-        );
-
-        await interaction.editReply({ embeds: [generateEmbed(currentPage)], components: [row] });
-      };
-
-      await updateReply();
-
-      const collector = interaction.channel.createMessageComponentCollector({
-        filter: i => i.user.id === interaction.user.id,
-        time: 60000,
-      });
-
-      collector.on('collect', async i => {
-        if (i.customId === 'prev_page' && currentPage > 0) {
-          currentPage--;
-        } else if (i.customId === 'next_page' && currentPage < totalPages - 1) {
-          currentPage++;
+      
+      // Find the champion (special entry above the numbered rankings)
+      let champion = null;
+      for (let i = 0; i < rows.length; i++) {
+        if (rows[i][0] === 'Champion' && rows[i][1]) {
+          champion = rows[i][1];
+          break;
         }
-        await i.deferUpdate();
-        await updateReply();
-      });
+      }
 
-      collector.on('end', async () => {
-        await interaction.editReply({ components: [] });
-      });
+      // Process the top 20 ranked players (starting from row 4)
+      const rankedPlayers = [];
+      let startRow = 4; // Starting from row 4 where numbered rankings begin
+      
+      // Find where the numbered rankings actually start
+      for (let i = 0; i < rows.length; i++) {
+        if (rows[i][0] === '1' || rows[i][0] === 1) {
+          startRow = i;
+          break;
+        }
+      }
+
+      // Collect up to 20 ranked players
+      for (let i = startRow; i < rows.length && rankedPlayers.length < 20; i++) {
+        if (rows[i] && rows[i][0] && rows[i][1]) {
+          const rank = rows[i][0].toString();
+          const name = rows[i][1];
+          
+          // Only add if we have valid data
+          if (rank && name) {
+            rankedPlayers.push({ rank, name });
+          }
+        }
+      }
+
+      // Create the embed
+      const embed = new EmbedBuilder()
+        .setColor(0xFFD700) // Gold color
+        .setTitle('🏆 Official DFC Rankings')
+        .setDescription('The current official DFC rankings based on tournament performance.')
+        .setTimestamp()
+        .setFooter({ text: 'DFC Official Rankings' });
+
+      // Add champion field if found
+      if (champion) {
+        embed.addFields({ name: '👑 Champion', value: champion, inline: false });
+      }
+
+      // Add emojis for top 3 ranks
+      const rankEmojis = {
+        '1': '🥇',
+        '2': '🥈',
+        '3': '🥉'
+      };
+
+      // Add top 20 players to the embed
+      if (rankedPlayers.length > 0) {
+        let ranksText = '';
+        
+        rankedPlayers.forEach(player => {
+          const rankDisplay = rankEmojis[player.rank] || `#${player.rank}`;
+          ranksText += `${rankDisplay} **${player.name}**\n`;
+        });
+        
+        embed.addFields({ name: 'Top Rankings', value: ranksText, inline: false });
+      } else {
+        embed.addFields({ name: 'Rankings', value: 'No ranked players found', inline: false });
+      }
+
+      // Send the embed
+      await interaction.editReply({ embeds: [embed] });
     } catch (error) {
       console.error('Error fetching rankings:', error);
       await interaction.editReply({ content: 'There was an error while retrieving the rankings.', ephemeral: true });
