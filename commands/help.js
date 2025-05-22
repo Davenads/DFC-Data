@@ -51,11 +51,18 @@ module.exports = {
             inline: false 
           }
         )
-        .addFields({
-          name: '⚠️ Important Note for DFC Duelers',
-          value: 'You can also use these commands with the `!` prefix (e.g., `!stats`, `!rankings`) for quicker access in DFC channels.',
-          inline: false
-        })
+        .addFields(
+          {
+            name: '🤖 Technical Issues or Bugs?',
+            value: 'If you encounter any technical issues or bugs with the bot, please report them in <#1335332761237590167> (mod-mail channel).',
+            inline: false
+          },
+          {
+            name: '⚠️ Important Note for DFC Duelers',
+            value: 'You can also use these commands with the `!` prefix (e.g., `!stats`, `!rankings`) for quicker access in DFC channels.',
+            inline: false
+          }
+        )
         .setFooter({ text: 'DFC Bot Help | Type /help for this menu' })
         .setTimestamp();
       
