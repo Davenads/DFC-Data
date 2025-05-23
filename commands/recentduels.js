@@ -186,17 +186,18 @@ module.exports = {
         }
         
         // Use the embeds array instead of the single embed
-        embed = embeds;
+        const finalEmbeds = embeds;
       }
 
       // Prepare the reply content
       let replyContent = {};
+      const embedsToSend = recentMatches.length > 0 ? finalEmbeds : [embed];
       
       if (usedDefault) {
         replyContent.content = `💡 **Tip**: You can specify the number of days to look back by using \`!recentduels [days]\` (e.g., \`!recentduels 20\`) - up to 30 days max.`;
-        replyContent.embeds = Array.isArray(embed) ? embed : [embed];
+        replyContent.embeds = embedsToSend;
       } else {
-        replyContent.embeds = Array.isArray(embed) ? embed : [embed];
+        replyContent.embeds = embedsToSend;
       }
       
       await interaction.editReply({ ...replyContent, ephemeral: true });
