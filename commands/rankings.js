@@ -128,6 +128,8 @@ module.exports = {
   },
 
   async handleButton(interaction) {
+    console.log(`Rankings handleButton called with customId: ${interaction.customId}`);
+    
     if (interaction.customId === 'rankings_back') {
       // Handle back button - show original rankings
       await interaction.deferUpdate();

@@ -61,23 +61,33 @@ module.exports = (client) => {
         console.log(`[${timestamp}] Button interaction: ${interaction.customId} from ${user.tag} (${user.id})`);
 
         // Find the command that handles this button
+        let handled = false;
         for (const command of client.commands.values()) {
             if (command.handleButton && typeof command.handleButton === 'function') {
                 try {
                     await command.handleButton(interaction);
-                    console.log(`[${timestamp}] Button interaction handled by ${command.data?.name || 'unknown'}`);
-                    return;
+                    if (interaction.replied || interaction.deferred) {
+                        console.log(`[${timestamp}] Button interaction handled by ${command.data?.name || 'unknown'}`);
+                        handled = true;
+                        break;
+                    }
                 } catch (error) {
-                    console.error(`[${timestamp}] Error handling button interaction:`, error);
+                    console.error(`[${timestamp}] Error handling button interaction in ${command.data?.name || 'unknown'}:`, error);
                     if (!interaction.replied && !interaction.deferred) {
                         await interaction.reply({ content: 'There was an error handling this interaction!', ephemeral: true });
                     }
-                    return;
+                    handled = true;
+                    break;
                 }
             }
         }
         
-        console.warn(`[${timestamp}] No handler found for button: ${interaction.customId}`);
+        if (!handled) {
+            console.warn(`[${timestamp}] No handler found for button: ${interaction.customId}`);
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({ content: 'This interaction is no longer available.', ephemeral: true });
+            }
+        }
     }
 
     async function handleAutocomplete(interaction, client) {
