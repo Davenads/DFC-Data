@@ -87,10 +87,8 @@ module.exports = {
           'sorceress': '🔮'
         };
 
-        // Build matches with character limit handling
-        const matchesToShow = [];
-        let currentLength = 0;
-        const maxFieldLength = 1000; // Leave some buffer under 1024 limit
+        // Build matches and split into multiple embeds if needed
+        const matchStrings = [];
         
         for (const match of recentMatches) {
           const eventDate = new Date(match[0]); // Event Date
@@ -120,32 +118,75 @@ module.exports = {
             matchString += `\nType: ${matchType}`;
           }
           
-          // Check if adding this match would exceed the limit
-          const matchWithSeparator = matchesToShow.length > 0 ? `\n\n${matchString}` : matchString;
-          if (currentLength + matchWithSeparator.length > maxFieldLength) {
-            break; // Stop adding matches if it would exceed the limit
+          matchStrings.push(matchString);
+        }
+        
+        // Split matches into multiple embeds based on character limits
+        const embeds = [];
+        const maxFieldLength = 1000; // Leave some buffer under 1024 limit
+        let currentMatches = [];
+        let currentLength = 0;
+        
+        for (const matchString of matchStrings) {
+          const matchWithSeparator = currentMatches.length > 0 ? `\n\n${matchString}` : matchString;
+          
+          // If adding this match would exceed the limit, finalize current embed and start a new one
+          if (currentLength + matchWithSeparator.length > maxFieldLength && currentMatches.length > 0) {
+            // Create embed for current batch
+            const embedForBatch = new EmbedBuilder()
+              .setColor(0x00FF00)
+              .setTitle(embeds.length === 0 ? `⚔️ Recent Duels - Last ${days} Day${days === 1 ? '' : 's'}` : `⚔️ Recent Duels (cont.)`);
+            
+            if (embeds.length === 0) {
+              embedForBatch.setDescription(`Found ${recentMatches.length} duel${recentMatches.length === 1 ? '' : 's'} in the last ${days} day${days === 1 ? '' : 's'}`);
+            }
+            
+            embedForBatch.addFields({
+              name: `Recent Matches${embeds.length > 0 ? ` (Part ${embeds.length + 1})` : ''}`,
+              value: currentMatches.join('\n\n'),
+              inline: false
+            });
+            
+            if (embeds.length === 0) {
+              embedForBatch.setTimestamp().setFooter({ text: 'DFC Recent Duels' });
+            }
+            
+            embeds.push(embedForBatch);
+            
+            // Reset for next batch
+            currentMatches = [matchString];
+            currentLength = matchString.length;
+          } else {
+            currentMatches.push(matchString);
+            currentLength += matchWithSeparator.length;
+          }
+        }
+        
+        // Add remaining matches to final embed
+        if (currentMatches.length > 0) {
+          const embedForBatch = new EmbedBuilder()
+            .setColor(0x00FF00)
+            .setTitle(embeds.length === 0 ? `⚔️ Recent Duels - Last ${days} Day${days === 1 ? '' : 's'}` : `⚔️ Recent Duels (cont.)`);
+          
+          if (embeds.length === 0) {
+            embedForBatch.setDescription(`Found ${recentMatches.length} duel${recentMatches.length === 1 ? '' : 's'} in the last ${days} day${days === 1 ? '' : 's'}`);
           }
           
-          matchesToShow.push(matchString);
-          currentLength += matchWithSeparator.length;
-        }
-        
-        const matchDetails = matchesToShow.join('\n\n');
-        
-        embed.addFields({ 
-          name: `Recent Matches${matchesToShow.length < recentMatches.length ? ` (Showing ${matchesToShow.length} of ${recentMatches.length})` : ''}`, 
-          value: matchDetails || 'No matches to display.',
-          inline: false 
-        });
-        
-        // Add note if we truncated results
-        if (matchesToShow.length < recentMatches.length) {
-          embed.addFields({ 
-            name: 'Note', 
-            value: `Only showing the most recent ${matchesToShow.length} matches. Use a smaller number of days to see fewer, more recent results.`,
-            inline: false 
+          embedForBatch.addFields({
+            name: `Recent Matches${embeds.length > 0 ? ` (Part ${embeds.length + 1})` : ''}`,
+            value: currentMatches.join('\n\n'),
+            inline: false
           });
+          
+          if (embeds.length === 0) {
+            embedForBatch.setTimestamp().setFooter({ text: 'DFC Recent Duels' });
+          }
+          
+          embeds.push(embedForBatch);
         }
+        
+        // Use the embeds array instead of the single embed
+        embed = embeds;
       }
 
       // Prepare the reply content
@@ -153,9 +194,9 @@ module.exports = {
       
       if (usedDefault) {
         replyContent.content = `💡 **Tip**: You can specify the number of days to look back by using \`!recentduels [days]\` (e.g., \`!recentduels 20\`) - up to 30 days max.`;
-        replyContent.embeds = [embed];
+        replyContent.embeds = Array.isArray(embed) ? embed : [embed];
       } else {
-        replyContent.embeds = [embed];
+        replyContent.embeds = Array.isArray(embed) ? embed : [embed];
       }
       
       await interaction.editReply({ ...replyContent, ephemeral: true });
