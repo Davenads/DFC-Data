@@ -49,6 +49,11 @@ module.exports = {
             name: '📊 !stats', 
             value: 'View player statistics including W/L record, winrate, rank, and recent matches.', 
             inline: false 
+          },
+          { 
+            name: '⚔️ !recentduels', 
+            value: 'View recent duels from the last X days (up to 30 days). Usage: `!recentduels [days]`', 
+            inline: false 
           }
         )
         .addFields(

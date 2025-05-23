@@ -4,32 +4,59 @@ DFC-Data is a Discord bot built to manage and facilitate the Diablo Fighting Cha
 
 ## Features
 
-- **Registration**: Players can register themselves for the DFC event using the `/register` command, which adds them to the roster stored in Google Sheets.
-- **Signup for Events**: Players can sign up for weekly events using the `/signup` command, specifying their class and build.
-- **Matchup Creation**: Managers can create matchups for weekly events using the `/matchup` command, populating the fight card in Google Sheets.
-- **Win Reporting**: Players can report the results of matches using the `/reportwin` command, which updates the duel data accordingly.
+- **Player Registration**: Players can register for the DFC using the `/register` command, linking their Discord account with an arena name in the Google Sheets database
+- **Tournament Signups**: Registered players can sign up for weekly tournaments using `/signup`, specifying their character class and build preferences
+- **Automated Matchmaking**: Tournament managers can generate matchups using the `/matchup` command, creating balanced fight cards based on player signups
+- **Results Tracking**: Players can report match outcomes using `/reportwin`, automatically updating player statistics, ELO ratings, and tournament standings
+- **Official Rankings**: View current DFC rankings based on tournament performance with `/rankings`, including champion status and top 20 players
+- **Player Statistics**: Access detailed player stats including W/L records, winrates, recent matches, and ranking positions using `/stats`
+- **Interactive Help System**: Comprehensive help menu with `/help` showing all available commands and their usage
+- **Recent Activity Tracking**: Monitor recent tournament signups and player activity with `/recentsignups`
+- **Historical Data**: Access rule change history and tournament evolution with `/changelog`
 
 ## Folder Structure
 
 ```
 DFC-DATA/
-├── commands/            # Contains individual command files
-│   ├── matchup.js
-│   ├── register.js
-│   ├── reportwin.js
-│   └── signup.js
-├── handlers/            # Handlers to load commands
-│   └── commandHandler.js
-├── config/              # Configuration files for credentials and settings
-│   └── googleConfig.js
-├── utils/               # Utility functions
-│   └── googleAuth.js    # Google authentication utilities
-├── .env                 # Environment variables (API keys, tokens)
-├── .gitignore           # To exclude node_modules, .env, etc.
-├── index.js             # Main entry point of the bot
-├── LICENSE              # License information
-├── package.json         # Node.js dependencies
-└── README.md            # Information about the bot
+├── commands/                  # Individual Discord slash command files
+│   ├── help.js               # Interactive help menu command
+│   ├── register.js           # Player registration command
+│   ├── signup.js             # Tournament signup command
+│   ├── matchup.js            # Matchmaking command (manager only)
+│   ├── reportwin.js          # Match result reporting command
+│   ├── rankings.js           # Official DFC rankings command
+│   ├── stats.js              # Player statistics command
+│   ├── recentsignups.js      # Recent signup tracking command
+│   ├── changelog.js          # Rule change history command
+│   ├── elo.js                # Legacy ELO rating command (deprecated)
+│   ├── rankings-legacy.js    # Legacy rankings command (deprecated)
+│   └── stats-legacy.js       # Legacy statistics command (deprecated)
+├── handlers/                  # Command loading and management
+│   └── commandHandler.js     # Loads and registers all slash commands
+├── context/                   # Project documentation and context
+│   ├── project-overview.md   # High-level project description
+│   ├── architecture.md       # System architecture documentation
+│   ├── commands.md           # Detailed command specifications
+│   ├── data-flow.md          # Data flow and processing logic
+│   ├── dependencies.md       # Dependencies and external services
+│   ├── deployment.md         # Deployment instructions and configuration
+│   ├── development-guidelines.md # Development standards and practices
+│   ├── discord-integration.md # Discord API integration details
+│   └── google-sheets-structure.md # Google Sheets schema and structure
+├── utils/                     # Utility functions and helpers
+│   └── googleAuth.js         # Google Sheets API authentication utilities
+├── config/                    # Configuration files (gitignored)
+├── .env                       # Environment variables (API keys, tokens)
+├── .gitignore                # Git ignore patterns
+├── index.js                  # Main bot entry point and Discord client setup
+├── deploy-commands.js        # Script to register slash commands with Discord
+├── clear-commands.js         # Script to clear registered slash commands
+├── LICENSE                   # MIT License
+├── package.json              # Node.js dependencies and scripts
+├── package-lock.json         # Locked dependency versions
+├── Procfile                  # Heroku deployment configuration
+├── announcement.md           # Project announcements and updates
+└── README.md                 # Project documentation (this file)
 ```
 
 ## Setup
@@ -92,10 +119,26 @@ node index.js
 
 ## Commands
 
-- **/register**: Registers a player for the DFC roster.
-- **/signup**: Signs up a player for the weekly event, with class and build options.
-- **/matchup**: Creates matchups for the weekly fight card (requires manager role).
-- **/reportwin**: Reports the result of a match and updates standings.
+### Core DFC Commands
+- **/help**: Displays an interactive help menu with all available commands and their descriptions
+- **/register**: Registers a player for the DFC roster with their Discord account and arena name
+- **/signup**: Signs up a registered player for weekly tournaments, specifying class and build details
+- **/matchup**: Creates matchups for weekly fight cards (requires manager role permissions)
+- **/reportwin**: Reports match results and updates player standings and ELO ratings
+
+### Statistics & Rankings Commands
+- **/rankings**: Displays official DFC rankings based on tournament performance with interactive recent matches view
+- **/stats**: Shows simplified player statistics including W/L record, winrate, rank, and recent match history
+- **/recentsignups**: Views recent tournament signups with pagination, filtered by tournament cutoff dates
+
+### Legacy/Deprecated Commands
+These commands are being phased out and are not endorsed by the DFC:
+- **/elo**: Views player ELO ratings (deprecated - use `/stats` or `/rankings` instead)
+- **/rankings-legacy**: Old rankings system based on ELO metrics (deprecated - use `/rankings` instead)  
+- **/stats-legacy**: Legacy player statistics with detailed ELO and Efficiency Index (deprecated - use `/stats` instead)
+
+### Additional Commands
+- **/changelog**: Views the history of DFC rule changes with match type filtering
 
 ## Google Sheets Integration
 
