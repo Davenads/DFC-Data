@@ -146,7 +146,7 @@ function createMessageAdapter(message, commandName, args = []) {
     };
 }
 
-// Event listener for handling interactions (slash commands and autocomplete)
+// Event listener for handling interactions (slash commands, buttons, and autocomplete)
 client.on('interactionCreate', async interaction => {
     if (interaction.isCommand()) {
         // Slash Command Handling
@@ -167,6 +167,41 @@ client.on('interactionCreate', async interaction => {
         } catch (error) {
             console.error(error);
             await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+        }
+    } else if (interaction.isButton()) {
+        // Button Interaction Handling
+        const timestamp = new Date().toISOString();
+        const user = interaction.user;
+        
+        console.log(`[${timestamp}] Button interaction: ${interaction.customId} from ${user.tag} (${user.id})`);
+
+        // Find the command that handles this button
+        let handled = false;
+        for (const command of client.commands.values()) {
+            if (command.handleButton && typeof command.handleButton === 'function') {
+                try {
+                    await command.handleButton(interaction);
+                    if (interaction.replied || interaction.deferred) {
+                        console.log(`[${timestamp}] Button interaction handled by ${command.data?.name || 'unknown'}`);
+                        handled = true;
+                        break;
+                    }
+                } catch (error) {
+                    console.error(`[${timestamp}] Error handling button interaction in ${command.data?.name || 'unknown'}:`, error);
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({ content: 'There was an error handling this interaction!', ephemeral: true });
+                    }
+                    handled = true;
+                    break;
+                }
+            }
+        }
+        
+        if (!handled) {
+            console.warn(`[${timestamp}] No handler found for button: ${interaction.customId}`);
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({ content: 'This interaction is no longer available.', ephemeral: true });
+            }
         }
     } else if (interaction.isAutocomplete()) {
         // Autocomplete Handling
