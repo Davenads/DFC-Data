@@ -8,13 +8,16 @@ module.exports = {
     .setDescription('Get recent duels from the last X days (up to 30 days)')
     .addIntegerOption(option =>
       option.setName('days')
-        .setDescription('Number of days to look back (1-30)')
-        .setRequired(true)
+        .setDescription('Number of days to look back (1-30, defaults to 7)')
+        .setRequired(false)
         .setMinValue(1)
         .setMaxValue(30)),
 
   async execute(interaction) {
-    const days = interaction.options.getInteger('days');
+    const inputDays = interaction.options.getInteger('days');
+    const days = inputDays || 7; // Default to 7 days if no input provided
+    const usedDefault = inputDays === null;
+    
     const timestamp = new Date().toISOString();
     const user = interaction.user;
     const guildName = interaction.guild ? interaction.guild.name : 'DM';
@@ -24,7 +27,7 @@ module.exports = {
     User: ${user.tag} (${user.id})
     Server: ${guildName} (${interaction.guildId || 'N/A'})
     Channel: ${channelName} (${interaction.channelId})
-    Days: ${days}`);
+    Days: ${days} ${usedDefault ? '(default)' : '(specified)'}`);
 
     await interaction.deferReply({ ephemeral: true });
 
@@ -84,10 +87,12 @@ module.exports = {
           'sorceress': '🔮'
         };
 
-        // Limit to 20 matches to avoid embed size limits
-        const matchesToShow = recentMatches.slice(0, 20);
+        // Build matches with character limit handling
+        const matchesToShow = [];
+        let currentLength = 0;
+        const maxFieldLength = 1000; // Leave some buffer under 1024 limit
         
-        const matchDetails = matchesToShow.map(match => {
+        for (const match of recentMatches) {
           const eventDate = new Date(match[0]); // Event Date
           const formattedDate = `${eventDate.getMonth() + 1}/${eventDate.getDate()}`;
           const winner = match[1] || 'Unknown'; // Winner
@@ -98,17 +103,14 @@ module.exports = {
           const loserBuild = match[6] || ''; // L Build
           const roundLosses = match[7] || ''; // Round Losses
           const matchType = match[8] || 'Unknown'; // Match Type
-          const game = match[9] || ''; // Game
-          const mirror = match[10] || ''; // Mirror
           const title = match[11] || ''; // Title
-          const notes = match[12] || ''; // Notes
           
           const winnerClassEmoji = classEmojis[winnerClass.toLowerCase()] || '👤';
           const loserClassEmoji = classEmojis[loserClass.toLowerCase()] || '👤';
           
           let matchString = `**${formattedDate}** - ${winner} def. ${loser}`;
           
-          // Add class and build information if available
+          // Add class and build information if available (simplified)
           if (winnerClass || loserClass) {
             matchString += `\n${winnerClassEmoji} ${winnerClass} ${winnerBuild} vs ${loserClassEmoji} ${loserClass} ${loserBuild}`;
           }
@@ -118,22 +120,21 @@ module.exports = {
             matchString += `\nType: ${matchType}`;
           }
           
-          // Add round losses if available
-          if (roundLosses) {
-            matchString += ` | Round Losses: ${roundLosses}`;
+          // Check if adding this match would exceed the limit
+          const matchWithSeparator = matchesToShow.length > 0 ? `\n\n${matchString}` : matchString;
+          if (currentLength + matchWithSeparator.length > maxFieldLength) {
+            break; // Stop adding matches if it would exceed the limit
           }
           
-          // Add title if available
-          if (title) {
-            matchString += `\nTitle: ${title}`;
-          }
-          
-          return matchString;
-        }).join('\n\n');
+          matchesToShow.push(matchString);
+          currentLength += matchWithSeparator.length;
+        }
+        
+        const matchDetails = matchesToShow.join('\n\n');
         
         embed.addFields({ 
           name: `Recent Matches${matchesToShow.length < recentMatches.length ? ` (Showing ${matchesToShow.length} of ${recentMatches.length})` : ''}`, 
-          value: matchDetails,
+          value: matchDetails || 'No matches to display.',
           inline: false 
         });
         
@@ -147,7 +148,17 @@ module.exports = {
         }
       }
 
-      await interaction.editReply({ embeds: [embed], ephemeral: true });
+      // Prepare the reply content
+      let replyContent = {};
+      
+      if (usedDefault) {
+        replyContent.content = `💡 **Tip**: You can specify the number of days to look back by using \`!recentduels [days]\` (e.g., \`!recentduels 20\`) - up to 30 days max.`;
+        replyContent.embeds = [embed];
+      } else {
+        replyContent.embeds = [embed];
+      }
+      
+      await interaction.editReply({ ...replyContent, ephemeral: true });
       console.log(`[${timestamp}] Recent duels command completed successfully for ${user.tag} (${user.id}) - found ${recentMatches.length} matches in ${days} days`);
     } catch (error) {
       const errorMessage = `[${timestamp}] Error fetching recent duels for ${user.tag} (${user.id})`;
