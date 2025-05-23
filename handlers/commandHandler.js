@@ -17,8 +17,16 @@ module.exports = (client) => {
     }
 
     client.on('interactionCreate', async (interaction) => {
-        if (!interaction.isCommand()) return;
+        if (interaction.isCommand()) {
+            await handleSlashCommand(interaction, client);
+        } else if (interaction.isButton()) {
+            await handleButtonInteraction(interaction, client);
+        } else if (interaction.isAutocomplete()) {
+            await handleAutocomplete(interaction, client);
+        }
+    });
 
+    async function handleSlashCommand(interaction, client) {
         const command = client.commands.get(interaction.commandName);
 
         const timestamp = new Date().toISOString();
@@ -44,5 +52,43 @@ module.exports = (client) => {
             console.error(`[${timestamp}] Error executing command ${interaction.commandName}:`, error);
             await interaction.reply({ content: 'There was an error executing this command!', ephemeral: true });
         }
-    });
+    }
+
+    async function handleButtonInteraction(interaction, client) {
+        const timestamp = new Date().toISOString();
+        const user = interaction.user;
+        
+        console.log(`[${timestamp}] Button interaction: ${interaction.customId} from ${user.tag} (${user.id})`);
+
+        // Find the command that handles this button
+        for (const command of client.commands.values()) {
+            if (command.handleButton && typeof command.handleButton === 'function') {
+                try {
+                    await command.handleButton(interaction);
+                    console.log(`[${timestamp}] Button interaction handled by ${command.data?.name || 'unknown'}`);
+                    return;
+                } catch (error) {
+                    console.error(`[${timestamp}] Error handling button interaction:`, error);
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({ content: 'There was an error handling this interaction!', ephemeral: true });
+                    }
+                    return;
+                }
+            }
+        }
+        
+        console.warn(`[${timestamp}] No handler found for button: ${interaction.customId}`);
+    }
+
+    async function handleAutocomplete(interaction, client) {
+        const command = client.commands.get(interaction.commandName);
+
+        if (!command || !command.autocomplete) return;
+
+        try {
+            await command.autocomplete(interaction);
+        } catch (error) {
+            console.error('Error handling autocomplete:', error);
+        }
+    }
 };
