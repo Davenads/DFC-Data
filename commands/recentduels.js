@@ -69,12 +69,15 @@ module.exports = {
         .setTimestamp()
         .setFooter({ text: 'DFC Recent Duels' });
 
+      let embedsToSend;
+
       if (recentMatches.length === 0) {
         embed.addFields({ 
           name: 'No Recent Duels', 
           value: `No duels found in the last ${days} day${days === 1 ? '' : 's'}.`,
           inline: false 
         });
+        embedsToSend = [embed];
       } else {
         // Class emojis
         const classEmojis = {
@@ -185,13 +188,11 @@ module.exports = {
           embeds.push(embedForBatch);
         }
         
-        // Use the embeds array instead of the single embed
-        const finalEmbeds = embeds;
+        embedsToSend = embeds;
       }
 
       // Prepare the reply content
       let replyContent = {};
-      const embedsToSend = recentMatches.length > 0 ? finalEmbeds : [embed];
       
       if (usedDefault) {
         replyContent.content = `💡 **Tip**: You can specify the number of days to look back by using \`!recentduels [days]\` (e.g., \`!recentduels 20\`) - up to 30 days max.`;
