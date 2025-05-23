@@ -201,8 +201,8 @@ module.exports = {
       }
 
       // Get recent matches from Duel Data involving top players
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
       const duelDataResponse = await sheets.spreadsheets.values.get({
         auth,
@@ -217,7 +217,7 @@ module.exports = {
         if (row.length < 5) return false;
         
         const matchDate = new Date(row[0]);
-        if (isNaN(matchDate.getTime()) || matchDate < sevenDaysAgo) return false;
+        if (isNaN(matchDate.getTime()) || matchDate < thirtyDaysAgo) return false;
         
         const winner = row[1] ? row[1].toLowerCase() : '';
         const loser = row[4] ? row[4].toLowerCase() : '';
