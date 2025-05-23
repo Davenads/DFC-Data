@@ -230,6 +230,15 @@ client.on('messageCreate', async message => {
         } catch (reactionError) {
             console.error(`[${timestamp}] Failed to add reaction to command message:`, reactionError);
         }
+        
+        // Delete the command message after 10 seconds to prevent channel bloat
+        setTimeout(async () => {
+            try {
+                await message.delete();
+            } catch (deleteError) {
+                console.error(`[${timestamp}] Failed to delete command message:`, deleteError);
+            }
+        }, 10000);
     } catch (error) {
         console.error(`[${timestamp}] Error executing prefix command ${commandName}:`, error);
         
@@ -239,6 +248,15 @@ client.on('messageCreate', async message => {
         } catch (reactionError) {
             console.error(`[${timestamp}] Failed to add error reaction to command message:`, reactionError);
         }
+        
+        // Delete the failed command message after 10 seconds to prevent channel bloat
+        setTimeout(async () => {
+            try {
+                await message.delete();
+            } catch (deleteError) {
+                console.error(`[${timestamp}] Failed to delete failed command message:`, deleteError);
+            }
+        }, 10000);
         
         // Provide more detailed error messages for users
         let errorMessage = 'There was an error while executing this command!';
