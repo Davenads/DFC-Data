@@ -23,7 +23,11 @@ module.exports = {
         const { changes } = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
         changes.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-        let messageContent = '📜 **DFC Rule Change History**\n\n';
+        // Split changelog into multiple messages to avoid 2000 char limit
+        const messages = [];
+        let currentMessage = '📜 **DFC Rule Change History**\n\n';
+        const maxLength = 1900; // Leave some buffer
+
         changes.forEach(record => {
             const date = new Date(record.date).toLocaleDateString('en-US', {
                 year: 'numeric', month: 'short', day: 'numeric'
@@ -32,20 +36,46 @@ module.exports = {
             if (record.matchType === 'HLD') matchTypeEmoji = '🏆';
             else if (record.matchType === 'Melee') matchTypeEmoji = '⚔️';
             else if (record.matchType === 'All') matchTypeEmoji = '🌐';
-            messageContent += `${matchTypeEmoji} **${date}** (${record.matchType})\n${record.change}\n\n`;
+            
+            const entryText = `${matchTypeEmoji} **${date}** (${record.matchType})\n${record.change}\n\n`;
+            
+            // Check if adding this entry would exceed the limit
+            if (currentMessage.length + entryText.length > maxLength) {
+                messages.push(currentMessage);
+                currentMessage = entryText;
+            } else {
+                currentMessage += entryText;
+            }
         });
+        
+        // Add the final message
+        if (currentMessage.trim()) {
+            messages.push(currentMessage);
+        }
 
         if (isSlash) {
-            // Slash command: ephemeral channel response
+            // Slash command: send first message as reply, rest as follow-ups
             await interaction.reply({
-                content: messageContent,
+                content: messages[0] || 'No changelog entries found.',
                 ephemeral: true
             });
+            
+            for (let i = 1; i < messages.length; i++) {
+                await interaction.followUp({
+                    content: messages[i],
+                    ephemeral: true
+                });
+            }
         } else {
-            // Prefix command: DM, react, and delete after 10s
+            // Prefix command: DM all messages, react, and delete after 10s
             try {
                 const dmChannel = await user.createDM();
-                await dmChannel.send(messageContent);
+                
+                // Send all messages to DM
+                for (const message of messages) {
+                    await dmChannel.send(message);
+                }
+                
                 // React to the original message
                 if (interaction.channel && interaction.channel.messages && interaction.id) {
                     // Try to fetch and react to the original message
