@@ -246,14 +246,20 @@ module.exports = {
       });
 
       // Get all matches for the player from Duel Data tab
+      let allPlayerMatches = [];
+      let recentMatches = [];
+      let matchesToShow = [];
+      
       try {
+        console.log(`[${timestamp}] Fetching duel data for player analysis: ${playerName}`);
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         
         const duelRows = await duelDataCache.getCachedData();
+        console.log(`[${timestamp}] Retrieved ${duelRows.length} total duel rows from cache`);
         
         // Find all matches where the player was either winner or loser
-        const allPlayerMatches = duelRows.filter(row => {
+        allPlayerMatches = duelRows.filter(row => {
           // Check if row has sufficient data
           if (row.length < 5) return false;
           
@@ -268,17 +274,21 @@ module.exports = {
                  (loser && loser.toLowerCase() === playerName.toLowerCase());
         });
         
+        console.log(`[${timestamp}] Found ${allPlayerMatches.length} total matches for player ${playerName}`);
+        
         // Find matches within last 30 days for recent matches section
-        const recentMatches = allPlayerMatches.filter(row => {
+        recentMatches = allPlayerMatches.filter(row => {
           const matchDate = new Date(row[0]);
           return matchDate >= thirtyDaysAgo;
         });
+        
+        console.log(`[${timestamp}] Found ${recentMatches.length} recent matches (last 30 days) for player ${playerName}`);
         
         // Sort by most recent first (date is in column A)
         recentMatches.sort((a, b) => new Date(b[0]) - new Date(a[0]));
         
         // Take only the most recent matches (max 5)
-        const matchesToShow = recentMatches.slice(0, 5);
+        matchesToShow = recentMatches.slice(0, 5);
         
         if (matchesToShow.length > 0) {
           // Class emojis
@@ -326,7 +336,7 @@ module.exports = {
           });
         }
       } catch (error) {
-        console.error(`[${timestamp}] Error fetching recent matches for ${playerName}:`, error);
+        console.error(`[${timestamp}] Error fetching duel data for ${playerName}:`, error);
         // Don't fail the whole command if this part fails
       }
       
@@ -338,6 +348,7 @@ module.exports = {
       });
 
       // Create additional player info embed
+      console.log(`[${timestamp}] Creating additional player info embed for ${playerName}`);
       const playerInfoEmbed = new EmbedBuilder()
         .setColor(0x9932cc)
         .setTitle(`🎯 Additional Info for ${playerName}`)
@@ -345,13 +356,15 @@ module.exports = {
         .setTimestamp();
 
       // Analyze all player matches for class/build and opponent data
-      if (allPlayerMatches.length > 0) {
+      if (allPlayerMatches && allPlayerMatches.length > 0) {
+        console.log(`[${timestamp}] Analyzing ${allPlayerMatches.length} matches for player insights`);
+        
         // Track classes/builds played
         const classBuilds = {};
         // Track opponents and records
         const opponentRecords = {};
         
-        allPlayerMatches.forEach(match => {
+        allPlayerMatches.forEach((match, index) => {
           const winner = match[1];
           const winnerClass = match[2] || '';
           const winnerBuild = match[3] || '';
@@ -359,7 +372,7 @@ module.exports = {
           const loserClass = match[5] || '';
           const loserBuild = match[6] || '';
           
-          const isWinner = winner.toLowerCase() === playerName.toLowerCase();
+          const isWinner = winner && winner.toLowerCase() === playerName.toLowerCase();
           const playerClass = isWinner ? winnerClass : loserClass;
           const playerBuild = isWinner ? winnerBuild : loserBuild;
           const opponent = isWinner ? loser : winner;
@@ -392,6 +405,9 @@ module.exports = {
           }
         });
         
+        console.log(`[${timestamp}] Found ${Object.keys(classBuilds).length} unique class/build combinations`);
+        console.log(`[${timestamp}] Found ${Object.keys(opponentRecords).length} unique opponents`);
+        
         // Get top 3 most played class/builds
         const topClassBuilds = Object.entries(classBuilds)
           .sort((a, b) => b[1].count - a[1].count)
@@ -404,6 +420,7 @@ module.exports = {
             return `${index + 1}. **${classBuild}** - ${stats.count} games (${stats.wins}W/${stats.losses}L, ${winrate}%)`;
           }).join('\n');
           
+          console.log(`[${timestamp}] Adding top class/builds field with ${topClassBuilds.length} entries`);
           playerInfoEmbed.addFields({
             name: '🎲 Most Played Classes/Builds',
             value: classBuildText,
@@ -423,25 +440,34 @@ module.exports = {
             return `${index + 1}. **${opponent}** - ${record.wins}W/${record.losses}L (${winrate}%)`;
           }).join('\n');
           
+          console.log(`[${timestamp}] Adding top opponents field with ${topOpponents.length} entries`);
           playerInfoEmbed.addFields({
             name: '⚔️ Records vs Most Played Opponents',
             value: opponentText,
             inline: false
           });
         }
+      } else {
+        console.log(`[${timestamp}] No match data found for additional player analysis`);
       }
       
       // Only add the additional embed if it has fields
       const embeds = [embed];
-      if (playerInfoEmbed.data.fields && playerInfoEmbed.data.fields.length > 0) {
+      const hasAdditionalFields = playerInfoEmbed.data.fields && playerInfoEmbed.data.fields.length > 0;
+      console.log(`[${timestamp}] Additional embed has ${playerInfoEmbed.data.fields?.length || 0} fields, will include: ${hasAdditionalFields}`);
+      
+      if (hasAdditionalFields) {
         embeds.push(playerInfoEmbed);
+        console.log(`[${timestamp}] Added additional embed to response, total embeds: ${embeds.length}`);
       }
 
+      console.log(`[${timestamp}] Sending response with ${embeds.length} embed(s) to ${user.tag}`);
       await interaction.editReply({ embeds: embeds, ephemeral: true });
-      console.log(`[${timestamp}] Stats for player ${playerName} sent successfully to ${user.tag} (${user.id}) - found ${processedMatchTypes.size} match types`);
+      console.log(`[${timestamp}] Stats for player ${playerName} sent successfully to ${user.tag} (${user.id}) - found ${processedMatchTypes.size} match types, sent ${embeds.length} embed(s)`);
     } catch (error) {
       const errorMessage = `[${timestamp}] Error fetching stats for player ${playerName} requested by ${user.tag} (${user.id})`;
       console.error(errorMessage, error);
+      console.error(`[${timestamp}] Error stack trace:`, error.stack);
       
       // Provide more descriptive error messages based on the error type
       let userErrorMessage = '⚠️ **Error**: There was a problem retrieving player stats.';
