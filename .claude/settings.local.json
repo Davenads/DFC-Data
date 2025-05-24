@@ -3,7 +3,8 @@
     "allow": [
       "Bash(rg:*)",
       "Bash(mkdir:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(npm install:*)"
     ],
     "deny": []
   }

@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { google } = require('googleapis');
 const { createGoogleAuth } = require('../utils/googleAuth');
+const duelDataCache = require('../utils/duelDataCache');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -249,13 +250,7 @@ module.exports = {
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         
-        const duelDataResponse = await sheets.spreadsheets.values.get({
-          auth,
-          spreadsheetId: process.env.SPREADSHEET_ID,
-          range: 'Duel Data!A2:Q2103', // As per requirement, up to row 2103
-        });
-        
-        const duelRows = duelDataResponse.data.values || [];
+        const duelRows = await duelDataCache.getCachedData();
         
         // Find matches where the player was either winner or loser in the last 30 days
         const recentMatches = duelRows.filter(row => {

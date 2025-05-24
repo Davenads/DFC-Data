@@ -4,7 +4,10 @@ const fs = require('fs');
 const path = require('path');
 const { google } = require('googleapis');
 const http = require('http');
+const cron = require('node-cron');
 const { createGoogleAuth } = require('./utils/googleAuth');
+const redisClient = require('./utils/redisClient');
+const duelDataCache = require('./utils/duelDataCache');
 
 // Define the prefix for message commands
 const PREFIX = '!';
@@ -49,8 +52,50 @@ for (const file of commandFiles) {
 }
 
 // Event listener for when the bot becomes ready and online
-client.once('ready', () => {
+client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
+    
+    // Initialize Redis connection and cache
+    try {
+        await redisClient.connect();
+        console.log('Redis connection established');
+        
+        // Perform initial cache load
+        console.log('Performing initial cache load...');
+        await duelDataCache.refreshCache();
+        console.log('Initial cache load completed');
+    } catch (error) {
+        console.error('Failed to initialize Redis or cache:', error);
+        console.log('Bot will continue running with Google Sheets fallback');
+    }
+    
+    // Schedule cache refresh - Thursday 5:30pm ET (22:30 UTC)
+    cron.schedule('30 22 * * 4', async () => {
+        console.log('Running scheduled cache refresh (Thursday 5:30pm ET)...');
+        try {
+            await duelDataCache.refreshCache();
+            console.log('Thursday cache refresh completed successfully');
+        } catch (error) {
+            console.error('Thursday cache refresh failed, will fallback to Google Sheets:', error);
+        }
+    }, {
+        timezone: "America/New_York"
+    });
+    
+    // Schedule cache refresh - Friday 2:00am ET (07:00 UTC)
+    cron.schedule('0 7 * * 5', async () => {
+        console.log('Running scheduled cache refresh (Friday 2:00am ET)...');
+        try {
+            await duelDataCache.refreshCache();
+            console.log('Friday cache refresh completed successfully');
+        } catch (error) {
+            console.error('Friday cache refresh failed, will fallback to Google Sheets:', error);
+        }
+    }, {
+        timezone: "America/New_York"
+    });
+    
+    console.log('Cache refresh scheduled for Thursday 5:30pm ET and Friday 2:00am ET');
 });
 
 /**

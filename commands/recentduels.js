@@ -1,6 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { google } = require('googleapis');
-const { createGoogleAuth } = require('../utils/googleAuth');
+const duelDataCache = require('../utils/duelDataCache');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -31,22 +30,13 @@ module.exports = {
 
     await interaction.deferReply({ ephemeral: true });
 
-    const sheets = google.sheets('v4');
-    const auth = createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
-
     try {
       // Calculate the cutoff date
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - days);
 
-      // Get duel data from the specified range
-      const duelDataResponse = await sheets.spreadsheets.values.get({
-        auth,
-        spreadsheetId: process.env.SPREADSHEET_ID,
-        range: 'Duel Data!A2:Q2103',
-      });
-
-      const duelRows = duelDataResponse.data.values || [];
+      // Get duel data from cache
+      const duelRows = await duelDataCache.getCachedData();
 
       // Filter matches within the specified time period
       const recentMatches = duelRows.filter(row => {
