@@ -21,7 +21,7 @@ module.exports = {
     const sheets = google.sheets('v4');
     const auth = createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
 
-    await interaction.deferReply();
+    await interaction.deferReply({ ephemeral: true });
 
     try {
       const response = await sheets.spreadsheets.values.get({
@@ -35,8 +35,7 @@ module.exports = {
       if (rows.length === 0) {
         console.log(`[${timestamp}] No fight card data found for request by ${user.tag} (${user.id})`);
         return interaction.editReply({ 
-          content: '📋 **Fight Card**\n\nNo upcoming matches found.',
-          ephemeral: false 
+          content: '📋 **Fight Card**\n\nNo upcoming matches found.'
         });
       }
 
@@ -53,8 +52,7 @@ module.exports = {
       if (matches.length === 0) {
         console.log(`[${timestamp}] No valid matches in fight card for request by ${user.tag} (${user.id})`);
         return interaction.editReply({ 
-          content: '📋 **Fight Card**\n\nNo valid matches found.',
-          ephemeral: false 
+          content: '📋 **Fight Card**\n\nNo valid matches found.'
         });
       }
 
@@ -92,7 +90,7 @@ module.exports = {
           divisionEmoji = '🔥';
           divisionName = 'High Level Duels (HLD)';
         } else if (division === 'LLD') {
-          divisionEmoji = '❄️';
+          divisionEmoji = '🥜';
           divisionName = 'Low Level Duels (LLD)';
         } else if (division === 'Melee') {
           divisionEmoji = '⚔️';
