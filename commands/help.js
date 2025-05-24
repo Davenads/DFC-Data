@@ -54,6 +54,16 @@ module.exports = {
             name: '⚔️ !recentduels', 
             value: 'View recent duels from the last X days (up to 30 days). Usage: `!recentduels [days]`', 
             inline: false 
+          },
+          { 
+            name: '🥊 !fightcard', 
+            value: 'Shows upcoming matches in order with divisions.', 
+            inline: false 
+          },
+          { 
+            name: '🔄 !refreshcache', 
+            value: 'Manual cache refresh (Moderator only).', 
+            inline: false 
           }
         )
         .addFields(

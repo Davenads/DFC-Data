@@ -27,6 +27,9 @@ DFC-DATA/
 │   ├── rankings.js           # Official DFC rankings command
 │   ├── stats.js              # Player statistics command
 │   ├── recentsignups.js      # Recent signup tracking command
+│   ├── recentduels.js        # Recent duels tracking command
+│   ├── fightcard.js          # Fight card display command
+│   ├── refreshcache.js       # Cache refresh command (moderator only)
 │   ├── changelog.js          # Rule change history command
 │   ├── elo.js                # Legacy ELO rating command (deprecated)
 │   ├── rankings-legacy.js    # Legacy rankings command (deprecated)
@@ -130,6 +133,8 @@ node index.js
 - **/rankings**: Displays official DFC rankings based on tournament performance with interactive recent matches view
 - **/stats**: Shows simplified player statistics including W/L record, winrate, rank, and recent match history
 - **/recentsignups**: Views recent tournament signups with pagination, filtered by tournament cutoff dates
+- **/recentduels**: Shows recent duels from the last X days (1-30 days, defaults to 7) with match details and class information
+- **/fightcard**: Displays the current fight card with upcoming matches, showing player matchups and divisions (HLD/LLD/Melee)
 
 ### Legacy/Deprecated Commands
 These commands are being phased out and are not endorsed by the DFC:
@@ -139,6 +144,7 @@ These commands are being phased out and are not endorsed by the DFC:
 
 ### Additional Commands
 - **/changelog**: Views the history of DFC rule changes with match type filtering
+- **/refreshcache**: Manually refreshes the Redis cache for duel data (requires Moderator role)
 
 ## Google Sheets Integration
 
