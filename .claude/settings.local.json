@@ -4,7 +4,8 @@
       "Bash(rg:*)",
       "Bash(mkdir:*)",
       "Bash(grep:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(node:*)"
     ],
     "deny": []
   }
