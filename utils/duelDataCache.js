@@ -50,7 +50,7 @@ class DuelDataCache {
         try {
             const response = await sheets.spreadsheets.values.get({
                 auth,
-                spreadsheetId: process.env.QUERY_SPREADSHEET_ID,
+                spreadsheetId: process.env.SPREADSHEET_ID,
                 range: 'Duel Data!A2:Q2103',
             });
 
