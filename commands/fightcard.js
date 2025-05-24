@@ -59,54 +59,27 @@ module.exports = {
       // Create the embed
       const embed = new EmbedBuilder()
         .setColor(0xff6b6b)
-        .setTitle('🥊 DFC Fight Card')
+        .setTitle('DFC Fight Card')
         .setDescription('Upcoming duels and matchups')
         .setFooter({ text: 'DFC Fight Card' })
         .setTimestamp();
 
-      // Group matches by division if divisions are present
-      const divisions = {};
-      matches.forEach(match => {
-        const division = match.division || 'General';
-        if (!divisions[division]) {
-          divisions[division] = [];
-        }
-        divisions[division].push(match);
-      });
+      // Create a single list of all matches in spreadsheet order
+      const matchList = matches.map((match, index) => {
+        const matchNumber = index + 1;
+        return `**${matchNumber}.** ${match.player1} vs ${match.player2} (${match.division})\n*${match.match}*`;
+      }).join('\n\n');
 
-      // Add matches to embed
-      Object.entries(divisions).forEach(([division, divisionMatches]) => {
-        const matchList = divisionMatches.map((match, index) => {
-          const matchNumber = index + 1;
-          return `**${matchNumber}.** ${match.player1} vs ${match.player2}\n*${match.match}*`;
-        }).join('\n\n');
-
-        // Use different emoji based on division name
-        let divisionEmoji = '⚔️';
-        let divisionName = division;
-        
-        if (division === 'HLD') {
-          divisionEmoji = ':trophy:';
-          divisionName = 'High Level Duels (HLD)';
-        } else if (division === 'LLD') {
-          divisionEmoji = '🥜';
-          divisionName = 'Low Level Duels (LLD)';
-        } else if (division === 'Melee') {
-          divisionEmoji = '⚔️';
-          divisionName = 'Melee';
-        }
-
-        embed.addFields({
-          name: `${divisionEmoji} ${divisionName}`,
-          value: matchList,
-          inline: false
-        });
+      embed.addFields({
+        name: 'Upcoming Matches',
+        value: matchList,
+        inline: false
       });
 
       // Add total match count
       embed.addFields({
-        name: '📊 Match Summary',
-        value: `Total Matches: ${matches.length}`,
+        name: 'Total Matches',
+        value: `${matches.length}`,
         inline: true
       });
 
