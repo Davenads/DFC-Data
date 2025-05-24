@@ -245,15 +245,15 @@ module.exports = {
         }
       });
 
-      // Get recent matches for the player from Duel Data tab
+      // Get all matches for the player from Duel Data tab
       try {
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         
         const duelRows = await duelDataCache.getCachedData();
         
-        // Find matches where the player was either winner or loser in the last 30 days
-        const recentMatches = duelRows.filter(row => {
+        // Find all matches where the player was either winner or loser
+        const allPlayerMatches = duelRows.filter(row => {
           // Check if row has sufficient data
           if (row.length < 5) return false;
           
@@ -261,14 +261,17 @@ module.exports = {
           const matchDate = new Date(row[0]);
           if (isNaN(matchDate.getTime())) return false; // Invalid date
           
-          // Check if match is within last 30 days
-          if (matchDate < thirtyDaysAgo) return false;
-          
           // Check if player is Winner (column B) or Loser (column E)
           const winner = row[1];
           const loser = row[4];
           return (winner && winner.toLowerCase() === playerName.toLowerCase()) || 
                  (loser && loser.toLowerCase() === playerName.toLowerCase());
+        });
+        
+        // Find matches within last 30 days for recent matches section
+        const recentMatches = allPlayerMatches.filter(row => {
+          const matchDate = new Date(row[0]);
+          return matchDate >= thirtyDaysAgo;
         });
         
         // Sort by most recent first (date is in column A)
@@ -334,7 +337,107 @@ module.exports = {
         inline: false 
       });
 
-      await interaction.editReply({ embeds: [embed], ephemeral: true });
+      // Create additional player info embed
+      const playerInfoEmbed = new EmbedBuilder()
+        .setColor(0x9932cc)
+        .setTitle(`🎯 Additional Info for ${playerName}`)
+        .setFooter({ text: 'DFC Player Analysis' })
+        .setTimestamp();
+
+      // Analyze all player matches for class/build and opponent data
+      if (allPlayerMatches.length > 0) {
+        // Track classes/builds played
+        const classBuilds = {};
+        // Track opponents and records
+        const opponentRecords = {};
+        
+        allPlayerMatches.forEach(match => {
+          const winner = match[1];
+          const winnerClass = match[2] || '';
+          const winnerBuild = match[3] || '';
+          const loser = match[4];
+          const loserClass = match[5] || '';
+          const loserBuild = match[6] || '';
+          
+          const isWinner = winner.toLowerCase() === playerName.toLowerCase();
+          const playerClass = isWinner ? winnerClass : loserClass;
+          const playerBuild = isWinner ? winnerBuild : loserBuild;
+          const opponent = isWinner ? loser : winner;
+          
+          // Track class/build combinations
+          if (playerClass && playerBuild) {
+            const classBuildKey = `${playerClass} ${playerBuild}`.trim();
+            if (!classBuilds[classBuildKey]) {
+              classBuilds[classBuildKey] = { count: 0, wins: 0, losses: 0 };
+            }
+            classBuilds[classBuildKey].count++;
+            if (isWinner) {
+              classBuilds[classBuildKey].wins++;
+            } else {
+              classBuilds[classBuildKey].losses++;
+            }
+          }
+          
+          // Track opponent records
+          if (opponent) {
+            if (!opponentRecords[opponent]) {
+              opponentRecords[opponent] = { wins: 0, losses: 0, total: 0 };
+            }
+            opponentRecords[opponent].total++;
+            if (isWinner) {
+              opponentRecords[opponent].wins++;
+            } else {
+              opponentRecords[opponent].losses++;
+            }
+          }
+        });
+        
+        // Get top 3 most played class/builds
+        const topClassBuilds = Object.entries(classBuilds)
+          .sort((a, b) => b[1].count - a[1].count)
+          .slice(0, 3);
+        
+        if (topClassBuilds.length > 0) {
+          const classBuildText = topClassBuilds.map((entry, index) => {
+            const [classBuild, stats] = entry;
+            const winrate = stats.count > 0 ? ((stats.wins / stats.count) * 100).toFixed(1) : '0.0';
+            return `${index + 1}. **${classBuild}** - ${stats.count} games (${stats.wins}W/${stats.losses}L, ${winrate}%)`;
+          }).join('\n');
+          
+          playerInfoEmbed.addFields({
+            name: '🎲 Most Played Classes/Builds',
+            value: classBuildText,
+            inline: false
+          });
+        }
+        
+        // Get most played opponents (top 5)
+        const topOpponents = Object.entries(opponentRecords)
+          .sort((a, b) => b[1].total - a[1].total)
+          .slice(0, 5);
+        
+        if (topOpponents.length > 0) {
+          const opponentText = topOpponents.map((entry, index) => {
+            const [opponent, record] = entry;
+            const winrate = record.total > 0 ? ((record.wins / record.total) * 100).toFixed(1) : '0.0';
+            return `${index + 1}. **${opponent}** - ${record.wins}W/${record.losses}L (${winrate}%)`;
+          }).join('\n');
+          
+          playerInfoEmbed.addFields({
+            name: '⚔️ Records vs Most Played Opponents',
+            value: opponentText,
+            inline: false
+          });
+        }
+      }
+      
+      // Only add the additional embed if it has fields
+      const embeds = [embed];
+      if (playerInfoEmbed.data.fields && playerInfoEmbed.data.fields.length > 0) {
+        embeds.push(playerInfoEmbed);
+      }
+
+      await interaction.editReply({ embeds: embeds, ephemeral: true });
       console.log(`[${timestamp}] Stats for player ${playerName} sent successfully to ${user.tag} (${user.id}) - found ${processedMatchTypes.size} match types`);
     } catch (error) {
       const errorMessage = `[${timestamp}] Error fetching stats for player ${playerName} requested by ${user.tag} (${user.id})`;
