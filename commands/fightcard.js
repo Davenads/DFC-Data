@@ -78,8 +78,7 @@ module.exports = {
       Object.entries(divisions).forEach(([division, divisionMatches]) => {
         const matchList = divisionMatches.map((match, index) => {
           const matchNumber = index + 1;
-          return `**${matchNumber}.** ${match.player1} vs ${match.player2}\n` +
-                 `   ${match.match}`;
+          return `**${matchNumber}.** ${match.player1} vs ${match.player2}\n*${match.match}*`;
         }).join('\n\n');
 
         // Use different emoji based on division name
@@ -87,7 +86,7 @@ module.exports = {
         let divisionName = division;
         
         if (division === 'HLD') {
-          divisionEmoji = '🔥';
+          divisionEmoji = ':trophy:';
           divisionName = 'High Level Duels (HLD)';
         } else if (division === 'LLD') {
           divisionEmoji = '🥜';
