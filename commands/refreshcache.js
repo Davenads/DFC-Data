@@ -13,10 +13,10 @@ module.exports = {
     
     console.log(`[${timestamp}] Manual cache refresh requested by ${user.tag} (${user.id})`);
 
-    // Check if user has administrator permissions
-    if (!interaction.member.permissions.has('Administrator')) {
+    // Check if user has @Moderator role
+    if (!interaction.member.roles.cache.some(role => role.name === 'Moderator')) {
       return interaction.reply({
-        content: '❌ You need Administrator permissions to refresh the cache.',
+        content: '❌ You need the @Moderator role to refresh the cache.',
         ephemeral: true
       });
     }
