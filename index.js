@@ -125,6 +125,23 @@ function createMessageAdapter(message, commandName, args = []) {
             return message.channel.send(options);
         },
         
+        async followUp(options = {}) {
+            // For ephemeral follow-up messages, send as DM
+            if (options.ephemeral) {
+                try {
+                    return message.author.send(options);
+                } catch (error) {
+                    console.error('Failed to send follow-up DM:', error);
+                    // Fallback: send in channel with a note that it's ephemeral
+                    options.content = `[Ephemeral] ${options.content || ''}`;
+                    return message.channel.send(options);
+                }
+            }
+            
+            // For non-ephemeral follow-up messages, send in channel
+            return message.channel.send(options);
+        },
+        
         // Mock function to identify as a command
         isCommand() {
             return true;

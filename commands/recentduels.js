@@ -191,17 +191,25 @@ module.exports = {
         embedsToSend = embeds;
       }
 
-      // Prepare the reply content
+      // Send the first embed as a reply, then send additional embeds as follow-up messages
+      let firstEmbed = embedsToSend[0];
       let replyContent = {};
       
       if (usedDefault) {
         replyContent.content = `💡 **Tip**: You can specify the number of days to look back by using \`!recentduels [days]\` (e.g., \`!recentduels 20\`) - up to 30 days max.`;
-        replyContent.embeds = embedsToSend;
+        replyContent.embeds = [firstEmbed];
       } else {
-        replyContent.embeds = embedsToSend;
+        replyContent.embeds = [firstEmbed];
       }
       
       await interaction.editReply({ ...replyContent, ephemeral: true });
+      
+      // Send additional embeds as follow-up messages if there are any
+      if (embedsToSend.length > 1) {
+        for (let i = 1; i < embedsToSend.length; i++) {
+          await interaction.followUp({ embeds: [embedsToSend[i]], ephemeral: true });
+        }
+      }
       console.log(`[${timestamp}] Recent duels command completed successfully for ${user.tag} (${user.id}) - found ${recentMatches.length} matches in ${days} days`);
     } catch (error) {
       const errorMessage = `[${timestamp}] Error fetching recent duels for ${user.tag} (${user.id})`;
