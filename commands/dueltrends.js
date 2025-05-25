@@ -29,56 +29,42 @@ module.exports = {
     const isSlashCommand = prefixArgs.length === 0 && 
       interaction.isCommand && typeof interaction.isCommand === 'function';
     
-    console.log(`[DEBUG] Command type detection - isSlashCommand: ${isSlashCommand}, prefixArgs:`, prefixArgs);
-    
     if (isSlashCommand) {
       // Real slash command
-      console.log(`[DEBUG] Processing as slash command`);
       inputDays = interaction.options.getInteger('days');
       matchType = interaction.options.getString('matchtype');
     } else {
       // Prefix command (!dueltrends)
       const args = prefixArgs;
       
-      console.log(`[DEBUG] Processing as prefix command, args:`, args);
-      
       // Parse arguments: !dueltrends [days] [matchtype] or !dueltrends [matchtype]
       if (args.length > 0) {
         const firstArg = args[0];
         const secondArg = args[1];
         
-        console.log(`[DEBUG] First arg: "${firstArg}", Second arg: "${secondArg}"`);
-        
         // If first argument is a number, treat it as days
         if (!isNaN(parseInt(firstArg))) {
           inputDays = parseInt(firstArg);
-          console.log(`[DEBUG] Parsed days: ${inputDays}`);
           
           // Second argument would be match type
           if (secondArg) {
             const lowerArg = secondArg.toLowerCase();
-            console.log(`[DEBUG] Second arg lowercase: "${lowerArg}"`);
             if (lowerArg === 'hld') matchType = 'HLD';
             else if (lowerArg === 'lld') matchType = 'LLD';
             else if (lowerArg === 'melee') matchType = 'Melee';
-            console.log(`[DEBUG] Parsed match type: ${matchType}`);
           }
         } else {
           // First argument is not a number, treat it as match type
           const lowerArg = firstArg.toLowerCase();
-          console.log(`[DEBUG] First arg as match type: "${lowerArg}"`);
           if (lowerArg === 'hld') matchType = 'HLD';
           else if (lowerArg === 'lld') matchType = 'LLD';
           else if (lowerArg === 'melee') matchType = 'Melee';
-          console.log(`[DEBUG] Parsed match type: ${matchType}`);
         }
       }
     }
     
     const days = inputDays || 30; // Default to 30 days if no input provided
     const usedDefault = inputDays === null;
-    
-    console.log(`[DEBUG] Final parsed values - inputDays: ${inputDays}, days: ${days}, matchType: ${matchType}`);
     
     const timestamp = new Date().toISOString();
     const user = interaction.user;
@@ -351,11 +337,27 @@ module.exports = {
 
       // Send embeds
       let replyContent = {};
+      let tipMessages = [];
       
       if (usedDefault) {
-        replyContent.content = `💡 **Tip**: You can specify a custom time period with \`/dueltrends days:[number]\` (use large numbers for all-time analysis)`;
+        tipMessages.push(`💡 **Tip**: You can specify a custom time period with \`/dueltrends days:[number]\` (use large numbers for all-time analysis)`);
       } else if (isLimitedByData) {
-        replyContent.content = `ℹ️ **Note**: Requested ${days} days, but showing all available data (${actualDays} days since ${oldestDuelDate.toLocaleDateString()})`;
+        tipMessages.push(`ℹ️ **Note**: Requested ${days} days, but showing all available data (${actualDays} days since ${oldestDuelDate.toLocaleDateString()})`);
+      }
+      
+      // Add match type tip if no filter was applied
+      if (!matchType) {
+        const isSlashCmd = interaction.isCommand && typeof interaction.isCommand === 'function';
+        if (isSlashCmd) {
+          tipMessages.push(`🎯 **Filter Tip**: Use \`/dueltrends matchtype:HLD\` to filter by match type (HLD, LLD, or Melee)`);
+        } else {
+          tipMessages.push(`🎯 **Filter Tip**: Use \`!dueltrends hld\` or \`!dueltrends 100 lld\` to filter by match type (hld, lld, melee)`);
+        }
+      }
+      
+      // Combine tip messages
+      if (tipMessages.length > 0) {
+        replyContent.content = tipMessages.join('\n');
       }
       
       replyContent.embeds = [embeds[0]];
