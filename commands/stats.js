@@ -11,7 +11,12 @@ module.exports = {
       option.setName('player')
         .setDescription('The player to get stats for')
         .setAutocomplete(true)
-        .setRequired(true)),
+        .setRequired(true))
+    .addIntegerOption(option =>
+      option.setName('days')
+        .setDescription('Number of days to analyze (defaults to all-time data, use large number for all-time)')
+        .setRequired(false)
+        .setMinValue(1)),
 
   async autocomplete(interaction) {
     const timestamp = new Date().toISOString();
@@ -50,8 +55,36 @@ module.exports = {
     }
   },
 
-  async execute(interaction) {
-    const playerName = interaction.options.getString('player');
+  async execute(interaction, sheets, auth, prefixArgs = []) {
+    // Handle both slash commands and prefix commands
+    let playerName, inputDays;
+    
+    // Better detection: check if prefixArgs were passed (indicates prefix command)
+    // or if interaction has the isCommand method (real slash command)
+    const isSlashCommand = prefixArgs.length === 0 && 
+      interaction.isCommand && typeof interaction.isCommand === 'function';
+    
+    if (isSlashCommand) {
+      // Real slash command
+      playerName = interaction.options.getString('player');
+      inputDays = interaction.options.getInteger('days');
+    } else {
+      // Prefix command (!stats)
+      const args = prefixArgs;
+      
+      // Parse arguments: !stats [player] [days]
+      if (args.length > 0) {
+        playerName = args[0];
+        
+        // Second argument would be days if it's a number
+        if (args.length > 1 && !isNaN(parseInt(args[1]))) {
+          inputDays = parseInt(args[1]);
+        }
+      }
+    }
+    
+    const days = inputDays || 100; // Default to 100 days if no input provided
+    const usedDaysParam = inputDays !== null && inputDays !== undefined;
     const timestamp = new Date().toISOString();
     const user = interaction.user;
     const guildName = interaction.guild ? interaction.guild.name : 'DM';
@@ -80,7 +113,8 @@ module.exports = {
     User: ${user.tag} (${user.id})
     Server: ${guildName} (${interaction.guildId || 'N/A'})
     Channel: ${channelName} (${interaction.channelId})
-    Player: ${playerName}`);
+    Player: ${playerName}
+    Days: ${days} ${usedDaysParam ? '(specified)' : '(default)'}`);
     
     const sheets = google.sheets('v4');
     const auth = createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
@@ -249,11 +283,16 @@ module.exports = {
       let allPlayerMatches = [];
       let recentMatches = [];
       let matchesToShow = [];
+      let filteredMatches = []; // For days-based filtering
       
       try {
         console.log(`[${timestamp}] Fetching duel data for player analysis: ${playerName}`);
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        // Calculate cutoff date based on days parameter (default 100 days)
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - days);
         
         const duelRows = await duelDataCache.getCachedData();
         console.log(`[${timestamp}] Retrieved ${duelRows.length} total duel rows from cache`);
@@ -275,6 +314,13 @@ module.exports = {
         });
         
         console.log(`[${timestamp}] Found ${allPlayerMatches.length} total matches for player ${playerName}`);
+        
+        // Filter matches based on days parameter (default 100 days)
+        filteredMatches = allPlayerMatches.filter(row => {
+          const matchDate = new Date(row[0]);
+          return matchDate >= cutoffDate;
+        });
+        console.log(`[${timestamp}] Found ${filteredMatches.length} matches in last ${days} days for player ${playerName}`);
         
         // Find matches within last 30 days for recent matches section
         recentMatches = allPlayerMatches.filter(row => {
@@ -355,16 +401,17 @@ module.exports = {
         .setFooter({ text: 'DFC Player Analysis' })
         .setTimestamp();
 
-      // Analyze all player matches for class/build and opponent data
-      if (allPlayerMatches && allPlayerMatches.length > 0) {
-        console.log(`[${timestamp}] Analyzing ${allPlayerMatches.length} matches for player insights`);
+      // Analyze player matches for class/build and opponent data (use filtered data based on days parameter)
+      const matchesToAnalyze = filteredMatches;
+      if (matchesToAnalyze && matchesToAnalyze.length > 0) {
+        console.log(`[${timestamp}] Analyzing ${matchesToAnalyze.length} matches for player insights (last ${days} days)`);
         
         // Track classes/builds played
         const classBuilds = {};
         // Track opponents and records
         const opponentRecords = {};
         
-        allPlayerMatches.forEach((match, index) => {
+        matchesToAnalyze.forEach((match, index) => {
           const winner = match[1];
           const winnerClass = match[2] || '';
           const winnerBuild = match[3] || '';
@@ -461,8 +508,18 @@ module.exports = {
         console.log(`[${timestamp}] Added additional embed to response, total embeds: ${embeds.length}`);
       }
 
+      // Prepare reply content with optional notification
+      let replyContent = { embeds: embeds, ephemeral: true };
+      
+      // Add notification if no days parameter was provided
+      if (!usedDaysParam) {
+        replyContent.content = `💡 **Tip**: You can analyze stats for a specific time period by adding a days parameter. Examples:\n` +
+          `• Slash command: \`/stats player:${playerName} days:30\`\n` +
+          `• Prefix command: \`!stats ${playerName} 30\``;
+      }
+
       console.log(`[${timestamp}] Sending response with ${embeds.length} embed(s) to ${user.tag}`);
-      await interaction.editReply({ embeds: embeds, ephemeral: true });
+      await interaction.editReply(replyContent);
       console.log(`[${timestamp}] Stats for player ${playerName} sent successfully to ${user.tag} (${user.id}) - found ${processedMatchTypes.size} match types, sent ${embeds.length} embed(s)`);
     } catch (error) {
       const errorMessage = `[${timestamp}] Error fetching stats for player ${playerName} requested by ${user.tag} (${user.id})`;
