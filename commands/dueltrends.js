@@ -9,12 +9,22 @@ module.exports = {
       option.setName('days')
         .setDescription('Number of days to analyze (defaults to 30, use large number for all-time)')
         .setRequired(false)
-        .setMinValue(1)),
+        .setMinValue(1))
+    .addStringOption(option =>
+      option.setName('matchtype')
+        .setDescription('Filter by match type (defaults to all combined)')
+        .setRequired(false)
+        .addChoices(
+          { name: 'HLD - High Level Duel', value: 'HLD' },
+          { name: 'LLD - Low Level Duel', value: 'LLD' },
+          { name: 'Melee', value: 'Melee' }
+        )),
 
   async execute(interaction) {
     const inputDays = interaction.options.getInteger('days');
     const days = inputDays || 30; // Default to 30 days if no input provided
     const usedDefault = inputDays === null;
+    const matchType = interaction.options.getString('matchtype');
     
     const timestamp = new Date().toISOString();
     const user = interaction.user;
@@ -25,7 +35,8 @@ module.exports = {
     User: ${user.tag} (${user.id})
     Server: ${guildName} (${interaction.guildId || 'N/A'})
     Channel: ${channelName} (${interaction.channelId})
-    Days: ${days} ${usedDefault ? '(default)' : '(specified)'}`);
+    Days: ${days} ${usedDefault ? '(default)' : '(specified)'}
+    Match Type: ${matchType || 'All Types (combined)'}`);
 
     await interaction.deferReply({ ephemeral: true });
 
@@ -64,19 +75,28 @@ module.exports = {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - actualDays);
 
-      // Filter matches within the specified time period
+      // Filter matches within the specified time period and by match type
       const recentMatches = duelRows.filter(row => {
-        if (row.length < 6) return false;
+        if (row.length < 9) return false; // Need at least 9 columns to include match type
         
         const matchDate = new Date(row[0]); // Event Date column
         if (isNaN(matchDate.getTime())) return false;
         
-        return matchDate >= cutoffDate;
+        const isWithinTimeRange = matchDate >= cutoffDate;
+        
+        // Apply match type filter if specified
+        if (matchType) {
+          const rowMatchType = row[8] || ''; // Match Type column (index 8)
+          return isWithinTimeRange && rowMatchType === matchType;
+        }
+        
+        return isWithinTimeRange;
       });
 
       if (recentMatches.length === 0) {
+        const matchTypeText = matchType ? ` for ${matchType}` : '';
         return interaction.editReply({
-          content: `No duels found in the last ${actualDays} day${actualDays === 1 ? '' : 's'}.`,
+          content: `No duels found in the last ${actualDays} day${actualDays === 1 ? '' : 's'}${matchTypeText}.`,
           ephemeral: true
         });
       }
@@ -158,15 +178,17 @@ module.exports = {
       // Create embeds
       const embeds = [];
 
-      // Create title with actual vs requested range info
+      // Create title with actual vs requested range info and match type
       const rangeText = isLimitedByData 
         ? `Last ${actualDays} Days (All Available Data)`
         : `Last ${actualDays} Day${actualDays === 1 ? '' : 's'}`;
       
+      const matchTypeText = matchType ? ` • ${matchType}` : ' • All Types';
+      
       // Embed 1: Build and Class Trends
       const buildsEmbed = new EmbedBuilder()
         .setColor(0x00AE86)
-        .setTitle(`📊 Build & Class Trends - ${rangeText}`)
+        .setTitle(`📊 Build & Class Trends - ${rangeText}${matchTypeText}`)
         .setDescription(`Analysis of ${recentMatches.length} duel${recentMatches.length === 1 ? '' : 's'}${isLimitedByData ? ` • Dataset spans ${maxAvailableDays} days total` : ''}`)
         .setTimestamp()
         .setFooter({ text: 'DFC Duel Trends' });
@@ -206,7 +228,7 @@ module.exports = {
       // Embed 2: Matchup Analysis
       const matchupsEmbed = new EmbedBuilder()
         .setColor(0xFF6B35)
-        .setTitle(`⚔️ Matchup Analysis - ${rangeText}`)
+        .setTitle(`⚔️ Matchup Analysis - ${rangeText}${matchTypeText}`)
         .setTimestamp();
 
       if (topMatchups.length > 0) {
@@ -242,7 +264,7 @@ module.exports = {
       if (topPlayers.length > 0 || recentMatches.length >= 10) {
         const statsEmbed = new EmbedBuilder()
           .setColor(0x9B59B6)
-          .setTitle(`📈 General Statistics - ${rangeText}`)
+          .setTitle(`📈 General Statistics - ${rangeText}${matchTypeText}`)
           .setTimestamp();
 
         // Basic stats
@@ -292,7 +314,7 @@ module.exports = {
         }
       }
 
-      console.log(`[${timestamp}] Dueltrends command completed successfully for ${user.tag} (${user.id}) - analyzed ${recentMatches.length} matches over ${actualDays} days${isLimitedByData ? ` (requested ${days})` : ''}`);
+      console.log(`[${timestamp}] Dueltrends command completed successfully for ${user.tag} (${user.id}) - analyzed ${recentMatches.length} matches over ${actualDays} days${isLimitedByData ? ` (requested ${days})` : ''}${matchType ? ` for ${matchType}` : ' (all types)'}`);
     } catch (error) {
       const errorMessage = `[${timestamp}] Error analyzing duel trends for ${user.tag} (${user.id})`;
       console.error(errorMessage, error);
