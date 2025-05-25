@@ -24,17 +24,23 @@ module.exports = {
     // Handle both slash commands and prefix commands
     let inputDays, matchType;
     
-    if (interaction.options && typeof interaction.options.getInteger === 'function') {
-      // Slash command
+    // Better detection: check if prefixArgs were passed (indicates prefix command)
+    // or if interaction has the isCommand method (real slash command)
+    const isSlashCommand = prefixArgs.length === 0 && 
+      interaction.isCommand && typeof interaction.isCommand === 'function';
+    
+    console.log(`[DEBUG] Command type detection - isSlashCommand: ${isSlashCommand}, prefixArgs:`, prefixArgs);
+    
+    if (isSlashCommand) {
+      // Real slash command
+      console.log(`[DEBUG] Processing as slash command`);
       inputDays = interaction.options.getInteger('days');
       matchType = interaction.options.getString('matchtype');
     } else {
       // Prefix command (!dueltrends)
-      // Get args from the createMessageAdapter function call
-      const args = prefixArgs.length > 0 ? prefixArgs : 
-        (interaction.args || []);
+      const args = prefixArgs;
       
-      console.log(`[DEBUG] Prefix args received:`, args, `prefixArgs:`, prefixArgs);
+      console.log(`[DEBUG] Processing as prefix command, args:`, args);
       
       // Parse arguments: !dueltrends [days] [matchtype] or !dueltrends [matchtype]
       if (args.length > 0) {
