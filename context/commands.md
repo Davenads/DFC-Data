@@ -66,3 +66,51 @@ module.exports = {
 **Purpose:** Display or update player ELO ratings
 - Shows ELO ratings for players
 - May include functionality to recalculate ELO after matches
+
+### 8. Recent Duels Command
+**File:** `commands/recentduels.js`
+**Purpose:** Display recent duels from the last X days
+- Shows duels from the last 1-30 days (defaults to 7 days)
+- Displays match details including winner/loser, classes, builds, and dates
+- Uses cached data for improved performance
+- Supports multiple embeds for large result sets
+- Ephemeral responses to reduce channel spam
+
+### 9. Recent Signups Command
+**File:** `commands/recentsignups.js`
+**Purpose:** View recent tournament signups
+- Shows signups since the most recent Thursday 6:00 PM ET cutoff
+- Displays Discord handle, division, character class, and build type
+- Includes pagination with navigation buttons for large lists
+- Uses class-specific emojis for visual enhancement
+- Ephemeral responses with interactive pagination
+
+### 10. Refresh Cache Command
+**File:** `commands/refreshcache.js`
+**Purpose:** Manually refresh the Duel Data cache
+- Restricted to users with @Moderator role
+- Forces a manual refresh of the cached duel data
+- Shows before/after cache timestamps and row counts
+- Useful for immediate data updates without waiting for scheduled refresh
+- Provides detailed success/error feedback
+
+### 11. Changelog Command
+**File:** `commands/changelog.js`
+**Purpose:** View the history of DFC rule changes
+- Displays rule changes from changelog.json data file
+- Shows changes sorted by date (newest first)
+- Includes match type indicators (HLD, Melee, All) with emojis
+- Splits long changelogs into multiple messages to avoid Discord limits
+- For slash commands: ephemeral responses, for prefix: sends via DM
+
+### 12. Duel Trends Command
+**File:** `commands/dueltrends.js`
+**Purpose:** Analyze duel trends and statistics over a specified time period
+- Takes optional days parameter (1-90, defaults to 30 days)
+- Displays 2-3 embeds with comprehensive trend analysis:
+  - **Build & Class Trends**: Most popular builds and class distribution
+  - **Matchup Analysis**: Common class matchups with win rate breakdowns  
+  - **General Statistics**: Total duels, active players, most active participants
+- Uses cached duel data for fast analysis
+- Calculates percentages, win rates, and usage statistics
+- Ephemeral responses with tip for parameter usage

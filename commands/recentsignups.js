@@ -193,6 +193,7 @@ module.exports = {
             // Handle pagination with button interactions
             if (totalPages > 1) {
                 const collector = response.createMessageComponentCollector({ 
+                    filter: i => i.user.id === interaction.user.id,
                     time: 60000 // Collect for 1 minute
                 });
                 

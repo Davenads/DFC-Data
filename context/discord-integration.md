@@ -117,3 +117,45 @@ client.on('interactionCreate', async interaction => {
     }
 });
 ```
+
+## Button Interactions and Pagination
+
+Several commands support interactive button navigation:
+
+### Button Handling
+```js
+client.on('interactionCreate', async interaction => {
+    if (interaction.isButton()) {
+        // Find command that handles this button
+        for (const command of client.commands.values()) {
+            if (command.handleButton && typeof command.handleButton === 'function') {
+                await command.handleButton(interaction);
+                break;
+            }
+        }
+    }
+});
+```
+
+### Pagination Implementation
+Commands like `recentsignups` include pagination:
+- **Navigation Buttons**: Previous/Next buttons for multi-page results
+- **Page Indicators**: Shows current page and total pages
+- **Timeout Handling**: Buttons disabled after 60 seconds
+- **User-Specific**: Only the command user can navigate pages
+
+## Enhanced Response Handling
+
+### Ephemeral Responses
+Many newer commands use ephemeral responses to reduce channel spam:
+- **recentduels**: Ephemeral with tip for parameter usage
+- **recentsignups**: Ephemeral with interactive pagination  
+- **refreshcache**: Ephemeral moderator-only responses
+- **changelog**: Ephemeral for slash commands, DM for prefix commands
+
+### Prefix Command Support
+The bot supports both slash commands and prefix commands (!command):
+- **Message Adapter**: Converts message objects to interaction-like objects
+- **Automatic Cleanup**: Command messages deleted after 10 seconds
+- **Reaction Feedback**: ✅ for success, ❌ for errors
+- **DM Handling**: Some commands send results via DM to reduce spam
