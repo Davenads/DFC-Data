@@ -7,10 +7,9 @@ module.exports = {
     .setDescription('Analyze duel trends and statistics over the last X days')
     .addIntegerOption(option =>
       option.setName('days')
-        .setDescription('Number of days to analyze (1-90, defaults to 30)')
+        .setDescription('Number of days to analyze (defaults to 30, use large number for all-time)')
         .setRequired(false)
-        .setMinValue(1)
-        .setMaxValue(90)),
+        .setMinValue(1)),
 
   async execute(interaction) {
     const inputDays = interaction.options.getInteger('days');
@@ -31,12 +30,39 @@ module.exports = {
     await interaction.deferReply({ ephemeral: true });
 
     try {
-      // Calculate the cutoff date
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - days);
-
-      // Get duel data from cache
+      // Get duel data from cache first to determine available date range
       const duelRows = await duelDataCache.getCachedData();
+
+      if (duelRows.length === 0) {
+        return interaction.editReply({
+          content: 'No duel data available in cache. Please try refreshing the cache.',
+          ephemeral: true
+        });
+      }
+
+      // Find the oldest duel date in the dataset
+      const validDuelDates = duelRows
+        .map(row => new Date(row[0]))
+        .filter(date => !isNaN(date.getTime()));
+      
+      if (validDuelDates.length === 0) {
+        return interaction.editReply({
+          content: 'No valid duel dates found in the dataset.',
+          ephemeral: true
+        });
+      }
+
+      const oldestDuelDate = new Date(Math.min(...validDuelDates));
+      const currentDate = new Date();
+      const maxAvailableDays = Math.ceil((currentDate - oldestDuelDate) / (1000 * 60 * 60 * 24));
+      
+      // Use the smaller of requested days or available days
+      const actualDays = Math.min(days, maxAvailableDays);
+      const isLimitedByData = days > maxAvailableDays;
+
+      // Calculate the cutoff date based on actual days
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - actualDays);
 
       // Filter matches within the specified time period
       const recentMatches = duelRows.filter(row => {
@@ -50,7 +76,7 @@ module.exports = {
 
       if (recentMatches.length === 0) {
         return interaction.editReply({
-          content: `No duels found in the last ${days} day${days === 1 ? '' : 's'}.`,
+          content: `No duels found in the last ${actualDays} day${actualDays === 1 ? '' : 's'}.`,
           ephemeral: true
         });
       }
@@ -132,11 +158,16 @@ module.exports = {
       // Create embeds
       const embeds = [];
 
+      // Create title with actual vs requested range info
+      const rangeText = isLimitedByData 
+        ? `Last ${actualDays} Days (All Available Data)`
+        : `Last ${actualDays} Day${actualDays === 1 ? '' : 's'}`;
+      
       // Embed 1: Build and Class Trends
       const buildsEmbed = new EmbedBuilder()
         .setColor(0x00AE86)
-        .setTitle(`📊 Build & Class Trends - Last ${days} Day${days === 1 ? '' : 's'}`)
-        .setDescription(`Analysis of ${recentMatches.length} duel${recentMatches.length === 1 ? '' : 's'}`)
+        .setTitle(`📊 Build & Class Trends - ${rangeText}`)
+        .setDescription(`Analysis of ${recentMatches.length} duel${recentMatches.length === 1 ? '' : 's'}${isLimitedByData ? ` • Dataset spans ${maxAvailableDays} days total` : ''}`)
         .setTimestamp()
         .setFooter({ text: 'DFC Duel Trends' });
 
@@ -175,7 +206,7 @@ module.exports = {
       // Embed 2: Matchup Analysis
       const matchupsEmbed = new EmbedBuilder()
         .setColor(0xFF6B35)
-        .setTitle(`⚔️ Matchup Analysis - Last ${days} Day${days === 1 ? '' : 's'}`)
+        .setTitle(`⚔️ Matchup Analysis - ${rangeText}`)
         .setTimestamp();
 
       if (topMatchups.length > 0) {
@@ -211,12 +242,12 @@ module.exports = {
       if (topPlayers.length > 0 || recentMatches.length >= 10) {
         const statsEmbed = new EmbedBuilder()
           .setColor(0x9B59B6)
-          .setTitle(`📈 General Statistics - Last ${days} Day${days === 1 ? '' : 's'}`)
+          .setTitle(`📈 General Statistics - ${rangeText}`)
           .setTimestamp();
 
         // Basic stats
         const uniquePlayers = Object.keys(playerDuels).length;
-        const avgDuelsPerDay = (recentMatches.length / days).toFixed(1);
+        const avgDuelsPerDay = (recentMatches.length / actualDays).toFixed(1);
         
         statsEmbed.addFields({
           name: '📊 Overview',
@@ -246,7 +277,9 @@ module.exports = {
       let replyContent = {};
       
       if (usedDefault) {
-        replyContent.content = `💡 **Tip**: You can specify a custom time period with \`/dueltrends days:[number]\` (up to 90 days)`;
+        replyContent.content = `💡 **Tip**: You can specify a custom time period with \`/dueltrends days:[number]\` (use large numbers for all-time analysis)`;
+      } else if (isLimitedByData) {
+        replyContent.content = `ℹ️ **Note**: Requested ${days} days, but showing all available data (${actualDays} days since ${oldestDuelDate.toLocaleDateString()})`;
       }
       
       replyContent.embeds = [embeds[0]];
@@ -259,7 +292,7 @@ module.exports = {
         }
       }
 
-      console.log(`[${timestamp}] Dueltrends command completed successfully for ${user.tag} (${user.id}) - analyzed ${recentMatches.length} matches over ${days} days`);
+      console.log(`[${timestamp}] Dueltrends command completed successfully for ${user.tag} (${user.id}) - analyzed ${recentMatches.length} matches over ${actualDays} days${isLimitedByData ? ` (requested ${days})` : ''}`);
     } catch (error) {
       const errorMessage = `[${timestamp}] Error analyzing duel trends for ${user.tag} (${user.id})`;
       console.error(errorMessage, error);
