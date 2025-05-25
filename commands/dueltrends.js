@@ -34,34 +34,45 @@ module.exports = {
       const args = prefixArgs.length > 0 ? prefixArgs : 
         (interaction.args || []);
       
+      console.log(`[DEBUG] Prefix args received:`, args, `prefixArgs:`, prefixArgs);
+      
       // Parse arguments: !dueltrends [days] [matchtype] or !dueltrends [matchtype]
       if (args.length > 0) {
         const firstArg = args[0];
         const secondArg = args[1];
         
+        console.log(`[DEBUG] First arg: "${firstArg}", Second arg: "${secondArg}"`);
+        
         // If first argument is a number, treat it as days
         if (!isNaN(parseInt(firstArg))) {
           inputDays = parseInt(firstArg);
+          console.log(`[DEBUG] Parsed days: ${inputDays}`);
           
           // Second argument would be match type
           if (secondArg) {
             const lowerArg = secondArg.toLowerCase();
+            console.log(`[DEBUG] Second arg lowercase: "${lowerArg}"`);
             if (lowerArg === 'hld') matchType = 'HLD';
             else if (lowerArg === 'lld') matchType = 'LLD';
             else if (lowerArg === 'melee') matchType = 'Melee';
+            console.log(`[DEBUG] Parsed match type: ${matchType}`);
           }
         } else {
           // First argument is not a number, treat it as match type
           const lowerArg = firstArg.toLowerCase();
+          console.log(`[DEBUG] First arg as match type: "${lowerArg}"`);
           if (lowerArg === 'hld') matchType = 'HLD';
           else if (lowerArg === 'lld') matchType = 'LLD';
           else if (lowerArg === 'melee') matchType = 'Melee';
+          console.log(`[DEBUG] Parsed match type: ${matchType}`);
         }
       }
     }
     
     const days = inputDays || 30; // Default to 30 days if no input provided
     const usedDefault = inputDays === null;
+    
+    console.log(`[DEBUG] Final parsed values - inputDays: ${inputDays}, days: ${days}, matchType: ${matchType}`);
     
     const timestamp = new Date().toISOString();
     const user = interaction.user;
