@@ -318,7 +318,8 @@ client.on('messageCreate', async message => {
         }
         
         // Execute the command with our adapter and required params
-        await command.execute(fakeInteraction, sheets, auth);
+        // Pass args as a fourth parameter for commands that need access to all arguments
+        await command.execute(fakeInteraction, sheets, auth, args);
         console.log(`[${timestamp}] Prefix command ${commandName} executed successfully.`);
         
         // React to the message with a checkmark to indicate success
