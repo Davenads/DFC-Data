@@ -241,7 +241,7 @@ module.exports = {
       // Create the embed
       const embed = new EmbedBuilder()
         .setColor(0x0099ff)
-        .setTitle(`📊 Stats for ${playerName}`)
+        .setTitle(`📊 Stats for ${playerName}${usedDaysParam ? ` (Last ${days} Days)` : ''}`)
         .setFooter({ text: 'DFC Stats' })
         .setTimestamp();
 
@@ -410,7 +410,7 @@ module.exports = {
       console.log(`[${timestamp}] Creating additional player info embed for ${playerName}`);
       const playerInfoEmbed = new EmbedBuilder()
         .setColor(0x9932cc)
-        .setTitle(`🎯 Additional Info for ${playerName}`)
+        .setTitle(`🎯 Additional Info for ${playerName}${usedDaysParam ? ` (Last ${days} Days)` : ''}`)
         .setFooter({ text: 'DFC Player Analysis' })
         .setTimestamp();
 
