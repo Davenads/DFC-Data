@@ -33,6 +33,13 @@ module.exports = {
       const uniquePlayers = await playerListCache.getCachedPlayerList();
       
       const searchTerm = interaction.options.getFocused().toLowerCase();
+      
+      // Don't show results for empty search - prevents overwhelming autocomplete
+      if (searchTerm.length === 0) {
+        await interaction.respond([]);
+        return;
+      }
+      
       const filteredPlayers = uniquePlayers.filter(player =>
         player.toLowerCase().includes(searchTerm)
       ).slice(0, 25); // Limit to 25 players to meet Discord's requirements
