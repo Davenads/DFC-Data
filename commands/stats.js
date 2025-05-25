@@ -116,15 +116,16 @@ module.exports = {
     Player: ${playerName}
     Days: ${days} ${usedDaysParam ? '(specified)' : '(default)'}`);
     
-    const sheets = google.sheets('v4');
-    const auth = createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
+    // Use sheets and auth from parameters if provided, otherwise create them
+    const sheetsInstance = sheets || google.sheets('v4');
+    const authInstance = auth || createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
 
     await interaction.deferReply({ ephemeral: true }); // Defer the reply to avoid timeouts
 
     try {
       // First, get the player's W/L and winrate data
-      const eloResponse = await sheets.spreadsheets.values.get({
-        auth,
+      const eloResponse = await sheetsInstance.spreadsheets.values.get({
+        auth: authInstance,
         spreadsheetId: process.env.QUERY_SPREADSHEET_ID,
         range: 'Current ELO!A2:M',
       });
@@ -196,8 +197,8 @@ module.exports = {
       playerRows.sort((a, b) => new Date(b[1]) - new Date(a[1]));
 
       // Now, check if player appears in the Official Rankings
-      const rankingsResponse = await sheets.spreadsheets.values.get({
-        auth,
+      const rankingsResponse = await sheetsInstance.spreadsheets.values.get({
+        auth: authInstance,
         spreadsheetId: process.env.SPREADSHEET_ID,
         range: 'Official Rankings!A1:B30', // Get enough rows for champion + top 20
       });
