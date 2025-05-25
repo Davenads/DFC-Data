@@ -2,6 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { google } = require('googleapis');
 const { createGoogleAuth } = require('../utils/googleAuth');
 const duelDataCache = require('../utils/duelDataCache');
+const playerListCache = require('../utils/playerListCache');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -27,31 +28,35 @@ module.exports = {
     User: ${user.tag} (${user.id})
     Search Term: ${focusedValue}`);
     
-    const sheets = google.sheets('v4');
-    const auth = createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
-
     try {
-      const response = await sheets.spreadsheets.values.get({
-        auth,
-        spreadsheetId: process.env.QUERY_SPREADSHEET_ID,
-        range: 'Current ELO!A2:A',
-      });
-
-      const players = response.data.values ? response.data.values.flat() : [];
-      const uniquePlayers = [...new Set(players)]; // Remove duplicate names
+      // Get player list from Redis cache (much faster than Google Sheets)
+      const uniquePlayers = await playerListCache.getCachedPlayerList();
+      
       const searchTerm = interaction.options.getFocused().toLowerCase();
-
       const filteredPlayers = uniquePlayers.filter(player =>
         player.toLowerCase().includes(searchTerm)
       ).slice(0, 25); // Limit to 25 players to meet Discord's requirements
 
       const results = filteredPlayers.map(player => ({ name: player, value: player }));
       await interaction.respond(results);
-      console.log(`[${timestamp}] Stats autocomplete returned ${results.length} results for user ${user.tag} (${user.id}) search: "${searchTerm}"`);
+      console.log(`[${timestamp}] Stats autocomplete returned ${results.length} results from cache for user ${user.tag} (${user.id}) search: "${searchTerm}"`);
     } catch (error) {
       const errorMessage = `[${timestamp}] Error fetching player names for autocomplete by ${user.tag} (${user.id})`;
       console.error(errorMessage, error);
-      await interaction.respond([]);
+      
+      // Provide fallback suggestions based on search term
+      const searchTerm = interaction.options.getFocused().toLowerCase();
+      let fallbackResults = [];
+      
+      if (searchTerm.length > 0) {
+        // Provide a fallback suggestion that allows manual entry
+        fallbackResults = [{ 
+          name: `Type "${searchTerm}" manually (autocomplete unavailable)`, 
+          value: searchTerm 
+        }];
+      }
+      
+      await interaction.respond(fallbackResults);
     }
   },
 
