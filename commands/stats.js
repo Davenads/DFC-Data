@@ -172,8 +172,8 @@ module.exports = {
       // Check if player exists in duel data
       const playerMatches = duelRows.filter(row => {
         if (row.length < 5) return false;
-        const winner = row[2]; // Column C
-        const loser = row[3];  // Column D
+        const winner = row[1]; // Column B - Winner name
+        const loser = row[4];  // Column E - Loser name
         return winner?.toLowerCase() === playerName.toLowerCase() || 
                loser?.toLowerCase() === playerName.toLowerCase();
       });
@@ -184,9 +184,9 @@ module.exports = {
         // Find similar player names for suggestions from duel data
         const allPlayerNames = [];
         duelRows.forEach(row => {
-          if (row.length >= 4) {
-            if (row[2]) allPlayerNames.push(row[2]); // Winner
-            if (row[3]) allPlayerNames.push(row[3]); // Loser
+          if (row.length >= 5) {
+            if (row[1]) allPlayerNames.push(row[1]); // Winner (Column B)
+            if (row[4]) allPlayerNames.push(row[4]); // Loser (Column E)
           }
         });
         const uniquePlayerNames = [...new Set(allPlayerNames)];
@@ -333,10 +333,10 @@ module.exports = {
         filteredMatches.forEach(match => {
           if (match.length < 5) return;
           
-          const eventDate = match[0];
-          const matchType = match[1] || 'Unknown';
-          const winner = match[2];
-          const loser = match[3];
+          const eventDate = match[0]; // Column A
+          const winner = match[1];     // Column B - Winner name
+          const matchType = match[8] || 'Unknown'; // Column I - Match type
+          const loser = match[4];      // Column E - Loser name
           
           if (!matchTypeStats[matchType]) {
             matchTypeStats[matchType] = { wins: 0, losses: 0 };
