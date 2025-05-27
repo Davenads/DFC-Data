@@ -72,6 +72,10 @@ module.exports = {
   },
 
   async execute(interaction, sheets, auth, prefixArgs = []) {
+    const startTime = Date.now();
+    const timestamp = new Date().toISOString();
+    const user = interaction.user || interaction.author;
+    
     // Handle both slash commands and prefix commands
     let playerName, inputDays;
     
@@ -79,6 +83,12 @@ module.exports = {
     // or if interaction has the isCommand method (real slash command)
     const isSlashCommand = prefixArgs.length === 0 && 
       interaction.isCommand && typeof interaction.isCommand === 'function';
+    const commandType = isSlashCommand ? 'SLASH' : 'TEXT';
+    
+    console.log(`[${timestamp}] [${commandType}] Stats command started - User: ${user.tag} (${user.id})`);
+    
+    const paramStart = Date.now();
+    console.log(`[${timestamp}] [${commandType}] Parsing parameters...`);
     
     if (isSlashCommand) {
       // Real slash command
