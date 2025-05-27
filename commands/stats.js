@@ -20,17 +20,18 @@ module.exports = {
         .setMinValue(1)),
 
   async autocomplete(interaction) {
+    const startTime = Date.now();
     const timestamp = new Date().toISOString();
     const focusedValue = interaction.options.getFocused();
     const user = interaction.user;
     
-    console.log(`[${timestamp}] Processing stats autocomplete:
-    User: ${user.tag} (${user.id})
-    Search Term: ${focusedValue}`);
+    console.log(`[${timestamp}] [AUTOCOMPLETE] Started for user: ${user.tag} (${user.id}), search: "${focusedValue}"`);
     
     try {
       // Get player list from Redis cache (much faster than Google Sheets)
+      const cacheStart = Date.now();
       const uniquePlayers = await playerListCache.getCachedPlayerList();
+      console.log(`[${timestamp}] [AUTOCOMPLETE] Player list fetched in ${Date.now() - cacheStart}ms`);
       
       const searchTerm = interaction.options.getFocused().toLowerCase();
       
@@ -46,7 +47,8 @@ module.exports = {
 
       const results = filteredPlayers.map(player => ({ name: player, value: player }));
       await interaction.respond(results);
-      console.log(`[${timestamp}] Stats autocomplete returned ${results.length} results from cache for user ${user.tag} (${user.id}) search: "${searchTerm}"`);
+      const totalTime = Date.now() - startTime;
+      console.log(`[${timestamp}] [AUTOCOMPLETE] Completed in ${totalTime}ms - returned ${results.length} results for "${searchTerm}"`);
     } catch (error) {
       const errorMessage = `[${timestamp}] Error fetching player names for autocomplete by ${user.tag} (${user.id})`;
       console.error(errorMessage, error);
@@ -64,6 +66,8 @@ module.exports = {
       }
       
       await interaction.respond(fallbackResults);
+      const totalTime = Date.now() - startTime;
+      console.log(`[${timestamp}] [AUTOCOMPLETE] Error fallback completed in ${totalTime}ms`);
     }
   },
 
@@ -95,12 +99,14 @@ module.exports = {
       }
     }
     
+    console.log(`[${timestamp}] [${commandType}] Parameters parsed in ${Date.now() - paramStart}ms - Player: ${playerName}, Days: ${inputDays}`);
+    
     const days = inputDays || 100; // Default to 100 days if no input provided
     const usedDaysParam = true; // Always show days notation since we always filter by days
-    const timestamp = new Date().toISOString();
-    const user = interaction.user;
     const guildName = interaction.guild ? interaction.guild.name : 'DM';
     const channelName = interaction.channel ? interaction.channel.name : 'Unknown';
+    
+    console.log(`[${timestamp}] [${commandType}] Stats command requested by ${user.tag} (${user.id}) for player: ${playerName}, days: ${days}`);
     
     // Check if player name is provided (mainly for the !stats version)
     if (!playerName) {
@@ -132,15 +138,24 @@ module.exports = {
     const sheetsInstance = sheets || google.sheets('v4');
     const authInstance = auth || createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
 
-    await interaction.deferReply({ ephemeral: true }); // Defer the reply to avoid timeouts
+    // Skip deferReply for text commands to reduce overhead
+    if (isSlashCommand) {
+      const deferStart = Date.now();
+      console.log(`[${timestamp}] [${commandType}] Deferring reply...`);
+      await interaction.deferReply({ ephemeral: true }); // Defer the reply to avoid timeouts
+      console.log(`[${timestamp}] [${commandType}] Reply deferred in ${Date.now() - deferStart}ms`);
+    }
 
     try {
       // First, get the player's W/L and winrate data
+      const eloStart = Date.now();
+      console.log(`[${timestamp}] [${commandType}] Fetching Current ELO data...`);
       const eloResponse = await sheetsInstance.spreadsheets.values.get({
         auth: authInstance,
         spreadsheetId: process.env.QUERY_SPREADSHEET_ID,
         range: 'Current ELO!A2:M',
       });
+      console.log(`[${timestamp}] [${commandType}] Current ELO data fetched in ${Date.now() - eloStart}ms`);
 
       const eloRows = eloResponse.data.values || [];
       const playerRows = eloRows.filter(row => row[0].toLowerCase() === playerName.toLowerCase());
@@ -202,18 +217,25 @@ module.exports = {
           notFoundMessage += `\n\nPlease check the spelling or use the autocomplete feature when using the slash command.`;
         }
         
-        return interaction.editReply({ content: notFoundMessage, ephemeral: true });
+        if (isSlashCommand) {
+          return interaction.editReply({ content: notFoundMessage, ephemeral: true });
+        } else {
+          return interaction.reply({ content: notFoundMessage, ephemeral: true });
+        }
       }
 
       // Sort player rows by timestamp in descending order to get the most recent data first
       playerRows.sort((a, b) => new Date(b[1]) - new Date(a[1]));
 
       // Now, check if player appears in the Official Rankings
+      const rankingsStart = Date.now();
+      console.log(`[${timestamp}] [${commandType}] Fetching Official Rankings data...`);
       const rankingsResponse = await sheetsInstance.spreadsheets.values.get({
         auth: authInstance,
         spreadsheetId: process.env.SPREADSHEET_ID,
         range: 'Official Rankings!A1:B30', // Get enough rows for champion + top 20
       });
+      console.log(`[${timestamp}] [${commandType}] Official Rankings data fetched in ${Date.now() - rankingsStart}ms`);
 
       const rankingsRows = rankingsResponse.data.values || [];
       
@@ -299,7 +321,8 @@ module.exports = {
       let filteredMatches = []; // For days-based filtering
       
       try {
-        console.log(`[${timestamp}] Fetching duel data for player analysis: ${playerName}`);
+        const cacheStart = Date.now();
+        console.log(`[${timestamp}] [${commandType}] Fetching duel data for player analysis: ${playerName}`);
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         
@@ -308,7 +331,7 @@ module.exports = {
         cutoffDate.setDate(cutoffDate.getDate() - days);
         
         const duelRows = await duelDataCache.getCachedData();
-        console.log(`[${timestamp}] Retrieved ${duelRows.length} total duel rows from cache`);
+        console.log(`[${timestamp}] [${commandType}] Retrieved ${duelRows.length} total duel rows from cache in ${Date.now() - cacheStart}ms`);
         
         // Find all matches where the player was either winner or loser
         allPlayerMatches = duelRows.filter(row => {
@@ -541,11 +564,20 @@ module.exports = {
           `• Prefix command: \`!stats ${playerName} 30\``;
       }
 
-      console.log(`[${timestamp}] Sending response with ${embeds.length} embed(s) to ${user.tag}`);
-      await interaction.editReply(replyContent);
-      console.log(`[${timestamp}] Stats for player ${playerName} sent successfully to ${user.tag} (${user.id}) - found ${processedMatchTypes.size} match types, sent ${embeds.length} embed(s)`);
+      const totalTime = Date.now() - startTime;
+      console.log(`[${timestamp}] [${commandType}] Sending response with ${embeds.length} embed(s) to ${user.tag} - Total time: ${totalTime}ms`);
+      
+      // Use editReply for slash commands, reply for text commands
+      if (isSlashCommand) {
+        await interaction.editReply(replyContent);
+      } else {
+        await interaction.reply(replyContent);
+      }
+      
+      console.log(`[${timestamp}] [${commandType}] Stats command completed successfully in ${totalTime}ms for ${user.tag} (${user.id}) - found ${processedMatchTypes.size} match types, sent ${embeds.length} embed(s)`);
     } catch (error) {
-      const errorMessage = `[${timestamp}] Error fetching stats for player ${playerName} requested by ${user.tag} (${user.id})`;
+      const totalTime = Date.now() - startTime;
+      const errorMessage = `[${timestamp}] [${commandType}] Error fetching stats for player ${playerName} after ${totalTime}ms requested by ${user.tag} (${user.id})`;
       console.error(errorMessage, error);
       console.error(`[${timestamp}] Error stack trace:`, error.stack);
       
@@ -569,7 +601,11 @@ module.exports = {
         userErrorMessage += `\n\nError ID: ${errorId} - Please report this to an administrator if the issue persists.`;
       }
       
-      await interaction.editReply({ content: userErrorMessage, ephemeral: true });
+      if (isSlashCommand) {
+        await interaction.editReply({ content: userErrorMessage, ephemeral: true });
+      } else {
+        await interaction.reply({ content: userErrorMessage, ephemeral: true });
+      }
     }
   },
 };
