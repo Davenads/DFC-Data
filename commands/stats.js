@@ -455,7 +455,7 @@ module.exports = {
 
       // Create additional player info embed
       console.log(`[${timestamp}] Creating additional player info embed for ${playerName}`);
-      const usingAllMatches = filteredMatches.length > 0 && filteredMatches === allPlayerMatches;
+      const usingAllMatches = filteredMatches.length > 0 && filteredMatches === playerMatches;
       const titleSuffix = usingAllMatches ? ' (All-Time)' : ` (Last ${days} Days)`;
       const playerInfoEmbed = new EmbedBuilder()
         .setColor(0x9932cc)
