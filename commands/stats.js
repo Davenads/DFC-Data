@@ -96,7 +96,7 @@ module.exports = {
     }
     
     const days = inputDays || 100; // Default to 100 days if no input provided
-    const usedDaysParam = inputDays !== null && inputDays !== undefined;
+    const usedDaysParam = true; // Always show days notation since we always filter by days
     const timestamp = new Date().toISOString();
     const user = interaction.user;
     const guildName = interaction.guild ? interaction.guild.name : 'DM';
@@ -241,7 +241,7 @@ module.exports = {
       // Create the embed
       const embed = new EmbedBuilder()
         .setColor(0x0099ff)
-        .setTitle(`📊 Stats for ${playerName}${usedDaysParam ? ` (Last ${days} Days)` : ''}`)
+        .setTitle(`📊 Stats for ${playerName} (Last ${days} Days)`)
         .setFooter({ text: 'DFC Stats' })
         .setTimestamp();
 
@@ -397,6 +397,13 @@ module.exports = {
       } catch (error) {
         console.error(`[${timestamp}] Error fetching duel data for ${playerName}:`, error);
         // Don't fail the whole command if this part fails
+        console.log(`[${timestamp}] Duel data fetch failed, filteredMatches will remain empty`);
+      }
+      
+      // If no matches found in the specified period, try a longer period for additional info
+      if (filteredMatches.length === 0 && allPlayerMatches.length > 0) {
+        console.log(`[${timestamp}] No matches in last ${days} days, using all available matches for additional info`);
+        filteredMatches = allPlayerMatches; // Use all matches for additional info
       }
       
       // Add a note about more detailed stats
@@ -408,14 +415,17 @@ module.exports = {
 
       // Create additional player info embed
       console.log(`[${timestamp}] Creating additional player info embed for ${playerName}`);
+      const usingAllMatches = filteredMatches.length > 0 && filteredMatches === allPlayerMatches;
+      const titleSuffix = usingAllMatches ? ' (All-Time)' : ` (Last ${days} Days)`;
       const playerInfoEmbed = new EmbedBuilder()
         .setColor(0x9932cc)
-        .setTitle(`🎯 Additional Info for ${playerName}${usedDaysParam ? ` (Last ${days} Days)` : ''}`)
+        .setTitle(`🎯 Additional Info for ${playerName}${titleSuffix}`)
         .setFooter({ text: 'DFC Player Analysis' })
         .setTimestamp();
 
       // Analyze player matches for class/build and opponent data (use filtered data based on days parameter)
       const matchesToAnalyze = filteredMatches;
+      console.log(`[${timestamp}] Matches to analyze: ${matchesToAnalyze ? matchesToAnalyze.length : 0}, Days: ${days}, InputDays: ${inputDays}`);
       if (matchesToAnalyze && matchesToAnalyze.length > 0) {
         console.log(`[${timestamp}] Analyzing ${matchesToAnalyze.length} matches for player insights (last ${days} days)`);
         
@@ -525,7 +535,7 @@ module.exports = {
       let replyContent = { embeds: embeds, ephemeral: true };
       
       // Add notification if no days parameter was provided
-      if (!usedDaysParam) {
+      if (inputDays === null || inputDays === undefined) {
         replyContent.content = `💡 **Tip**: You can analyze stats for a specific time period by adding a days parameter. Examples:\n` +
           `• Slash command: \`/stats player:${playerName} days:30\`\n` +
           `• Prefix command: \`!stats ${playerName} 30\``;
