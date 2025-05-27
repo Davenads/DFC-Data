@@ -3,6 +3,7 @@ const { google } = require('googleapis');
 const { createGoogleAuth } = require('../utils/googleAuth');
 const duelDataCache = require('../utils/duelDataCache');
 const playerListCache = require('../utils/playerListCache');
+const rankingsCache = require('../utils/rankingsCache');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -157,24 +158,37 @@ module.exports = {
     }
 
     try {
-      // First, get the player's W/L and winrate data
-      const eloStart = Date.now();
-      console.log(`[${timestamp}] [${commandType}] Fetching Current ELO data...`);
-      const eloResponse = await sheetsInstance.spreadsheets.values.get({
-        auth: authInstance,
-        spreadsheetId: process.env.QUERY_SPREADSHEET_ID,
-        range: 'Current ELO!A2:M',
+      // Get rankings and duel data (no ELO data needed for simplified stats)
+      const dataStart = Date.now();
+      console.log(`[${timestamp}] [${commandType}] Fetching rankings and duel data...`);
+      
+      const [rankingsRows, duelRows] = await Promise.all([
+        rankingsCache.getCachedRankings(),
+        duelDataCache.getCachedData()
+      ]);
+      
+      console.log(`[${timestamp}] [${commandType}] Data fetched in ${Date.now() - dataStart}ms`);
+
+      // Check if player exists in duel data
+      const playerMatches = duelRows.filter(row => {
+        if (row.length < 5) return false;
+        const winner = row[2]; // Column C
+        const loser = row[3];  // Column D
+        return winner?.toLowerCase() === playerName.toLowerCase() || 
+               loser?.toLowerCase() === playerName.toLowerCase();
       });
-      console.log(`[${timestamp}] [${commandType}] Current ELO data fetched in ${Date.now() - eloStart}ms`);
 
-      const eloRows = eloResponse.data.values || [];
-      const playerRows = eloRows.filter(row => row[0].toLowerCase() === playerName.toLowerCase());
-
-      if (playerRows.length === 0) {
+      if (playerMatches.length === 0) {
         console.log(`[${timestamp}] Player ${playerName} not found for stats requested by ${user.tag} (${user.id})`);
         
-        // Find similar player names for suggestions
-        const allPlayerNames = eloRows.map(row => row[0]);
+        // Find similar player names for suggestions from duel data
+        const allPlayerNames = [];
+        duelRows.forEach(row => {
+          if (row.length >= 4) {
+            if (row[2]) allPlayerNames.push(row[2]); // Winner
+            if (row[3]) allPlayerNames.push(row[3]); // Loser
+          }
+        });
         const uniquePlayerNames = [...new Set(allPlayerNames)];
         
         // Calculate similarity score (basic implementation using character matching)
@@ -234,20 +248,10 @@ module.exports = {
         }
       }
 
-      // Sort player rows by timestamp in descending order to get the most recent data first
-      playerRows.sort((a, b) => new Date(b[1]) - new Date(a[1]));
+      // Player exists in duel data, continue with stats calculation
 
-      // Now, check if player appears in the Official Rankings
-      const rankingsStart = Date.now();
-      console.log(`[${timestamp}] [${commandType}] Fetching Official Rankings data...`);
-      const rankingsResponse = await sheetsInstance.spreadsheets.values.get({
-        auth: authInstance,
-        spreadsheetId: process.env.SPREADSHEET_ID,
-        range: 'Official Rankings!A1:B30', // Get enough rows for champion + top 20
-      });
-      console.log(`[${timestamp}] [${commandType}] Official Rankings data fetched in ${Date.now() - rankingsStart}ms`);
-
-      const rankingsRows = rankingsResponse.data.values || [];
+      // Rankings data already fetched concurrently above
+      console.log(`[${timestamp}] [${commandType}] Processing rankings data (${rankingsRows.length} rows)...`);
       
       // Check if player is the champion
       let isChampion = false;
@@ -292,47 +296,15 @@ module.exports = {
         embed.addFields({ name: '🏆 Rank', value: rankDisplay, inline: false });
       }
 
-      // Process each unique match type
-      const processedMatchTypes = new Set();
-      playerRows.forEach(playerData => {
-        const [player, timestamp, matchType, sElo, elo, sEIndex, eIndex, sWins, sLoss, sWinRate, cWins, cLoss, cWinRate] = playerData;
+      // Stats will be calculated after date filtering
+      let matchTypeStats = {};
+      let processedMatchTypes = new Set();
 
-        if (!processedMatchTypes.has(matchType)) {
-          processedMatchTypes.add(matchType);
-
-          // Only include W/L and winrate stats
-          const stats = [];
-          
-          // Add W/L stats if available
-          if (cWins || cLoss) {
-            stats.push(`W/L: ${cWins || 0}/${cLoss || 0}`);
-          }
-          
-          // Add winrate if available
-          if (cWinRate) {
-            stats.push(`Winrate: ${cWinRate}`);
-          }
-
-          // Only add field if we have stats to display
-          if (stats.length > 0) {
-            embed.addFields({
-              name: matchType,
-              value: stats.join('\n'),
-              inline: true
-            });
-          }
-        }
-      });
-
-      // Get all matches for the player from Duel Data tab
-      let allPlayerMatches = [];
+      // Filter matches by date range for additional analysis
       let recentMatches = [];
-      let matchesToShow = [];
       let filteredMatches = []; // For days-based filtering
       
       try {
-        const cacheStart = Date.now();
-        console.log(`[${timestamp}] [${commandType}] Fetching duel data for player analysis: ${playerName}`);
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         
@@ -340,38 +312,73 @@ module.exports = {
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - days);
         
-        const duelRows = await duelDataCache.getCachedData();
-        console.log(`[${timestamp}] [${commandType}] Retrieved ${duelRows.length} total duel rows from cache in ${Date.now() - cacheStart}ms`);
+        console.log(`[${timestamp}] [${commandType}] Filtering ${playerMatches.length} matches by date range`);
         
-        // Find all matches where the player was either winner or loser
-        allPlayerMatches = duelRows.filter(row => {
-          // Check if row has sufficient data
-          if (row.length < 5) return false;
-          
-          // Extract date from column A (Event Date)
-          const matchDate = new Date(row[0]);
-          if (isNaN(matchDate.getTime())) return false; // Invalid date
-          
-          // Check if player is Winner (column B) or Loser (column E)
-          const winner = row[1];
-          const loser = row[4];
-          return (winner && winner.toLowerCase() === playerName.toLowerCase()) || 
-                 (loser && loser.toLowerCase() === playerName.toLowerCase());
-        });
-        
-        console.log(`[${timestamp}] Found ${allPlayerMatches.length} total matches for player ${playerName}`);
+        // Use already-fetched playerMatches and filter by date
+        console.log(`[${timestamp}] Found ${playerMatches.length} total matches for player ${playerName}`);
         
         // Filter matches based on days parameter (default 100 days)
-        filteredMatches = allPlayerMatches.filter(row => {
+        filteredMatches = playerMatches.filter(row => {
           const matchDate = new Date(row[0]);
-          return matchDate >= cutoffDate;
+          return !isNaN(matchDate.getTime()) && matchDate >= cutoffDate;
         });
         console.log(`[${timestamp}] Found ${filteredMatches.length} matches in last ${days} days for player ${playerName}`);
         
+        // Calculate W/L stats from filtered matches
+        console.log(`[${timestamp}] [${commandType}] Calculating W/L stats from ${filteredMatches.length} filtered matches`);
+        
+        let totalWins = 0;
+        let totalLosses = 0;
+        
+        filteredMatches.forEach(match => {
+          if (match.length < 5) return;
+          
+          const eventDate = match[0];
+          const matchType = match[1] || 'Unknown';
+          const winner = match[2];
+          const loser = match[3];
+          
+          if (!matchTypeStats[matchType]) {
+            matchTypeStats[matchType] = { wins: 0, losses: 0 };
+          }
+          
+          if (winner?.toLowerCase() === playerName.toLowerCase()) {
+            matchTypeStats[matchType].wins++;
+            totalWins++;
+          } else if (loser?.toLowerCase() === playerName.toLowerCase()) {
+            matchTypeStats[matchType].losses++;
+            totalLosses++;
+          }
+        });
+        
+        // Add overall stats to embed
+        const totalMatches = totalWins + totalLosses;
+        const overallWinrate = totalMatches > 0 ? ((totalWins / totalMatches) * 100).toFixed(1) : '0.0';
+        
+        embed.addFields({
+          name: '📊 Overall Stats',
+          value: `W/L: ${totalWins}/${totalLosses}\nWinrate: ${overallWinrate}%\nTotal Matches: ${totalMatches}`,
+          inline: true
+        });
+        
+        // Add match type breakdown
+        Object.entries(matchTypeStats).forEach(([matchType, stats]) => {
+          const matches = stats.wins + stats.losses;
+          const winrate = matches > 0 ? ((stats.wins / matches) * 100).toFixed(1) : '0.0';
+          
+          embed.addFields({
+            name: matchType,
+            value: `W/L: ${stats.wins}/${stats.losses}\nWinrate: ${winrate}%`,
+            inline: true
+          });
+        });
+        
+        processedMatchTypes = new Set(Object.keys(matchTypeStats));
+        
         // Find matches within last 30 days for recent matches section
-        recentMatches = allPlayerMatches.filter(row => {
+        recentMatches = playerMatches.filter(row => {
           const matchDate = new Date(row[0]);
-          return matchDate >= thirtyDaysAgo;
+          return !isNaN(matchDate.getTime()) && matchDate >= thirtyDaysAgo;
         });
         
         console.log(`[${timestamp}] Found ${recentMatches.length} recent matches (last 30 days) for player ${playerName}`);
@@ -380,7 +387,7 @@ module.exports = {
         recentMatches.sort((a, b) => new Date(b[0]) - new Date(a[0]));
         
         // Take only the most recent matches (max 5)
-        matchesToShow = recentMatches.slice(0, 5);
+        const matchesToShow = recentMatches.slice(0, 5);
         
         if (matchesToShow.length > 0) {
           // Class emojis
@@ -434,9 +441,9 @@ module.exports = {
       }
       
       // If no matches found in the specified period, try a longer period for additional info
-      if (filteredMatches.length === 0 && allPlayerMatches.length > 0) {
+      if (filteredMatches.length === 0 && playerMatches.length > 0) {
         console.log(`[${timestamp}] No matches in last ${days} days, using all available matches for additional info`);
-        filteredMatches = allPlayerMatches; // Use all matches for additional info
+        filteredMatches = playerMatches; // Use all matches for additional info
       }
       
       // Add a note about more detailed stats
