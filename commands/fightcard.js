@@ -64,24 +64,47 @@ module.exports = {
         .setFooter({ text: 'DFC Fight Card' })
         .setTimestamp();
 
-      // Create a single list of all matches in spreadsheet order
-      const matchList = matches.map((match, index) => {
-        const matchNumber = index + 1;
-        return `**${matchNumber}.** ${match.player1} vs ${match.player2} (${match.division})\n*${match.match}*`;
-      }).join('\n\n');
-
-      embed.addFields({
-        name: 'Upcoming Matches',
-        value: matchList,
-        inline: false
-      });
+      // Create match list with Discord field value limit (1024 chars)
+      const maxFieldLength = 1024;
+      let currentField = '';
+      let fieldCount = 1;
+      
+      for (let i = 0; i < matches.length; i++) {
+        const match = matches[i];
+        const matchNumber = i + 1;
+        const matchLine = `**${matchNumber}.** ${match.player1} vs ${match.player2} (${match.division})\n*${match.match}*\n\n`;
+        
+        if ((currentField + matchLine).length > maxFieldLength) {
+          // Add current field to embed
+          embed.addFields([{
+            name: fieldCount === 1 ? 'Upcoming Matches' : `Upcoming Matches (continued)`,
+            value: currentField.trim(),
+            inline: false
+          }]);
+          
+          // Start new field
+          currentField = matchLine;
+          fieldCount++;
+        } else {
+          currentField += matchLine;
+        }
+      }
+      
+      // Add the last field if there's content
+      if (currentField.trim()) {
+        embed.addFields([{
+          name: fieldCount === 1 ? 'Upcoming Matches' : `Upcoming Matches (continued)`,
+          value: currentField.trim(),
+          inline: false
+        }]);
+      }
 
       // Add total match count
-      embed.addFields({
+      embed.addFields([{
         name: 'Total Matches',
         value: `${matches.length}`,
         inline: true
-      });
+      }]);
 
       await interaction.editReply({ embeds: [embed] });
       console.log(`[${timestamp}] Fight card with ${matches.length} matches sent successfully to ${user.tag} (${user.id})`);

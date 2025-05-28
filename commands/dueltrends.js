@@ -64,7 +64,7 @@ module.exports = {
     }
     
     const days = inputDays || 30; // Default to 30 days if no input provided
-    const usedDefault = inputDays === null;
+    const usedDefault = inputDays === null || inputDays === undefined;
     
     const timestamp = new Date().toISOString();
     const user = interaction.user;
@@ -340,7 +340,12 @@ module.exports = {
       let tipMessages = [];
       
       if (usedDefault) {
-        tipMessages.push(`💡 **Tip**: You can specify a custom time period with \`/dueltrends days:[number]\` (use large numbers for all-time analysis)`);
+        const isSlashCmd = interaction.isCommand && typeof interaction.isCommand === 'function';
+        if (isSlashCmd) {
+          tipMessages.push(`💡 **Tip**: You can specify a custom time period with \`/dueltrends days:[number]\` (use large numbers for all-time analysis)`);
+        } else {
+          tipMessages.push(`💡 **Tip**: You can specify days like \`!dueltrends 1000 hld\` or \`!dueltrends 300 lld\` for custom time periods and match types`);
+        }
       } else if (isLimitedByData) {
         tipMessages.push(`ℹ️ **Note**: Requested ${days} days, but showing all available data (${actualDays} days since ${oldestDuelDate.toLocaleDateString()})`);
       }
