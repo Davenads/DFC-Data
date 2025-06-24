@@ -5,8 +5,10 @@
       "Bash(mkdir:*)",
       "Bash(grep:*)",
       "Bash(npm install:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(mv:*)"
     ],
     "deny": []
-  }
+  },
+  "enableAllProjectMcpServers": false
 }

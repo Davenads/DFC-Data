@@ -95,7 +95,20 @@ client.once('ready', async () => {
         timezone: "America/New_York"
     });
     
-    console.log('Cache refresh scheduled for Thursday 5:30pm ET and Friday 2:00am ET');
+    // Schedule cache refresh - Friday 11:00pm ET (04:00 UTC Saturday)
+    cron.schedule('0 4 * * 6', async () => {
+        console.log('Running scheduled cache refresh (Friday 11:00pm ET)...');
+        try {
+            await duelDataCache.refreshCache();
+            console.log('Friday evening cache refresh completed successfully');
+        } catch (error) {
+            console.error('Friday evening cache refresh failed, will fallback to Google Sheets:', error);
+        }
+    }, {
+        timezone: "America/New_York"
+    });
+    
+    console.log('Cache refresh scheduled for Thursday 5:30pm ET, Friday 2:00am ET, and Friday 11:00pm ET');
 });
 
 /**
