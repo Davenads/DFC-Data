@@ -11,11 +11,12 @@ module.exports = {
   async execute(interaction) {
     const timestamp = new Date().toISOString();
     const user = interaction.user;
-    
+
     console.log(`[${timestamp}] Manual cache refresh requested by ${user.tag} (${user.id})`);
 
-    // Check if user has @Moderator role
-    if (!interaction.member.roles.cache.some(role => role.name === 'Moderator')) {
+    // Check if user has @Moderator role (fetch fresh without cache)
+    const member = await interaction.guild.members.fetch(interaction.user.id);
+    if (!member.roles.cache.some(role => role.name === 'Moderator')) {
       return interaction.reply({
         content: '❌ You need the @Moderator role to refresh the cache.',
         ephemeral: true
