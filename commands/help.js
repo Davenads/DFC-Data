@@ -73,10 +73,10 @@ module.exports = {
               value: 'View the official DFC rankings based on tournament performance.', 
               inline: false 
             },
-            { 
-              name: '📝 !register', 
-              value: 'Register as a player in the DFC database with your Discord account.', 
-              inline: false 
+            {
+              name: '📝 !register [arena_name]',
+              value: 'Add your arena name to the DFC roster (one-time setup).',
+              inline: false
             },
             { 
               name: '🗓️ !signup', 
@@ -173,10 +173,10 @@ module.exports = {
             value: 'View the official DFC rankings based on tournament performance.', 
             inline: false 
           },
-          { 
-            name: '📝 !register', 
-            value: 'Register as a player in the DFC database with your Discord account.', 
-            inline: false 
+          {
+            name: '📝 !register [arena_name]',
+            value: 'Add your arena name to the DFC roster (one-time setup).',
+            inline: false
           },
           { 
             name: '🗓️ !signup', 

@@ -8,10 +8,10 @@ const cache = new NodeCache({ stdTTL: 300 }); // Cache expires in 300 seconds (5
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('register')
-        .setDescription('Register for the DFC event roster')
+        .setDescription('Add your arena name to the DFC roster')
         .addStringOption(option =>
             option.setName('dueler_name')
-                .setDescription('The name of the dueler to register')
+                .setDescription('Your in-game dueling name')
                 .setRequired(true)),
     async execute(interaction, sheets, auth) {
         const discordName = interaction.user.username;
