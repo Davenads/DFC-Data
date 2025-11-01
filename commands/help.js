@@ -74,8 +74,8 @@ module.exports = {
               inline: false 
             },
             {
-              name: '📝 !register [arena_name]',
-              value: 'Add your arena name to the DFC roster (one-time setup).',
+              name: '📝 !register [arena_name] [@player]',
+              value: 'Add an arena name to the DFC roster. Optionally mention a player to register them.',
               inline: false
             },
             { 
@@ -174,8 +174,8 @@ module.exports = {
             inline: false 
           },
           {
-            name: '📝 !register [arena_name]',
-            value: 'Add your arena name to the DFC roster (one-time setup).',
+            name: '📝 !register [arena_name] [@player]',
+            value: 'Add an arena name to the DFC roster. Optionally mention a player to register them.',
             inline: false
           },
           { 

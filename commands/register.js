@@ -11,19 +11,25 @@ module.exports = {
         .setDescription('Add your arena name to the DFC roster')
         .addStringOption(option =>
             option.setName('dueler_name')
-                .setDescription('Your in-game dueling name')
-                .setRequired(true)),
+                .setDescription('In-game dueling/arena name')
+                .setRequired(true))
+        .addUserOption(option =>
+            option.setName('player')
+                .setDescription('Player to register (optional, defaults to yourself)')
+                .setRequired(false)),
     async execute(interaction, sheets, auth) {
-        const discordName = interaction.user.username;
         const duelerName = interaction.options.getString('dueler_name');
-        const userId = interaction.user.id;
+        const targetUser = interaction.options.getUser('player') || interaction.user;
+        const discordName = targetUser.username;
+        const userId = targetUser.id;
         const timestamp = new Date().toISOString();
-        const user = interaction.user;
+        const commandUser = interaction.user;
         const guildName = interaction.guild ? interaction.guild.name : 'DM';
         const channelName = interaction.channel ? interaction.channel.name : 'Unknown';
-        
+
         console.log(`[${timestamp}] Executing register command:
-        User: ${user.tag} (${user.id})
+        Command User: ${commandUser.tag} (${commandUser.id})
+        Target User: ${targetUser.tag} (${targetUser.id})
         Server: ${guildName} (${interaction.guildId || 'N/A'})
         Channel: ${channelName} (${interaction.channelId})
         Dueler Name: ${duelerName}`);
@@ -45,7 +51,8 @@ module.exports = {
                 cache.set('uuids', cachedUuids);
             }
             if (cachedUuids.includes(userId)) {
-                return interaction.reply({ content: 'You are already registered. Your UUID is already present in our data.', ephemeral: true });
+                const pronoun = targetUser.id === commandUser.id ? 'You are' : 'They are';
+                return interaction.reply({ content: `${pronoun} already registered. Their UUID is already present in our data.`, ephemeral: true });
             }
 
             // Use the auth object directly as it's already a JWT client
@@ -61,7 +68,8 @@ module.exports = {
             const isRegistered = roster.some(row => row[3] === userId);
 
             if (isRegistered) {
-                return interaction.reply({ content: 'You are already registered. Your UUID is already present in our data.', ephemeral: true });
+                const pronoun = targetUser.id === commandUser.id ? 'You are' : 'They are';
+                return interaction.reply({ content: `${pronoun} already registered. Their UUID is already present in our data.`, ephemeral: true });
             }
 
             // Find the first available row
@@ -98,10 +106,13 @@ module.exports = {
             }
 
             // Create an embed to confirm successful registration
+            const isSelfRegistration = targetUser.id === commandUser.id;
             const embed = new EmbedBuilder()
                 .setTitle('🎉 DFC Registration Successful 🎉')
                 .setColor('#FF4500') // DFC branded color
-                .setDescription("✅ You have been successfully added into the DFC roster! 🏆 You can now use signup to join the weekly events.")
+                .setDescription(isSelfRegistration
+                    ? "✅ You have been successfully added into the DFC roster! 🏆 You can now use signup to join the weekly events."
+                    : `✅ <@${targetUser.id}> has been successfully added into the DFC roster! 🏆 They can now use signup to join the weekly events.`)
                 .addFields(
                     { name: '🏟️ Arena Name', value: duelerName, inline: true },
                     { name: '👤 Discord Name', value: discordName, inline: true }
@@ -109,9 +120,9 @@ module.exports = {
                 .setFooter({ text: 'Good luck in the arena! ⚔️' });
 
             await interaction.channel.send({ embeds: [embed] });
-            console.log(`[${timestamp}] Registration command completed successfully for ${user.tag} (${user.id}) with dueler name: ${duelerName}`);
+            console.log(`[${timestamp}] Registration command completed successfully for ${targetUser.tag} (${targetUser.id}) with dueler name: ${duelerName} (registered by ${commandUser.tag})`);
         } catch (error) {
-            const errorMessage = `[${timestamp}] Error during registration for ${user.tag} (${user.id})`;
+            const errorMessage = `[${timestamp}] Error during registration for ${targetUser.tag} (${targetUser.id}) by ${commandUser.tag}`;
             console.error(errorMessage, error);
             await interaction.reply({ content: 'Failed to register. Please try again later.', ephemeral: true });
         }
