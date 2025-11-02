@@ -58,7 +58,7 @@ module.exports = {
             const embed = new EmbedBuilder()
                 .setColor(0x0099FF)
                 .setTitle('📜 Weekly Event Signup')
-                .setDescription('**Step 1:** Please select your match type:')
+                .setDescription('**Step 1/3:** Please select your match type:')
                 .setFooter({ text: 'DFC Weekly Event Registration' })
                 .setTimestamp();
 
@@ -124,7 +124,7 @@ module.exports = {
             const embed = new EmbedBuilder()
                 .setColor(0x00FF00)
                 .setTitle('📜 Weekly Event Signup')
-                .setDescription(`✅ Match Type: **${matchType}**\n\n**Step 2:** Now select your class:`)
+                .setDescription(`✅ Match Type: **${matchType}**\n\n**Step 2/3:** Now select your class:`)
                 .setFooter({ text: 'DFC Weekly Event Registration' })
                 .setTimestamp();
 
@@ -141,7 +141,7 @@ module.exports = {
             // Show modal for build and notes
             const modal = new ModalBuilder()
                 .setCustomId(`signupmodal_${matchType}_${chosenClass}`)
-                .setTitle(`${matchType} ${chosenClass} Registration`);
+                .setTitle(`Step 3/3: ${matchType} ${chosenClass}`);
 
             const buildInput = new TextInputBuilder()
                 .setCustomId('build')
