@@ -5,7 +5,7 @@ module.exports = {
     .setName('help')
     .setDescription('Get help with DFC Bot commands'),
 
-  async handleButton(interaction) {
+  async handleButton(interaction, sheets, auth) {
     if (!['show_deprecated', 'back_to_help'].includes(interaction.customId)) {
       return false; // Not our button
     }

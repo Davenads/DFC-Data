@@ -1,0 +1,285 @@
+const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+
+const classEmojis = {
+    Amazon: '🏹',
+    Assassin: '🗡️',
+    Barbarian: '🛡️',
+    Druid: '🐺',
+    Necromancer: '💀',
+    Paladin: '⚔️',
+    Sorceress: '🔮'
+};
+
+const matchTypeEmojis = {
+    HLD: '🏆',
+    LLD: '🥇',
+    Melee: '⚔️'
+};
+
+module.exports = {
+    data: new SlashCommandBuilder()
+        .setName('signup-multi')
+        .setDescription('Sign up for the weekly event (multi-step)'),
+    role: 'DFC Dueler',
+
+    async execute(interaction, sheets, auth) {
+        const timestamp = new Date().toISOString();
+        const user = interaction.user;
+        const guildName = interaction.guild ? interaction.guild.name : 'DM';
+        const channelName = interaction.channel ? interaction.channel.name : 'Unknown';
+
+        console.log(`[${timestamp}] Executing signup-multi command:
+        User: ${user.tag} (${user.id})
+        Server: ${guildName} (${interaction.guildId || 'N/A'})
+        Channel: ${channelName} (${interaction.channelId})`);
+
+        try {
+            // Step 1: Show match type selection buttons
+            const row = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('signupmulti_hld')
+                        .setLabel('HLD')
+                        .setEmoji('🏆')
+                        .setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .setCustomId('signupmulti_lld')
+                        .setLabel('LLD')
+                        .setEmoji('🥇')
+                        .setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .setCustomId('signupmulti_melee')
+                        .setLabel('Melee')
+                        .setEmoji('⚔️')
+                        .setStyle(ButtonStyle.Primary)
+                );
+
+            const embed = new EmbedBuilder()
+                .setColor(0x0099FF)
+                .setTitle('📜 Weekly Event Signup')
+                .setDescription('**Step 1:** Please select your match type:')
+                .setFooter({ text: 'DFC Weekly Event Registration' })
+                .setTimestamp();
+
+            await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
+            console.log(`[${timestamp}] Match type selection shown to ${user.tag} (${user.id})`);
+        } catch (error) {
+            console.error(`[${timestamp}] Error showing signup-multi to ${user.tag} (${user.id}):`, error);
+            await interaction.reply({ content: 'Failed to start signup. Please try again later.', ephemeral: true });
+        }
+    },
+
+    async handleButton(interaction) {
+        const customId = interaction.customId;
+
+        // Handle match type selection (Step 1 -> Step 2)
+        if (customId.startsWith('signupmulti_')) {
+            const matchType = customId.replace('signupmulti_', '').toUpperCase();
+
+            // Show class selection buttons
+            const row1 = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`signupclass_${matchType}_Amazon`)
+                        .setLabel('Amazon')
+                        .setEmoji('🏹')
+                        .setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder()
+                        .setCustomId(`signupclass_${matchType}_Assassin`)
+                        .setLabel('Assassin')
+                        .setEmoji('🗡️')
+                        .setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder()
+                        .setCustomId(`signupclass_${matchType}_Barbarian`)
+                        .setLabel('Barbarian')
+                        .setEmoji('🛡️')
+                        .setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder()
+                        .setCustomId(`signupclass_${matchType}_Druid`)
+                        .setLabel('Druid')
+                        .setEmoji('🐺')
+                        .setStyle(ButtonStyle.Secondary)
+                );
+
+            const row2 = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`signupclass_${matchType}_Necromancer`)
+                        .setLabel('Necromancer')
+                        .setEmoji('💀')
+                        .setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder()
+                        .setCustomId(`signupclass_${matchType}_Paladin`)
+                        .setLabel('Paladin')
+                        .setEmoji('⚔️')
+                        .setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder()
+                        .setCustomId(`signupclass_${matchType}_Sorceress`)
+                        .setLabel('Sorceress')
+                        .setEmoji('🔮')
+                        .setStyle(ButtonStyle.Secondary)
+                );
+
+            const embed = new EmbedBuilder()
+                .setColor(0x00FF00)
+                .setTitle('📜 Weekly Event Signup')
+                .setDescription(`✅ Match Type: **${matchType}**\n\n**Step 2:** Now select your class:`)
+                .setFooter({ text: 'DFC Weekly Event Registration' })
+                .setTimestamp();
+
+            await interaction.update({ embeds: [embed], components: [row1, row2] });
+            return true;
+        }
+
+        // Handle class selection (Step 2 -> Step 3 Modal)
+        if (customId.startsWith('signupclass_')) {
+            const parts = customId.replace('signupclass_', '').split('_');
+            const matchType = parts[0];
+            const chosenClass = parts[1];
+
+            // Show modal for build and notes
+            const modal = new ModalBuilder()
+                .setCustomId(`signupmodal_${matchType}_${chosenClass}`)
+                .setTitle(`${matchType} ${chosenClass} Registration`);
+
+            const buildInput = new TextInputBuilder()
+                .setCustomId('build')
+                .setLabel('Build Type')
+                .setStyle(TextInputStyle.Short)
+                .setPlaceholder('e.g., T/V, Wind, Ghost, etc.')
+                .setRequired(true)
+                .setMaxLength(100);
+
+            const notesInput = new TextInputBuilder()
+                .setCustomId('notes')
+                .setLabel('Notes (Optional)')
+                .setStyle(TextInputStyle.Paragraph)
+                .setPlaceholder('Any additional notes or comments...')
+                .setRequired(false)
+                .setMaxLength(500);
+
+            const buildRow = new ActionRowBuilder().addComponents(buildInput);
+            const notesRow = new ActionRowBuilder().addComponents(notesInput);
+
+            modal.addComponents(buildRow, notesRow);
+
+            await interaction.showModal(modal);
+            return true;
+        }
+
+        return false;
+    },
+
+    async handleModal(interaction, sheets, auth) {
+        const customId = interaction.customId;
+
+        if (customId.startsWith('signupmodal_')) {
+            const timestamp = new Date().toISOString();
+            const user = interaction.user;
+
+            const parts = customId.replace('signupmodal_', '').split('_');
+            const matchType = parts[0];
+            const chosenClass = parts[1];
+            const chosenBuild = interaction.fields.getTextInputValue('build');
+            const notes = interaction.fields.getTextInputValue('notes') || '';
+            const discordName = user.username;
+            const discordId = user.id;
+
+            console.log(`[${timestamp}] Processing signup-multi submission:
+            User: ${user.tag} (${user.id})
+            Match Type: ${matchType}
+            Class: ${chosenClass}
+            Build: ${chosenBuild}
+            Notes: ${notes}`);
+
+            try {
+                // Defer reply to prevent timeout
+                await interaction.deferReply({ ephemeral: true });
+
+                // Authenticate with Google Sheets
+                const authClient = await auth.getClient();
+
+                // Fetch current data from Signups tab to check for duplicates
+                const signupsRes = await sheets.spreadsheets.values.get({
+                    auth: authClient,
+                    spreadsheetId: process.env.SPREADSHEET_ID,
+                    range: 'DFC Bot Signups!A:G',
+                    majorDimension: 'ROWS'
+                });
+
+                const signups = signupsRes.data.values || [];
+
+                // Check if the user is already signed up for the specified match type
+                const existingSignup = signups.find(row => row[5] === discordId && row[2] === matchType);
+                if (existingSignup) {
+                    return interaction.editReply({
+                        content: `You have already signed up for **${matchType}**. Please choose a different match type or update your existing signup.`
+                    });
+                }
+
+                // Determine the first available empty row based on column B (Discord Handle)
+                let firstEmptyRow = signups.length + 1;
+                for (let i = 1; i < signups.length; i++) {
+                    if (!signups[i] || !signups[i][1]) {
+                        firstEmptyRow = i + 1;
+                        break;
+                    }
+                }
+
+                // Get the current timestamp for the sheet
+                const sheetTimestamp = new Date().toLocaleString('en-GB', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                }).replace(',', '');
+
+                // Update the new signup to the first available row in the DFC Bot Signups tab
+                await sheets.spreadsheets.values.update({
+                    auth: authClient,
+                    spreadsheetId: process.env.SPREADSHEET_ID,
+                    range: `DFC Bot Signups!A${firstEmptyRow}:G${firstEmptyRow}`,
+                    valueInputOption: 'USER_ENTERED',
+                    requestBody: {
+                        values: [[sheetTimestamp, discordName, matchType, chosenClass, chosenBuild, discordId, notes]]
+                    },
+                });
+
+                // Create confirmation embed (styled like current signup.js)
+                const embed = new EmbedBuilder()
+                    .setColor(0xFFA500)
+                    .setTitle('📜 Weekly Event Signup')
+                    .addFields(
+                        { name: 'Player', value: `**${discordName}**`, inline: true },
+                        { name: 'Class', value: `${classEmojis[chosenClass]} **${chosenClass}**`, inline: true },
+                        { name: 'Build', value: `**${chosenBuild}**`, inline: true },
+                        { name: 'Match Type', value: `${matchTypeEmojis[matchType]} **${matchType}**`, inline: true }
+                    )
+                    .setTimestamp()
+                    .setFooter({ text: 'Successfully signed up for the weekly event!' });
+
+                if (notes) {
+                    embed.addFields({ name: '📝 Notes', value: notes, inline: false });
+                }
+
+                await interaction.editReply({ embeds: [embed] });
+                console.log(`[${timestamp}] Signup-multi completed successfully for ${user.tag} (${user.id})`);
+            } catch (error) {
+                console.error(`[${timestamp}] Error processing signup-multi for ${user.tag} (${user.id}):`, error);
+
+                if (interaction.deferred) {
+                    await interaction.editReply({ content: 'Failed to sign you up. Please try again later.' });
+                } else {
+                    await interaction.reply({ content: 'Failed to sign you up. Please try again later.', ephemeral: true });
+                }
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+};
