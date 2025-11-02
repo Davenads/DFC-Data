@@ -394,48 +394,14 @@ module.exports = {
                 return true;
             }
 
-            return false;
-        } catch (error) {
-            console.error(`[${new Date().toISOString()}] Error in reportwin handleButton:`, error);
-            console.error(`CustomId: ${customId}, UserId: ${userId}`);
-
-            if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({ content: 'An error occurred. Please try again.', ephemeral: true });
-            }
-            return true;
-        }
-    },
-
-    async handleModal(interaction, sheets, auth) {
-        const customId = interaction.customId;
-        const userId = interaction.user.id;
-        const timestamp = new Date().toISOString();
-
-        try {
-            // Handle player details modal (Step 5 -> Step 6)
-            if (customId === 'reportplayers') {
+            // Handle continue button (Step 5.5 -> Step 6 Modal)
+            if (customId === 'reportcontinue') {
                 const data = await getReportData(userId);
 
                 if (!data) {
-                    await interaction.reply({ content: 'Session expired. Please run /reportwin again.', ephemeral: true });
+                    await interaction.update({ content: 'Session expired. Please run /reportwin again.', embeds: [], components: [] });
                     return true;
                 }
-
-                data.winner = interaction.fields.getTextInputValue('winner');
-                data.winnerBuild = interaction.fields.getTextInputValue('winnerBuild');
-                data.loser = interaction.fields.getTextInputValue('loser');
-                data.loserBuild = interaction.fields.getTextInputValue('loserBuild');
-
-                // Handle optional date field - auto-populate if empty
-                let duelDate = interaction.fields.getTextInputValue('duelDate').trim();
-                if (!duelDate) {
-                    const today = new Date();
-                    duelDate = `${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}/${today.getFullYear()}`;
-                    console.log(`[${timestamp}] Auto-populated date: ${duelDate}`);
-                }
-                data.duelDate = duelDate;
-
-                await setReportData(userId, data);
 
                 // Show match details modal
                 const modal = new ModalBuilder()
@@ -482,6 +448,69 @@ module.exports = {
                 );
 
                 await interaction.showModal(modal);
+                return true;
+            }
+
+            return false;
+        } catch (error) {
+            console.error(`[${new Date().toISOString()}] Error in reportwin handleButton:`, error);
+            console.error(`CustomId: ${customId}, UserId: ${userId}`);
+
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({ content: 'An error occurred. Please try again.', ephemeral: true });
+            }
+            return true;
+        }
+    },
+
+    async handleModal(interaction, sheets, auth) {
+        const customId = interaction.customId;
+        const userId = interaction.user.id;
+        const timestamp = new Date().toISOString();
+
+        try {
+            // Handle player details modal (Step 5 -> Button for Step 6)
+            if (customId === 'reportplayers') {
+                const data = await getReportData(userId);
+
+                if (!data) {
+                    await interaction.reply({ content: 'Session expired. Please run /reportwin again.', ephemeral: true });
+                    return true;
+                }
+
+                data.winner = interaction.fields.getTextInputValue('winner');
+                data.winnerBuild = interaction.fields.getTextInputValue('winnerBuild');
+                data.loser = interaction.fields.getTextInputValue('loser');
+                data.loserBuild = interaction.fields.getTextInputValue('loserBuild');
+
+                // Handle optional date field - auto-populate if empty
+                let duelDate = interaction.fields.getTextInputValue('duelDate').trim();
+                if (!duelDate) {
+                    const today = new Date();
+                    duelDate = `${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}/${today.getFullYear()}`;
+                    console.log(`[${timestamp}] Auto-populated date: ${duelDate}`);
+                }
+                data.duelDate = duelDate;
+
+                await setReportData(userId, data);
+
+                // Show button to continue to match details (can't chain modals)
+                const continueButton = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('reportcontinue')
+                            .setLabel('Continue to Match Details')
+                            .setStyle(ButtonStyle.Primary)
+                    );
+
+                const embed = new EmbedBuilder()
+                    .setColor(0x00FF00)
+                    .setTitle('🏆 Report Match Result')
+                    .setDescription(`✅ Players recorded\n\n**Step 6/6:** Click below to enter match details:`)
+                    .setFooter({ text: 'DFC Match Reporting' })
+                    .setTimestamp();
+
+                await interaction.reply({ embeds: [embed], components: [continueButton], ephemeral: true });
                 return true;
             }
 
