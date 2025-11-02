@@ -155,7 +155,7 @@ module.exports = {
                 .setCustomId('notes')
                 .setLabel('Notes (Optional)')
                 .setStyle(TextInputStyle.Paragraph)
-                .setPlaceholder('Any additional notes or comments...')
+                .setPlaceholder('Additional comments... Do not share sensitive info!')
                 .setRequired(false)
                 .setMaxLength(500);
 
@@ -184,7 +184,6 @@ module.exports = {
             const chosenBuild = interaction.fields.getTextInputValue('build');
             const notes = interaction.fields.getTextInputValue('notes') || '';
             const discordName = user.username;
-            const discordId = user.id;
 
             console.log(`[${timestamp}] Processing signup-multi submission:
             User: ${user.tag} (${user.id})
@@ -197,55 +196,34 @@ module.exports = {
                 // Defer reply to prevent timeout
                 await interaction.deferReply({ ephemeral: true });
 
-                // Use the auth object directly as it's already a JWT client
-                // Fetch current data from Signups tab to check for duplicates
-                const signupsRes = await sheets.spreadsheets.values.get({
-                    auth: auth,
-                    spreadsheetId: process.env.SPREADSHEET_ID,
-                    range: 'DFC Bot Signups!A:G',
-                    majorDimension: 'ROWS'
-                });
+                // Map match type to division format expected by form
+                const divisionMap = {
+                    'HLD': 'Unlimited (HLD)',
+                    'LLD': 'Low Level Dueling (LLD)',
+                    'MELEE': 'Melee'
+                };
 
-                const signups = signupsRes.data.values || [];
+                // Prepare form data for Google Form submission
+                const formData = new URLSearchParams();
+                formData.append('entry.2092238618', discordName); // Discord Handle
+                formData.append('entry.1556369182', divisionMap[matchType] || matchType); // Division
+                formData.append('entry.479301265', chosenClass); // Class
+                formData.append('entry.2132117571', `${chosenBuild}${notes ? ' - ' + notes : ''}`); // Build Type / Notes
 
-                // Check if the user is already signed up for the specified match type
-                const existingSignup = signups.find(row => row[5] === discordId && row[2] === matchType);
-                if (existingSignup) {
-                    return interaction.editReply({
-                        content: `You have already signed up for **${matchType}**. Please choose a different match type or update your existing signup.`
-                    });
-                }
-
-                // Determine the first available empty row based on column B (Discord Handle)
-                let firstEmptyRow = signups.length + 1;
-                for (let i = 1; i < signups.length; i++) {
-                    if (!signups[i] || !signups[i][1]) {
-                        firstEmptyRow = i + 1;
-                        break;
+                // Submit to Google Form (using Node.js 20+ native fetch)
+                const formResponse = await fetch(
+                    'https://docs.google.com/forms/d/e/1FAIpQLSeviV0Uz8ufF6P58TsPmI_F2gsnJDLyJTbiy_-FDZgcmb7TfQ/formResponse',
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: formData.toString(),
+                        redirect: 'manual' // Google Forms redirects on success
                     }
-                }
+                );
 
-                // Get the current timestamp for the sheet
-                const sheetTimestamp = new Date().toLocaleString('en-GB', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: false
-                }).replace(',', '');
-
-                // Update the new signup to the first available row in the DFC Bot Signups tab
-                await sheets.spreadsheets.values.update({
-                    auth: auth,
-                    spreadsheetId: process.env.SPREADSHEET_ID,
-                    range: `DFC Bot Signups!A${firstEmptyRow}:G${firstEmptyRow}`,
-                    valueInputOption: 'USER_ENTERED',
-                    requestBody: {
-                        values: [[sheetTimestamp, discordName, matchType, chosenClass, chosenBuild, discordId, notes]]
-                    },
-                });
+                console.log(`[${timestamp}] Form submission status: ${formResponse.status}`);
 
                 // Create confirmation embed (styled like current signup.js)
                 const embed = new EmbedBuilder()
