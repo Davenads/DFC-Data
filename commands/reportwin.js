@@ -1,10 +1,21 @@
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const redisClient = require('../utils/redisClient');
 
 // Custom emoji IDs from production Discord server
 const matchTypeEmojis = {
     HLD: '<:HLD:1434535063755952320>',
     LLD: '<:LLD:1434535487481319598>',
     Melee: '<:Melee:1434536096238141501>'
+};
+
+const classEmojis = {
+    Amazon: '<:Amazon:953116506726744094>',
+    Assassin: '<:Assassin:953116506697379891>',
+    Barbarian: '<:barb:924434081406672977>',
+    Druid: '<:Druid:994817312563671050>',
+    Necromancer: '<:Necro:994817323653419058>',
+    Paladin: '<:Pala:1039258310857195730>',
+    Sorceress: '<:sorc:924434081163391058>'
 };
 
 // Form entry IDs for Google Form submission
@@ -43,6 +54,47 @@ const FORM_ENTRIES = {
     }
 };
 
+// Helper function to get/set Redis data for a user's reportwin session
+async function getReportData(userId) {
+    try {
+        const client = redisClient.getClient();
+        if (!client) return null;
+
+        const data = await client.get(`reportwin_${userId}`);
+        return data ? JSON.parse(data) : null;
+    } catch (error) {
+        console.error(`Error getting report data for user ${userId}:`, error);
+        return null;
+    }
+}
+
+async function setReportData(userId, data) {
+    try {
+        const client = redisClient.getClient();
+        if (!client) return false;
+
+        // Store for 10 minutes (TTL)
+        await client.setEx(`reportwin_${userId}`, 600, JSON.stringify(data));
+        return true;
+    } catch (error) {
+        console.error(`Error setting report data for user ${userId}:`, error);
+        return false;
+    }
+}
+
+async function clearReportData(userId) {
+    try {
+        const client = redisClient.getClient();
+        if (!client) return false;
+
+        await client.del(`reportwin_${userId}`);
+        return true;
+    } catch (error) {
+        console.error(`Error clearing report data for user ${userId}:`, error);
+        return false;
+    }
+}
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('reportwin')
@@ -61,6 +113,9 @@ module.exports = {
         Channel: ${channelName} (${interaction.channelId})`);
 
         try {
+            // Clear any existing session data
+            await clearReportData(user.id);
+
             // Step 1: Show match type selection buttons
             const row = new ActionRowBuilder()
                 .addComponents(
@@ -84,7 +139,7 @@ module.exports = {
             const embed = new EmbedBuilder()
                 .setColor(0x0099FF)
                 .setTitle('🏆 Report Match Result')
-                .setDescription('**Step 1/5:** Select the match type:')
+                .setDescription('**Step 1/6:** Select the match type:')
                 .setFooter({ text: 'DFC Match Reporting' })
                 .setTimestamp();
 
@@ -98,312 +153,437 @@ module.exports = {
 
     async handleButton(interaction) {
         const customId = interaction.customId;
+        const userId = interaction.user.id;
 
-        // Handle match type selection (Step 1 -> Step 2)
-        if (customId.startsWith('reportwin_')) {
-            const matchType = customId.replace('reportwin_', '').toUpperCase();
+        try {
+            // Handle match type selection (Step 1 -> Step 2)
+            if (customId.startsWith('reportwin_')) {
+                const matchType = customId.replace('reportwin_', '').toUpperCase();
 
-            // Show mirror match selection
-            const row = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId(`reportmirror_${matchType}_no`)
-                        .setLabel('No - Regular Match')
-                        .setStyle(ButtonStyle.Success),
-                    new ButtonBuilder()
-                        .setCustomId(`reportmirror_${matchType}_yes`)
-                        .setLabel('Yes - Mirror Match')
-                        .setStyle(ButtonStyle.Secondary)
+                // Store match type in Redis
+                await setReportData(userId, { matchType });
+
+                // Show mirror match selection
+                const row = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('reportmirror_no')
+                            .setLabel('No - Regular Match')
+                            .setStyle(ButtonStyle.Success),
+                        new ButtonBuilder()
+                            .setCustomId('reportmirror_yes')
+                            .setLabel('Yes - Mirror Match')
+                            .setStyle(ButtonStyle.Secondary)
+                    );
+
+                const embed = new EmbedBuilder()
+                    .setColor(0x00FF00)
+                    .setTitle('🏆 Report Match Result')
+                    .setDescription(`✅ Match Type: **${matchType}**\n\n**Step 2/6:** Was this a mirror match?`)
+                    .setFooter({ text: 'DFC Match Reporting' })
+                    .setTimestamp();
+
+                await interaction.update({ embeds: [embed], components: [row] });
+                return true;
+            }
+
+            // Handle mirror selection (Step 2 -> Step 3)
+            if (customId.startsWith('reportmirror_')) {
+                const isMirror = customId === 'reportmirror_yes';
+                const data = await getReportData(userId);
+
+                if (!data) {
+                    await interaction.update({ content: 'Session expired. Please run /reportwin again.', embeds: [], components: [] });
+                    return true;
+                }
+
+                data.isMirror = isMirror;
+                await setReportData(userId, data);
+
+                // Show winner class selection
+                const row1 = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('reportwinclass_Amazon')
+                            .setLabel('Amazon')
+                            .setEmoji('953116506726744094')
+                            .setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder()
+                            .setCustomId('reportwinclass_Assassin')
+                            .setLabel('Assassin')
+                            .setEmoji('953116506697379891')
+                            .setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder()
+                            .setCustomId('reportwinclass_Barbarian')
+                            .setLabel('Barbarian')
+                            .setEmoji('924434081406672977')
+                            .setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder()
+                            .setCustomId('reportwinclass_Druid')
+                            .setLabel('Druid')
+                            .setEmoji('994817312563671050')
+                            .setStyle(ButtonStyle.Secondary)
+                    );
+
+                const row2 = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('reportwinclass_Necromancer')
+                            .setLabel('Necromancer')
+                            .setEmoji('994817323653419058')
+                            .setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder()
+                            .setCustomId('reportwinclass_Paladin')
+                            .setLabel('Paladin')
+                            .setEmoji('1039258310857195730')
+                            .setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder()
+                            .setCustomId('reportwinclass_Sorceress')
+                            .setLabel('Sorceress')
+                            .setEmoji('924434081163391058')
+                            .setStyle(ButtonStyle.Secondary)
+                    );
+
+                const embed = new EmbedBuilder()
+                    .setColor(0xFFD700)
+                    .setTitle('🏆 Report Match Result')
+                    .setDescription(`✅ Match Type: **${data.matchType}**\n✅ Mirror: **${isMirror ? 'Yes' : 'No'}**\n\n**Step 3/6:** Select the **Winner's** class:`)
+                    .setFooter({ text: 'DFC Match Reporting' })
+                    .setTimestamp();
+
+                await interaction.update({ embeds: [embed], components: [row1, row2] });
+                return true;
+            }
+
+            // Handle winner class selection (Step 3 -> Step 4)
+            if (customId.startsWith('reportwinclass_')) {
+                const winnerClass = customId.replace('reportwinclass_', '');
+                const data = await getReportData(userId);
+
+                if (!data) {
+                    await interaction.update({ content: 'Session expired. Please run /reportwin again.', embeds: [], components: [] });
+                    return true;
+                }
+
+                data.winnerClass = winnerClass;
+                await setReportData(userId, data);
+
+                // Show loser class selection
+                const row1 = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('reportloseclass_Amazon')
+                            .setLabel('Amazon')
+                            .setEmoji('953116506726744094')
+                            .setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder()
+                            .setCustomId('reportloseclass_Assassin')
+                            .setLabel('Assassin')
+                            .setEmoji('953116506697379891')
+                            .setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder()
+                            .setCustomId('reportloseclass_Barbarian')
+                            .setLabel('Barbarian')
+                            .setEmoji('924434081406672977')
+                            .setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder()
+                            .setCustomId('reportloseclass_Druid')
+                            .setLabel('Druid')
+                            .setEmoji('994817312563671050')
+                            .setStyle(ButtonStyle.Secondary)
+                    );
+
+                const row2 = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('reportloseclass_Necromancer')
+                            .setLabel('Necromancer')
+                            .setEmoji('994817323653419058')
+                            .setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder()
+                            .setCustomId('reportloseclass_Paladin')
+                            .setLabel('Paladin')
+                            .setEmoji('1039258310857195730')
+                            .setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder()
+                            .setCustomId('reportloseclass_Sorceress')
+                            .setLabel('Sorceress')
+                            .setEmoji('924434081163391058')
+                            .setStyle(ButtonStyle.Secondary)
+                    );
+
+                const embed = new EmbedBuilder()
+                    .setColor(0xFFD700)
+                    .setTitle('🏆 Report Match Result')
+                    .setDescription(`✅ Match Type: **${data.matchType}**\n✅ Winner Class: **${winnerClass}**\n\n**Step 4/6:** Select the **Loser's** class:`)
+                    .setFooter({ text: 'DFC Match Reporting' })
+                    .setTimestamp();
+
+                await interaction.update({ embeds: [embed], components: [row1, row2] });
+                return true;
+            }
+
+            // Handle loser class selection (Step 4 -> Step 5 Modal)
+            if (customId.startsWith('reportloseclass_')) {
+                const loserClass = customId.replace('reportloseclass_', '');
+                const data = await getReportData(userId);
+
+                if (!data) {
+                    await interaction.update({ content: 'Session expired. Please run /reportwin again.', embeds: [], components: [] });
+                    return true;
+                }
+
+                data.loserClass = loserClass;
+                await setReportData(userId, data);
+
+                // Show modal for player names and builds
+                const modal = new ModalBuilder()
+                    .setCustomId('reportplayers')
+                    .setTitle('Step 5/6: Player Details');
+
+                const winnerInput = new TextInputBuilder()
+                    .setCustomId('winner')
+                    .setLabel('Winner Name')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Discord username or in-game name')
+                    .setRequired(true)
+                    .setMaxLength(100);
+
+                const winnerBuildInput = new TextInputBuilder()
+                    .setCustomId('winnerBuild')
+                    .setLabel(`Winner Build (${data.winnerClass})`)
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('e.g., Wind, Ghost, Hybrid LS, etc.')
+                    .setRequired(true)
+                    .setMaxLength(100);
+
+                const loserInput = new TextInputBuilder()
+                    .setCustomId('loser')
+                    .setLabel('Loser Name')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Discord username or in-game name')
+                    .setRequired(true)
+                    .setMaxLength(100);
+
+                const loserBuildInput = new TextInputBuilder()
+                    .setCustomId('loserBuild')
+                    .setLabel(`Loser Build (${loserClass})`)
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('e.g., Wind, Ghost, Hybrid LS, etc.')
+                    .setRequired(true)
+                    .setMaxLength(100);
+
+                const dateInput = new TextInputBuilder()
+                    .setCustomId('duelDate')
+                    .setLabel('Duel Date (MM/DD/YYYY) - Leave blank for today')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Leave empty to use current date')
+                    .setRequired(false)
+                    .setMaxLength(10);
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(winnerInput),
+                    new ActionRowBuilder().addComponents(winnerBuildInput),
+                    new ActionRowBuilder().addComponents(loserInput),
+                    new ActionRowBuilder().addComponents(loserBuildInput),
+                    new ActionRowBuilder().addComponents(dateInput)
                 );
 
-            const embed = new EmbedBuilder()
-                .setColor(0x00FF00)
-                .setTitle('🏆 Report Match Result')
-                .setDescription(`✅ Match Type: **${matchType}**\n\n**Step 2/5:** Was this a mirror match?`)
-                .setFooter({ text: 'DFC Match Reporting' })
-                .setTimestamp();
+                await interaction.showModal(modal);
+                return true;
+            }
 
-            await interaction.update({ embeds: [embed], components: [row] });
+            return false;
+        } catch (error) {
+            console.error(`[${new Date().toISOString()}] Error in reportwin handleButton:`, error);
+            console.error(`CustomId: ${customId}, UserId: ${userId}`);
+
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({ content: 'An error occurred. Please try again.', ephemeral: true });
+            }
             return true;
         }
-
-        // Handle mirror selection (Step 2 -> Step 3)
-        if (customId.startsWith('reportmirror_')) {
-            const parts = customId.replace('reportmirror_', '').split('_');
-            const matchType = parts[0];
-            const isMirror = parts[1] === 'yes';
-
-            // Show player selection modal
-            const modal = new ModalBuilder()
-                .setCustomId(`reportplayers_${matchType}_${isMirror}`)
-                .setTitle(`Step 3/5: Player Info`);
-
-            const winnerInput = new TextInputBuilder()
-                .setCustomId('winner')
-                .setLabel('Winner Name')
-                .setStyle(TextInputStyle.Short)
-                .setPlaceholder('Discord username or in-game name')
-                .setRequired(true)
-                .setMaxLength(100);
-
-            const winnerClassInput = new TextInputBuilder()
-                .setCustomId('winnerClass')
-                .setLabel('Winner Class')
-                .setStyle(TextInputStyle.Short)
-                .setPlaceholder('Amazon, Assassin, Barbarian, Druid, etc.')
-                .setRequired(true)
-                .setMaxLength(50);
-
-            const winnerBuildInput = new TextInputBuilder()
-                .setCustomId('winnerBuild')
-                .setLabel('Winner Build')
-                .setStyle(TextInputStyle.Short)
-                .setPlaceholder('e.g., Wind, Ghost, Hybrid LS, etc.')
-                .setRequired(true)
-                .setMaxLength(100);
-
-            const loserInput = new TextInputBuilder()
-                .setCustomId('loser')
-                .setLabel('Loser Name')
-                .setStyle(TextInputStyle.Short)
-                .setPlaceholder('Discord username or in-game name')
-                .setRequired(true)
-                .setMaxLength(100);
-
-            const loserClassInput = new TextInputBuilder()
-                .setCustomId('loserClass')
-                .setLabel('Loser Class')
-                .setStyle(TextInputStyle.Short)
-                .setPlaceholder('Amazon, Assassin, Barbarian, Druid, etc.')
-                .setRequired(true)
-                .setMaxLength(50);
-
-            const row1 = new ActionRowBuilder().addComponents(winnerInput);
-            const row2 = new ActionRowBuilder().addComponents(winnerClassInput);
-            const row3 = new ActionRowBuilder().addComponents(winnerBuildInput);
-            const row4 = new ActionRowBuilder().addComponents(loserInput);
-            const row5 = new ActionRowBuilder().addComponents(loserClassInput);
-
-            modal.addComponents(row1, row2, row3, row4, row5);
-
-            await interaction.showModal(modal);
-            return true;
-        }
-
-        return false;
     },
 
     async handleModal(interaction, sheets, auth) {
         const customId = interaction.customId;
+        const userId = interaction.user.id;
+        const timestamp = new Date().toISOString();
 
-        // Handle player selection modal (Step 3 -> Step 4)
-        if (customId.startsWith('reportplayers_')) {
-            const parts = customId.replace('reportplayers_', '').split('_');
-            const matchType = parts[0];
-            const isMirror = parts[1] === 'true';
+        try {
+            // Handle player details modal (Step 5 -> Step 6)
+            if (customId === 'reportplayers') {
+                const data = await getReportData(userId);
 
-            const winner = interaction.fields.getTextInputValue('winner');
-            const winnerClass = interaction.fields.getTextInputValue('winnerClass');
-            const winnerBuild = interaction.fields.getTextInputValue('winnerBuild');
-            const loser = interaction.fields.getTextInputValue('loser');
-            const loserClass = interaction.fields.getTextInputValue('loserClass');
+                if (!data) {
+                    await interaction.reply({ content: 'Session expired. Please run /reportwin again.', ephemeral: true });
+                    return true;
+                }
 
-            // Store data and show match details modal
-            const modal = new ModalBuilder()
-                .setCustomId(`reportdetails_${matchType}_${isMirror}_${winner}_${winnerClass}_${winnerBuild}_${loser}_${loserClass}`)
-                .setTitle(`Step 4/5: Match Details`);
+                data.winner = interaction.fields.getTextInputValue('winner');
+                data.winnerBuild = interaction.fields.getTextInputValue('winnerBuild');
+                data.loser = interaction.fields.getTextInputValue('loser');
+                data.loserBuild = interaction.fields.getTextInputValue('loserBuild');
 
-            const loserBuildInput = new TextInputBuilder()
-                .setCustomId('loserBuild')
-                .setLabel('Loser Build')
-                .setStyle(TextInputStyle.Short)
-                .setPlaceholder('e.g., Wind, Ghost, Hybrid LS, etc.')
-                .setRequired(true)
-                .setMaxLength(100);
+                // Handle optional date field - auto-populate if empty
+                let duelDate = interaction.fields.getTextInputValue('duelDate').trim();
+                if (!duelDate) {
+                    const today = new Date();
+                    duelDate = `${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}/${today.getFullYear()}`;
+                    console.log(`[${timestamp}] Auto-populated date: ${duelDate}`);
+                }
+                data.duelDate = duelDate;
 
-            const dateInput = new TextInputBuilder()
-                .setCustomId('duelDate')
-                .setLabel('Duel Date (MM/DD/YYYY)')
-                .setStyle(TextInputStyle.Short)
-                .setPlaceholder('11/02/2025')
-                .setRequired(true)
-                .setMaxLength(10);
+                await setReportData(userId, data);
 
-            const titleInput = new TextInputBuilder()
-                .setCustomId('title')
-                .setLabel('Title')
-                .setStyle(TextInputStyle.Short)
-                .setPlaceholder('No, Initial, Defend, or Reclaim')
-                .setRequired(true)
-                .setMaxLength(20);
+                // Show match details modal
+                const modal = new ModalBuilder()
+                    .setCustomId('reportdetails')
+                    .setTitle('Step 6/6: Match Details');
 
-            const roundWinsInput = new TextInputBuilder()
-                .setCustomId('roundWins')
-                .setLabel('Round Wins')
-                .setStyle(TextInputStyle.Short)
-                .setPlaceholder('Number of rounds winner won (0-20)')
-                .setRequired(true)
-                .setMaxLength(2);
+                const titleInput = new TextInputBuilder()
+                    .setCustomId('title')
+                    .setLabel('Title')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('No, Initial, Defend, or Reclaim')
+                    .setRequired(true)
+                    .setMaxLength(20);
 
-            const roundLossesInput = new TextInputBuilder()
-                .setCustomId('roundLosses')
-                .setLabel('Round Losses')
-                .setStyle(TextInputStyle.Short)
-                .setPlaceholder('Number of rounds loser won (0-20)')
-                .setRequired(true)
-                .setMaxLength(2);
+                const roundWinsInput = new TextInputBuilder()
+                    .setCustomId('roundWins')
+                    .setLabel('Round Wins (Winner)')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Number of rounds winner won (0-20)')
+                    .setRequired(true)
+                    .setMaxLength(2);
 
-            const row1 = new ActionRowBuilder().addComponents(loserBuildInput);
-            const row2 = new ActionRowBuilder().addComponents(dateInput);
-            const row3 = new ActionRowBuilder().addComponents(titleInput);
-            const row4 = new ActionRowBuilder().addComponents(roundWinsInput);
-            const row5 = new ActionRowBuilder().addComponents(roundLossesInput);
+                const roundLossesInput = new TextInputBuilder()
+                    .setCustomId('roundLosses')
+                    .setLabel('Round Losses (Loser)')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('Number of rounds loser won (0-20)')
+                    .setRequired(true)
+                    .setMaxLength(2);
 
-            modal.addComponents(row1, row2, row3, row4, row5);
+                const notesInput = new TextInputBuilder()
+                    .setCustomId('notes')
+                    .setLabel('Notes (Optional)')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder('Any additional notes or comments...')
+                    .setRequired(false)
+                    .setMaxLength(500);
 
-            await interaction.showModal(modal);
-            return true;
-        }
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(titleInput),
+                    new ActionRowBuilder().addComponents(roundWinsInput),
+                    new ActionRowBuilder().addComponents(roundLossesInput),
+                    new ActionRowBuilder().addComponents(notesInput)
+                );
 
-        // Handle match details modal (Step 4 -> Step 5)
-        if (customId.startsWith('reportdetails_')) {
-            const parts = customId.replace('reportdetails_', '').split('_');
-            const matchType = parts[0];
-            const isMirror = parts[1] === 'true';
-            const winner = parts[2];
-            const winnerClass = parts[3];
-            const winnerBuild = parts[4];
-            const loser = parts[5];
-            const loserClass = parts[6];
+                await interaction.showModal(modal);
+                return true;
+            }
 
-            const loserBuild = interaction.fields.getTextInputValue('loserBuild');
-            const duelDate = interaction.fields.getTextInputValue('duelDate');
-            const title = interaction.fields.getTextInputValue('title');
-            const roundWins = interaction.fields.getTextInputValue('roundWins');
-            const roundLosses = interaction.fields.getTextInputValue('roundLosses');
+            // Handle match details modal (Final submission)
+            if (customId === 'reportdetails') {
+                const data = await getReportData(userId);
 
-            // Show notes modal
-            const modal = new ModalBuilder()
-                .setCustomId(`reportnotes_${matchType}_${isMirror}_${winner}_${winnerClass}_${winnerBuild}_${loser}_${loserClass}_${loserBuild}_${duelDate}_${title}_${roundWins}_${roundLosses}`)
-                .setTitle(`Step 5/5: Optional Notes`);
+                if (!data) {
+                    await interaction.reply({ content: 'Session expired. Please run /reportwin again.', ephemeral: true });
+                    return true;
+                }
 
-            const notesInput = new TextInputBuilder()
-                .setCustomId('notes')
-                .setLabel('Notes (Optional)')
-                .setStyle(TextInputStyle.Paragraph)
-                .setPlaceholder('Any additional notes or comments...')
-                .setRequired(false)
-                .setMaxLength(500);
+                data.title = interaction.fields.getTextInputValue('title');
+                data.roundWins = interaction.fields.getTextInputValue('roundWins');
+                data.roundLosses = interaction.fields.getTextInputValue('roundLosses');
+                data.notes = interaction.fields.getTextInputValue('notes') || '';
 
-            const row1 = new ActionRowBuilder().addComponents(notesInput);
-            modal.addComponents(row1);
+                console.log(`[${timestamp}] Processing reportwin submission:
+                User: ${interaction.user.tag} (${userId})
+                Match Type: ${data.matchType}
+                Mirror: ${data.isMirror}
+                Winner: ${data.winner} (${data.winnerClass} - ${data.winnerBuild})
+                Loser: ${data.loser} (${data.loserClass} - ${data.loserBuild})
+                Date: ${data.duelDate}
+                Title: ${data.title}
+                Score: ${data.roundWins}-${data.roundLosses}
+                Notes: ${data.notes}`);
 
-            await interaction.showModal(modal);
-            return true;
-        }
-
-        // Handle final submission (Step 5 -> Submit)
-        if (customId.startsWith('reportnotes_')) {
-            const timestamp = new Date().toISOString();
-            const user = interaction.user;
-
-            const parts = customId.replace('reportnotes_', '').split('_');
-            const matchType = parts[0];
-            const isMirror = parts[1] === 'true';
-            const winner = parts[2];
-            const winnerClass = parts[3];
-            const winnerBuild = parts[4];
-            const loser = parts[5];
-            const loserClass = parts[6];
-            const loserBuild = parts[7];
-            const duelDate = parts[8];
-            const title = parts[9];
-            const roundWins = parts[10];
-            const roundLosses = parts[11];
-            const notes = interaction.fields.getTextInputValue('notes') || '';
-
-            console.log(`[${timestamp}] Processing reportwin submission:
-            User: ${user.tag} (${user.id})
-            Match Type: ${matchType}
-            Mirror: ${isMirror}
-            Winner: ${winner} (${winnerClass} - ${winnerBuild})
-            Loser: ${loser} (${loserClass} - ${loserBuild})
-            Date: ${duelDate}
-            Title: ${title}
-            Score: ${roundWins}-${roundLosses}
-            Notes: ${notes}`);
-
-            try {
                 await interaction.deferReply({ ephemeral: true });
 
                 const testMode = process.env.TEST_MODE === 'true';
 
                 if (testMode) {
-                    console.log(`[${timestamp}] TEST MODE: Would submit to Google Form:`);
-                    console.log(`Form Data:`, {
-                        [FORM_ENTRIES.duelDate]: duelDate,
-                        [FORM_ENTRIES.matchType]: matchType,
-                        [FORM_ENTRIES.title]: title,
-                        [FORM_ENTRIES.roundWins]: roundWins,
-                        [FORM_ENTRIES.roundLosses]: roundLosses,
-                        [FORM_ENTRIES.mirror]: isMirror ? 'Yes' : 'No',
-                        [FORM_ENTRIES.winner]: winner,
-                        [FORM_ENTRIES.winnerClass]: winnerClass,
-                        [FORM_ENTRIES.winnerBuilds[winnerClass]]: winnerBuild,
-                        [FORM_ENTRIES.loser]: loser,
-                        [FORM_ENTRIES.loserClass]: loserClass,
-                        [FORM_ENTRIES.loserBuilds[loserClass]]: loserBuild,
-                        [FORM_ENTRIES.notes]: notes
-                    });
+                    console.log(`[${timestamp}] TEST MODE: Would submit to Google Form with data:`, data);
 
-                    // Write to test sheet
-                    const sheetTimestamp = new Date().toLocaleString('en-US', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit'
-                    });
+                    try {
+                        // Write to test sheet
+                        console.log(`[${timestamp}] Attempting to write to test sheet...`);
+                        console.log(`Spreadsheet ID: ${process.env.TEST_SPREADSHEET_ID}`);
+                        console.log(`Range: Duel Data Preview!A:M`);
 
-                    await sheets.spreadsheets.values.append({
-                        auth: auth,
-                        spreadsheetId: process.env.TEST_SPREADSHEET_ID,
-                        range: 'Duel Data Preview!A:M',
-                        valueInputOption: 'USER_ENTERED',
-                        requestBody: {
-                            values: [[
-                                duelDate,
-                                winner,
-                                winnerClass,
-                                winnerBuild,
-                                loser,
-                                loserClass,
-                                loserBuild,
-                                roundLosses, // # Round Losses
-                                matchType,
-                                '', // Exceptions
-                                isMirror ? 'Yes' : '', // Mirror
-                                title,
-                                notes
-                            ]]
-                        }
-                    });
+                        const rowData = [
+                            data.duelDate,
+                            data.winner,
+                            data.winnerClass,
+                            data.winnerBuild,
+                            data.loser,
+                            data.loserClass,
+                            data.loserBuild,
+                            data.roundLosses, // # Round Losses
+                            data.matchType,
+                            '', // Exceptions
+                            data.isMirror ? 'Yes' : '', // Mirror
+                            data.title,
+                            data.notes
+                        ];
 
-                    console.log(`[${timestamp}] TEST MODE: Data written to test sheet`);
+                        console.log(`[${timestamp}] Row data to append:`, rowData);
+
+                        const appendResponse = await sheets.spreadsheets.values.append({
+                            auth: auth,
+                            spreadsheetId: process.env.TEST_SPREADSHEET_ID,
+                            range: 'Duel Data Preview!A:M',
+                            valueInputOption: 'USER_ENTERED',
+                            requestBody: {
+                                values: [rowData]
+                            }
+                        });
+
+                        console.log(`[${timestamp}] TEST MODE: Sheet append successful!`);
+                        console.log(`[${timestamp}] Append response:`, JSON.stringify(appendResponse.data, null, 2));
+                    } catch (sheetError) {
+                        console.error(`[${timestamp}] ERROR writing to test sheet:`, sheetError);
+                        console.error(`[${timestamp}] Error details:`, {
+                            message: sheetError.message,
+                            stack: sheetError.stack,
+                            response: sheetError.response?.data
+                        });
+
+                        await interaction.editReply({
+                            content: `Failed to write to test sheet. Error: ${sheetError.message}\n\nCheck console logs for details.`
+                        });
+                        await clearReportData(userId);
+                        return true;
+                    }
                 } else {
                     // Production mode - submit to Google Form
+                    console.log(`[${timestamp}] PRODUCTION MODE: Submitting to Google Form...`);
+
                     const formData = new URLSearchParams();
-                    formData.append(FORM_ENTRIES.duelDate, duelDate);
-                    formData.append(FORM_ENTRIES.matchType, matchType);
-                    formData.append(FORM_ENTRIES.title, title);
-                    formData.append(FORM_ENTRIES.roundWins, roundWins);
-                    formData.append(FORM_ENTRIES.roundLosses, roundLosses);
-                    formData.append(FORM_ENTRIES.mirror, isMirror ? 'Yes' : 'No');
-                    formData.append(FORM_ENTRIES.winner, winner);
-                    formData.append(FORM_ENTRIES.winnerClass, winnerClass);
-                    formData.append(FORM_ENTRIES.winnerBuilds[winnerClass], winnerBuild);
-                    formData.append(FORM_ENTRIES.loser, loser);
-                    formData.append(FORM_ENTRIES.loserClass, loserClass);
-                    formData.append(FORM_ENTRIES.loserBuilds[loserClass], loserBuild);
-                    if (notes) formData.append(FORM_ENTRIES.notes, notes);
+                    formData.append(FORM_ENTRIES.duelDate, data.duelDate);
+                    formData.append(FORM_ENTRIES.matchType, data.matchType);
+                    formData.append(FORM_ENTRIES.title, data.title);
+                    formData.append(FORM_ENTRIES.roundWins, data.roundWins);
+                    formData.append(FORM_ENTRIES.roundLosses, data.roundLosses);
+                    formData.append(FORM_ENTRIES.mirror, data.isMirror ? 'Yes' : 'No');
+                    formData.append(FORM_ENTRIES.winner, data.winner);
+                    formData.append(FORM_ENTRIES.winnerClass, data.winnerClass);
+                    formData.append(FORM_ENTRIES.winnerBuilds[data.winnerClass], data.winnerBuild);
+                    formData.append(FORM_ENTRIES.loser, data.loser);
+                    formData.append(FORM_ENTRIES.loserClass, data.loserClass);
+                    formData.append(FORM_ENTRIES.loserBuilds[data.loserClass], data.loserBuild);
+                    if (data.notes) formData.append(FORM_ENTRIES.notes, data.notes);
 
                     const formResponse = await fetch(
                         'https://docs.google.com/forms/d/e/1FAIpQLSdDZlB_yrCryvzNXaDloGUSmc_TK8PMca5oDpWzaYbaDDOApg/formResponse',
@@ -425,39 +605,47 @@ module.exports = {
                     .setColor(0xFFA500)
                     .setTitle('🏆 Match Result Reported')
                     .addFields(
-                        { name: 'Match Type', value: `${matchTypeEmojis[matchType]} **${matchType}**`, inline: true },
-                        { name: 'Date', value: `**${duelDate}**`, inline: true },
-                        { name: 'Title', value: `**${title}**`, inline: true },
-                        { name: 'Winner', value: `**${winner}**\n${winnerClass} - ${winnerBuild}`, inline: true },
-                        { name: 'Loser', value: `**${loser}**\n${loserClass} - ${loserBuild}`, inline: true },
-                        { name: 'Score', value: `**${roundWins}-${roundLosses}**`, inline: true }
+                        { name: 'Match Type', value: `${matchTypeEmojis[data.matchType]} **${data.matchType}**`, inline: true },
+                        { name: 'Date', value: `**${data.duelDate}**`, inline: true },
+                        { name: 'Title', value: `**${data.title}**`, inline: true },
+                        { name: 'Winner', value: `**${data.winner}**\n${classEmojis[data.winnerClass]} ${data.winnerClass} - ${data.winnerBuild}`, inline: true },
+                        { name: 'Loser', value: `**${data.loser}**\n${classEmojis[data.loserClass]} ${data.loserClass} - ${data.loserBuild}`, inline: true },
+                        { name: 'Score', value: `**${data.roundWins}-${data.roundLosses}**`, inline: true }
                     )
                     .setTimestamp()
                     .setFooter({ text: testMode ? 'TEST MODE - Data written to test sheet' : 'Match reported successfully!' });
 
-                if (isMirror) {
+                if (data.isMirror) {
                     embed.addFields({ name: '🪞 Mirror Match', value: 'Yes', inline: true });
                 }
 
-                if (notes) {
-                    embed.addFields({ name: '📝 Notes', value: notes, inline: false });
+                if (data.notes) {
+                    embed.addFields({ name: '📝 Notes', value: data.notes, inline: false });
                 }
 
                 await interaction.editReply({ embeds: [embed] });
-                console.log(`[${timestamp}] Reportwin completed successfully for ${user.tag} (${user.id})`);
-            } catch (error) {
-                console.error(`[${timestamp}] Error processing reportwin for ${user.tag} (${user.id}):`, error);
+                console.log(`[${timestamp}] Reportwin completed successfully for ${interaction.user.tag} (${userId})`);
 
-                if (interaction.deferred) {
-                    await interaction.editReply({ content: 'Failed to report match result. Please try again later.' });
-                } else {
-                    await interaction.reply({ content: 'Failed to report match result. Please try again later.', ephemeral: true });
-                }
+                // Clear Redis data
+                await clearReportData(userId);
+
+                return true;
             }
 
+            return false;
+        } catch (error) {
+            console.error(`[${timestamp}] Error in reportwin handleModal:`, error);
+            console.error(`CustomId: ${customId}, UserId: ${userId}`);
+            console.error(`Error stack:`, error.stack);
+
+            if (interaction.deferred) {
+                await interaction.editReply({ content: 'Failed to process match report. Please try again later.' });
+            } else if (!interaction.replied) {
+                await interaction.reply({ content: 'Failed to process match report. Please try again later.', ephemeral: true });
+            }
+
+            await clearReportData(userId);
             return true;
         }
-
-        return false;
     }
 };
