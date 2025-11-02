@@ -34,6 +34,9 @@ module.exports = {
         Channel: ${channelName} (${interaction.channelId})
         Dueler Name: ${duelerName}`);
 
+        // Defer reply to prevent "application did not respond" error
+        await interaction.deferReply({ ephemeral: true });
+
         try {
             // Check cached data to verify if the user is already registered
             if (process.env.FORCE_CACHE_REFRESH === 'true') {
@@ -52,7 +55,7 @@ module.exports = {
             }
             if (cachedUuids.includes(userId)) {
                 const pronoun = targetUser.id === commandUser.id ? 'You are' : 'They are';
-                return interaction.reply({ content: `${pronoun} already registered. Their UUID is already present in our data.`, ephemeral: true });
+                return interaction.editReply({ content: `${pronoun} already registered. Their UUID is already present in our data.` });
             }
 
             // Use the auth object directly as it's already a JWT client
@@ -69,7 +72,7 @@ module.exports = {
 
             if (isRegistered) {
                 const pronoun = targetUser.id === commandUser.id ? 'You are' : 'They are';
-                return interaction.reply({ content: `${pronoun} already registered. Their UUID is already present in our data.`, ephemeral: true });
+                return interaction.editReply({ content: `${pronoun} already registered. Their UUID is already present in our data.` });
             }
 
             // Find the first available row
@@ -88,7 +91,7 @@ module.exports = {
                 });
             } catch (error) {
                 console.error('Error appending new user to Google Sheets:', error);
-                return interaction.reply({ content: 'Failed to register. Please try again later.', ephemeral: true });
+                return interaction.editReply({ content: 'Failed to register. Please try again later.' });
             }
 
             try {
@@ -120,11 +123,15 @@ module.exports = {
                 .setFooter({ text: 'Good luck in the arena! ⚔️' });
 
             await interaction.channel.send({ embeds: [embed] });
+
+            // Delete the deferred reply since we sent the public embed
+            await interaction.deleteReply().catch(err => console.error('Failed to delete deferred reply:', err));
+
             console.log(`[${timestamp}] Registration command completed successfully for ${targetUser.tag} (${targetUser.id}) with dueler name: ${duelerName} (registered by ${commandUser.tag})`);
         } catch (error) {
             const errorMessage = `[${timestamp}] Error during registration for ${targetUser.tag} (${targetUser.id}) by ${commandUser.tag}`;
             console.error(errorMessage, error);
-            await interaction.reply({ content: 'Failed to register. Please try again later.', ephemeral: true });
+            await interaction.editReply({ content: 'Failed to register. Please try again later.' });
         }
     }
 };
