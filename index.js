@@ -8,6 +8,7 @@ const cron = require('node-cron');
 const { createGoogleAuth } = require('./utils/googleAuth');
 const redisClient = require('./utils/redisClient');
 const duelDataCache = require('./utils/duelDataCache');
+const rosterCache = require('./utils/rosterCache');
 
 // Define the prefix for message commands
 const PREFIX = '!';
@@ -62,8 +63,11 @@ client.once('ready', async () => {
         
         // Perform initial cache load
         console.log('Performing initial cache load...');
-        await duelDataCache.refreshCache();
-        console.log('Initial cache load completed');
+        await Promise.all([
+            duelDataCache.refreshCache(),
+            rosterCache.refreshCache()
+        ]);
+        console.log('Initial cache load completed (Duel Data + Roster)');
     } catch (error) {
         console.error('Failed to initialize Redis or cache:', error);
         console.log('Bot will continue running with Google Sheets fallback');
@@ -73,8 +77,11 @@ client.once('ready', async () => {
     cron.schedule('30 22 * * 4', async () => {
         console.log('Running scheduled cache refresh (Thursday 5:30pm ET)...');
         try {
-            await duelDataCache.refreshCache();
-            console.log('Thursday cache refresh completed successfully');
+            await Promise.all([
+                duelDataCache.refreshCache(),
+                rosterCache.refreshCache()
+            ]);
+            console.log('Thursday cache refresh completed successfully (Duel Data + Roster)');
         } catch (error) {
             console.error('Thursday cache refresh failed, will fallback to Google Sheets:', error);
         }
@@ -86,8 +93,11 @@ client.once('ready', async () => {
     cron.schedule('0 7 * * 5', async () => {
         console.log('Running scheduled cache refresh (Friday 2:00am ET)...');
         try {
-            await duelDataCache.refreshCache();
-            console.log('Friday cache refresh completed successfully');
+            await Promise.all([
+                duelDataCache.refreshCache(),
+                rosterCache.refreshCache()
+            ]);
+            console.log('Friday cache refresh completed successfully (Duel Data + Roster)');
         } catch (error) {
             console.error('Friday cache refresh failed, will fallback to Google Sheets:', error);
         }
@@ -99,8 +109,11 @@ client.once('ready', async () => {
     cron.schedule('0 4 * * 6', async () => {
         console.log('Running scheduled cache refresh (Friday 11:00pm ET)...');
         try {
-            await duelDataCache.refreshCache();
-            console.log('Friday evening cache refresh completed successfully');
+            await Promise.all([
+                duelDataCache.refreshCache(),
+                rosterCache.refreshCache()
+            ]);
+            console.log('Friday evening cache refresh completed successfully (Duel Data + Roster)');
         } catch (error) {
             console.error('Friday evening cache refresh failed, will fallback to Google Sheets:', error);
         }

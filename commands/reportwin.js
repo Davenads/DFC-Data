@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const redisClient = require('../utils/redisClient');
+const rosterCache = require('../utils/rosterCache');
 
 // Custom emoji IDs from production Discord server
 const matchTypeEmojis = {
@@ -513,6 +514,21 @@ module.exports = {
 
                 const testMode = process.env.TEST_MODE === 'true';
 
+                // Look up reporter info from Roster cache
+                console.log(`[${timestamp}] Looking up reporter info for UUID: ${userId}`);
+                const reporterInfo = await rosterCache.getUserByUUID(userId);
+
+                const reporterDataName = reporterInfo?.dataName || interaction.user.username || 'Unknown';
+                const reporterDiscordName = reporterInfo?.discordName || interaction.user.username || 'Unknown';
+                const reporterUUID = userId;
+
+                console.log(`[${timestamp}] Reporter info:`, {
+                    dataName: reporterDataName,
+                    discordName: reporterDiscordName,
+                    uuid: reporterUUID,
+                    foundInRoster: !!reporterInfo
+                });
+
                 if (testMode) {
                     console.log(`[${timestamp}] TEST MODE: Would submit to Google Form with data:`, data);
 
@@ -520,22 +536,25 @@ module.exports = {
                         // Write to test sheet
                         console.log(`[${timestamp}] Attempting to write to test sheet...`);
                         console.log(`Spreadsheet ID: ${process.env.TEST_SPREADSHEET_ID}`);
-                        console.log(`Range: Duel Data Preview!A:M`);
+                        console.log(`Range: Duel Data Preview!A:P`);
 
                         const rowData = [
-                            data.duelDate,
-                            data.winner,
-                            data.winnerClass,
-                            data.winnerBuild,
-                            data.loser,
-                            data.loserClass,
-                            data.loserBuild,
-                            data.roundLosses, // # Round Losses
-                            data.matchType,
-                            '', // Exceptions
-                            data.isMirror ? 'Yes' : '', // Mirror
-                            data.title,
-                            data.notes
+                            data.duelDate,       // A: Event Date
+                            data.winner,         // B: Winner
+                            data.winnerClass,    // C: W Class
+                            data.winnerBuild,    // D: W Build
+                            data.loser,          // E: Loser
+                            data.loserClass,     // F: L Class
+                            data.loserBuild,     // G: L Build
+                            data.roundLosses,    // H: # Round Losses
+                            data.matchType,      // I: Match Type
+                            '',                  // J: Exceptions
+                            data.isMirror ? 'Yes' : '', // K: Mirror
+                            data.title,          // L: Title
+                            data.notes,          // M: Notes
+                            reporterDataName,    // N: Reporter Data Name
+                            reporterDiscordName, // O: Reporter Discord Name
+                            reporterUUID         // P: Reporter UUID
                         ];
 
                         console.log(`[${timestamp}] Row data to append:`, rowData);
@@ -543,7 +562,7 @@ module.exports = {
                         const appendResponse = await sheets.spreadsheets.values.append({
                             auth: auth,
                             spreadsheetId: process.env.TEST_SPREADSHEET_ID,
-                            range: 'Duel Data Preview!A:M',
+                            range: 'Duel Data Preview!A:P',
                             valueInputOption: 'USER_ENTERED',
                             requestBody: {
                                 values: [rowData]
