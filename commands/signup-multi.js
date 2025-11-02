@@ -196,12 +196,10 @@ module.exports = {
                 // Defer reply to prevent timeout
                 await interaction.deferReply({ ephemeral: true });
 
-                // Authenticate with Google Sheets
-                const authClient = await auth.getClient();
-
+                // Use the auth object directly as it's already a JWT client
                 // Fetch current data from Signups tab to check for duplicates
                 const signupsRes = await sheets.spreadsheets.values.get({
-                    auth: authClient,
+                    auth: auth,
                     spreadsheetId: process.env.SPREADSHEET_ID,
                     range: 'DFC Bot Signups!A:G',
                     majorDimension: 'ROWS'
@@ -239,7 +237,7 @@ module.exports = {
 
                 // Update the new signup to the first available row in the DFC Bot Signups tab
                 await sheets.spreadsheets.values.update({
-                    auth: authClient,
+                    auth: auth,
                     spreadsheetId: process.env.SPREADSHEET_ID,
                     range: `DFC Bot Signups!A${firstEmptyRow}:G${firstEmptyRow}`,
                     valueInputOption: 'USER_ENTERED',
