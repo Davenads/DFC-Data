@@ -1,19 +1,20 @@
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 
+// Custom emoji IDs from production Discord server
 const classEmojis = {
-    Amazon: '🏹',
-    Assassin: '🗡️',
-    Barbarian: '🛡️',
-    Druid: '🐺',
-    Necromancer: '💀',
-    Paladin: '⚔️',
-    Sorceress: '🔮'
+    Amazon: '<:Amazon:953116506726744094>',
+    Assassin: '<:Assassin:953116506697379891>',
+    Barbarian: '<:barb:924434081406672977>',
+    Druid: '<:Druid:994817312563671050>',
+    Necromancer: '<:Necro:994817323653419058>',
+    Paladin: '<:Pala:1039258310857195730>',
+    Sorceress: '<:sorc:924434081163391058>'
 };
 
 const matchTypeEmojis = {
-    HLD: '🏆',
-    LLD: '🥇',
-    Melee: '⚔️'
+    HLD: '<:HLD:1434535063755952320>',
+    LLD: '<:LLD:1434535487481319598>',
+    Melee: '<:Melee:1434536096238141501>'
 };
 
 module.exports = {
@@ -40,17 +41,17 @@ module.exports = {
                     new ButtonBuilder()
                         .setCustomId('signupmulti_hld')
                         .setLabel('HLD')
-                        .setEmoji('🏆')
+                        .setEmoji('1434535063755952320')
                         .setStyle(ButtonStyle.Primary),
                     new ButtonBuilder()
                         .setCustomId('signupmulti_lld')
                         .setLabel('LLD')
-                        .setEmoji('🥇')
+                        .setEmoji('1434535487481319598')
                         .setStyle(ButtonStyle.Primary),
                     new ButtonBuilder()
                         .setCustomId('signupmulti_melee')
                         .setLabel('Melee')
-                        .setEmoji('⚔️')
+                        .setEmoji('1434536096238141501')
                         .setStyle(ButtonStyle.Primary)
                 );
 
@@ -82,22 +83,22 @@ module.exports = {
                     new ButtonBuilder()
                         .setCustomId(`signupclass_${matchType}_Amazon`)
                         .setLabel('Amazon')
-                        .setEmoji('🏹')
+                        .setEmoji('953116506726744094')
                         .setStyle(ButtonStyle.Secondary),
                     new ButtonBuilder()
                         .setCustomId(`signupclass_${matchType}_Assassin`)
                         .setLabel('Assassin')
-                        .setEmoji('🗡️')
+                        .setEmoji('953116506697379891')
                         .setStyle(ButtonStyle.Secondary),
                     new ButtonBuilder()
                         .setCustomId(`signupclass_${matchType}_Barbarian`)
                         .setLabel('Barbarian')
-                        .setEmoji('🛡️')
+                        .setEmoji('924434081406672977')
                         .setStyle(ButtonStyle.Secondary),
                     new ButtonBuilder()
                         .setCustomId(`signupclass_${matchType}_Druid`)
                         .setLabel('Druid')
-                        .setEmoji('🐺')
+                        .setEmoji('994817312563671050')
                         .setStyle(ButtonStyle.Secondary)
                 );
 
@@ -106,17 +107,17 @@ module.exports = {
                     new ButtonBuilder()
                         .setCustomId(`signupclass_${matchType}_Necromancer`)
                         .setLabel('Necromancer')
-                        .setEmoji('💀')
+                        .setEmoji('994817323653419058')
                         .setStyle(ButtonStyle.Secondary),
                     new ButtonBuilder()
                         .setCustomId(`signupclass_${matchType}_Paladin`)
                         .setLabel('Paladin')
-                        .setEmoji('⚔️')
+                        .setEmoji('1039258310857195730')
                         .setStyle(ButtonStyle.Secondary),
                     new ButtonBuilder()
                         .setCustomId(`signupclass_${matchType}_Sorceress`)
                         .setLabel('Sorceress')
-                        .setEmoji('🔮')
+                        .setEmoji('924434081163391058')
                         .setStyle(ButtonStyle.Secondary)
                 );
 
