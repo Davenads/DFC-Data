@@ -11,20 +11,21 @@ const classBuildOptions = {
     barbarian: ['Throw/WW Hybrid', 'BvC', 'BvB', 'BvA', 'Singer', 'Concentrate', 'Other']
 };
 
+// Custom emoji IDs from production Discord server
 const classEmojis = {
-    Paladin: '⚔️',
-    Necromancer: '💀',
-    Assassin: '🗡️',
-    Druid: '🐺',
-    Amazon: '🏹',
-    Sorceress: '🔮',
-    Barbarian: '🛡️'
+    Amazon: '<:Amazon:953116506726744094>',
+    Assassin: '<:Assassin:953116506697379891>',
+    Barbarian: '<:barb:924434081406672977>',
+    Druid: '<:Druid:994817312563671050>',
+    Necromancer: '<:Necro:994817323653419058>',
+    Paladin: '<:Pala:1039258310857195730>',
+    Sorceress: '<:sorc:924434081163391058>'
 };
 
 const matchTypeEmojis = {
-    HLD: '🏆',
-    LLD: '🥇',
-    Melee: '⚔️'
+    HLD: '<:HLD:1434535063755952320>',
+    LLD: '<:LLD:1434535487481319598>',
+    Melee: '<:Melee:1434536096238141501>'
 };
 
 module.exports = {
