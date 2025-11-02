@@ -376,9 +376,9 @@ module.exports = {
 
                 const dateInput = new TextInputBuilder()
                     .setCustomId('duelDate')
-                    .setLabel('Duel Date (MM/DD/YYYY) - Leave blank for today')
+                    .setLabel('Date (MM/DD/YYYY) - blank = today')
                     .setStyle(TextInputStyle.Short)
-                    .setPlaceholder('Leave empty to use current date')
+                    .setPlaceholder('Leave empty to auto-fill today')
                     .setRequired(false)
                     .setMaxLength(10);
 
