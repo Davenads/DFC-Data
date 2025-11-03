@@ -849,102 +849,55 @@ module.exports = {
                     foundInRoster: !!reporterInfo
                 });
 
-                if (testMode) {
-                    console.log(`[${timestamp}] TEST MODE: Would submit to Google Form with data:`, data);
+                // Choose environment based on TEST_MODE
+                const formId = testMode ? process.env.TEST_FORM_ID : process.env.PROD_FORM_ID;
+                const formUrl = `https://docs.google.com/forms/d/e/${formId}/formResponse`;
+                const environment = testMode ? 'TEST' : 'PRODUCTION';
 
-                    try {
-                        // Write to test sheet
-                        console.log(`[${timestamp}] Attempting to write to test sheet...`);
-                        console.log(`Spreadsheet ID: ${process.env.TEST_SPREADSHEET_ID}`);
-                        console.log(`Range: Duel Data Preview!A:P`);
+                console.log(`[${timestamp}] ${environment} MODE: Submitting to Google Form...`);
+                console.log(`[${timestamp}] Form URL: ${formUrl}`);
 
-                        const rowData = [
-                            data.duelDate,       // A: Event Date
-                            data.winner,         // B: Winner
-                            data.winnerClass,    // C: W Class
-                            data.winnerBuild,    // D: W Build
-                            data.loser,          // E: Loser
-                            data.loserClass,     // F: L Class
-                            data.loserBuild,     // G: L Build
-                            data.roundLosses,    // H: # Round Losses
-                            data.matchType,      // I: Match Type
-                            '',                  // J: Exceptions
-                            data.isMirror ? 'Yes' : '', // K: Mirror
-                            data.title,          // L: Title
-                            data.notes,          // M: Notes
-                            reporterDataName,    // N: Reporter Data Name
-                            reporterDiscordName, // O: Reporter Discord Name
-                            reporterUUID         // P: Reporter UUID
-                        ];
+                const formData = new URLSearchParams();
+                formData.append(FORM_ENTRIES.duelDate, data.duelDate);
+                formData.append(FORM_ENTRIES.matchType, data.matchType);
+                formData.append(FORM_ENTRIES.title, data.title);
+                formData.append(FORM_ENTRIES.roundWins, data.roundWins);
+                formData.append(FORM_ENTRIES.roundLosses, data.roundLosses);
+                formData.append(FORM_ENTRIES.mirror, data.isMirror ? 'Yes' : 'No');
 
-                        console.log(`[${timestamp}] Row data to append:`, rowData);
+                // Add mirror types if present (checkbox field - append each value)
+                if (data.mirrorTypes && data.mirrorTypes.length > 0) {
+                    data.mirrorTypes.forEach(type => {
+                        formData.append(FORM_ENTRIES.mirrorType, type);
+                    });
+                }
 
-                        const appendResponse = await sheets.spreadsheets.values.append({
-                            auth: auth,
-                            spreadsheetId: process.env.TEST_SPREADSHEET_ID,
-                            range: 'Duel Data Preview!A:P',
-                            valueInputOption: 'USER_ENTERED',
-                            requestBody: {
-                                values: [rowData]
-                            }
-                        });
+                formData.append(FORM_ENTRIES.winner, data.winner);
+                formData.append(FORM_ENTRIES.winnerClass, data.winnerClass);
+                formData.append(FORM_ENTRIES.winnerBuilds[data.winnerClass], data.winnerBuild);
+                formData.append(FORM_ENTRIES.loser, data.loser);
+                formData.append(FORM_ENTRIES.loserClass, data.loserClass);
+                formData.append(FORM_ENTRIES.loserBuilds[data.loserClass], data.loserBuild);
+                if (data.notes) formData.append(FORM_ENTRIES.notes, data.notes);
 
-                        console.log(`[${timestamp}] TEST MODE: Sheet append successful!`);
-                        console.log(`[${timestamp}] Append response:`, JSON.stringify(appendResponse.data, null, 2));
-                    } catch (sheetError) {
-                        console.error(`[${timestamp}] ERROR writing to test sheet:`, sheetError);
-                        console.error(`[${timestamp}] Error details:`, {
-                            message: sheetError.message,
-                            stack: sheetError.stack,
-                            response: sheetError.response?.data
-                        });
-
-                        await interaction.editReply({
-                            content: `Failed to write to test sheet. Error: ${sheetError.message}\n\nCheck console logs for details.`
-                        });
-                        await clearReportData(userId);
-                        return true;
-                    }
-                } else {
-                    // Production mode - submit to Google Form
-                    console.log(`[${timestamp}] PRODUCTION MODE: Submitting to Google Form...`);
-
-                    const formData = new URLSearchParams();
-                    formData.append(FORM_ENTRIES.duelDate, data.duelDate);
-                    formData.append(FORM_ENTRIES.matchType, data.matchType);
-                    formData.append(FORM_ENTRIES.title, data.title);
-                    formData.append(FORM_ENTRIES.roundWins, data.roundWins);
-                    formData.append(FORM_ENTRIES.roundLosses, data.roundLosses);
-                    formData.append(FORM_ENTRIES.mirror, data.isMirror ? 'Yes' : 'No');
-
-                    // Add mirror types if present (checkbox field - append each value)
-                    if (data.mirrorTypes && data.mirrorTypes.length > 0) {
-                        data.mirrorTypes.forEach(type => {
-                            formData.append(FORM_ENTRIES.mirrorType, type);
-                        });
-                    }
-
-                    formData.append(FORM_ENTRIES.winner, data.winner);
-                    formData.append(FORM_ENTRIES.winnerClass, data.winnerClass);
-                    formData.append(FORM_ENTRIES.winnerBuilds[data.winnerClass], data.winnerBuild);
-                    formData.append(FORM_ENTRIES.loser, data.loser);
-                    formData.append(FORM_ENTRIES.loserClass, data.loserClass);
-                    formData.append(FORM_ENTRIES.loserBuilds[data.loserClass], data.loserBuild);
-                    if (data.notes) formData.append(FORM_ENTRIES.notes, data.notes);
-
-                    const formResponse = await fetch(
-                        'https://docs.google.com/forms/d/e/1FAIpQLSdDZlB_yrCryvzNXaDloGUSmc_TK8PMca5oDpWzaYbaDDOApg/formResponse',
-                        {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded',
-                            },
-                            body: formData.toString(),
-                            redirect: 'manual'
-                        }
-                    );
+                try {
+                    const formResponse = await fetch(formUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: formData.toString(),
+                        redirect: 'manual'
+                    });
 
                     console.log(`[${timestamp}] Form submission status: ${formResponse.status}`);
+                } catch (fetchError) {
+                    console.error(`[${timestamp}] ERROR submitting to form:`, fetchError);
+                    await interaction.editReply({
+                        content: `Failed to submit to form. Error: ${fetchError.message}\n\nCheck console logs for details.`
+                    });
+                    await clearReportData(userId);
+                    return true;
                 }
 
                 // Create confirmation embed
@@ -960,7 +913,7 @@ module.exports = {
                         { name: 'Score', value: `**${data.roundWins}-${data.roundLosses}**`, inline: true }
                     )
                     .setTimestamp()
-                    .setFooter({ text: testMode ? 'TEST MODE - Data written to test sheet' : 'Match reported successfully!' });
+                    .setFooter({ text: testMode ? 'TEST MODE - Submitted to test form' : 'Match reported successfully!' });
 
                 if (data.isMirror) {
                     embed.addFields({ name: '🪞 Mirror Match', value: 'Yes', inline: true });
