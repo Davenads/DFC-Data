@@ -19,8 +19,8 @@ const classEmojis = {
     Sorceress: '<:sorc:924434081163391058>'
 };
 
-// Form entry IDs for Google Form submission
-const FORM_ENTRIES = {
+// Production Form entry IDs
+const PROD_FORM_ENTRIES = {
     duelDate: 'entry.666586256',
     matchType: 'entry.781478868',
     title: 'entry.2023271252',
@@ -54,6 +54,45 @@ const FORM_ENTRIES = {
         Sorceress: 'entry.1431447468'
     }
 };
+
+// Test Form entry IDs
+const TEST_FORM_ENTRIES = {
+    duelDate: 'entry.1895335701',
+    matchType: 'entry.1592134870',
+    title: 'entry.510006768',
+    roundWins: 'entry.526540015',
+    roundLosses: 'entry.1002526413',
+    mirror: 'entry.1320054110',
+    mirrorType: 'entry.935484935', // TODO: Verify this is the checkbox field for mirror type
+    winner: 'entry.2115916997',
+    winnerClass: 'entry.935484935',
+    loser: 'entry.1212393589',
+    loserClass: 'entry.1151669949',
+    notes: 'entry.1312255002',
+    // Winner builds by class - TODO: Complete these by testing each class
+    winnerBuilds: {
+        Amazon: 'entry.TODO',       // TODO: Fill in from test form
+        Assassin: 'entry.TODO',     // TODO: Fill in from test form
+        Barbarian: 'entry.526101734',
+        Druid: 'entry.TODO',        // TODO: Fill in from test form
+        Necromancer: 'entry.TODO',  // TODO: Fill in from test form
+        Paladin: 'entry.TODO',      // TODO: Fill in from test form
+        Sorceress: 'entry.TODO'     // TODO: Fill in from test form
+    },
+    // Loser builds by class - TODO: Complete these by testing each class
+    loserBuilds: {
+        Amazon: 'entry.TODO',       // TODO: Fill in from test form
+        Assassin: 'entry.TODO',     // TODO: Fill in from test form
+        Barbarian: 'entry.TODO',    // TODO: Fill in from test form
+        Druid: 'entry.TODO',        // TODO: Fill in from test form
+        Necromancer: 'entry.TODO',  // TODO: Fill in from test form
+        Paladin: 'entry.TODO',      // TODO: Fill in from test form
+        Sorceress: 'entry.545772854'
+    }
+};
+
+// Select form entries based on TEST_MODE
+const FORM_ENTRIES = process.env.TEST_MODE === 'true' ? TEST_FORM_ENTRIES : PROD_FORM_ENTRIES;
 
 // Helper function to get/set Redis data for a user's reportwin session
 async function getReportData(userId) {

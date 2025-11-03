@@ -5,13 +5,14 @@ This guide explains how to configure your copied test form and SSOT sheet for sa
 
 ## Test Environment IDs
 - **Test SSOT Sheet**: `137CZt90ZNoL66n0UohpD9y7m7nqQTk-b5UmMjfaJVms`
-- **Test Form**: `1C3H4e069VL8qvR3JC3QsXG3LbHZ3s94HG1Q2NhbPAzg`
+- **Test Form**: `1FAIpQLSe5Vx_8h4PCn46JzJ_WVohVIGkQwy6HZ4eGXrjKAqO8_o8d3A`
+- **Test Form (Edit URL)**: `1C3H4e069VL8qvR3JC3QsXG3LbHZ3s94HG1Q2NhbPAzg`
 
 ---
 
 ## Step 1: Configure Test Form Response Destination
 
-1. Open your test form: https://docs.google.com/forms/d/1C3H4e069VL8qvR3JC3QsXG3LbHZ3s94HG1Q2NhbPAzg/edit
+1. Open your test form: https://docs.google.com/forms/d/1C3H4e069VL8qvR3JC3QsXG3LbHZ3s94HG1Q2NhbPAzg/edit (Note: Use the form response ID `1FAIpQLSe5Vx_8h4PCn46JzJ_WVohVIGkQwy6HZ4eGXrjKAqO8_o8d3A` for bot submissions)
 2. Click the **"Responses"** tab at the top
 3. Click the **three-dot menu** (⋮) → **"Select response destination"**
 4. Choose **"Select existing spreadsheet"**
@@ -29,7 +30,7 @@ This guide explains how to configure your copied test form and SSOT sheet for sa
 3. Update lines 2-3 with your test IDs:
 
 ```javascript
-const FORM_ID = '1C3H4e069VL8qvR3JC3QsXG3LbHZ3s94HG1Q2NhbPAzg';  // your TEST Form
+const FORM_ID = '1C3H4e069VL8qvR3JC3QsXG3LbHZ3s94HG1Q2NhbPAzg';  // your TEST Form (edit ID)
 const SHEET_ID = '137CZt90ZNoL66n0UohpD9y7m7nqQTk-b5UmMjfaJVms'; // your TEST SSOT Sheet
 ```
 
