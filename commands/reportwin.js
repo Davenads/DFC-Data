@@ -349,8 +349,15 @@ module.exports = {
             if (customId.startsWith('reportwin_')) {
                 const matchType = customId.replace('reportwin_', '').toUpperCase();
 
-                // Store match type in Redis
-                await setReportData(userId, { matchType });
+                // Get existing data and add match type
+                const data = await getReportData(userId);
+                if (!data) {
+                    await interaction.update({ content: 'Session expired. Please run /reportwin again.', embeds: [], components: [] });
+                    return true;
+                }
+
+                data.matchType = matchType;
+                await setReportData(userId, data);
 
                 // Show mirror match selection
                 const row = new ActionRowBuilder()
