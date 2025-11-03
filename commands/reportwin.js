@@ -471,6 +471,80 @@ module.exports = {
                 return true;
             }
 
+            // Handle mirror type toggle buttons
+            if (customId.startsWith('mirrortoggle_')) {
+                const mirrorType = customId.replace('mirrortoggle_', '');
+                const data = await getReportData(userId);
+
+                if (!data) {
+                    await interaction.update({ content: 'Session expired. Please run /reportwin again.', embeds: [], components: [] });
+                    return true;
+                }
+
+                // Initialize mirrorTypes array if it doesn't exist
+                if (!data.mirrorTypes) {
+                    data.mirrorTypes = [];
+                }
+
+                // Map button ID to form value
+                const mirrorTypeMap = {
+                    'split': 'Split Server',
+                    'single': 'Single Mirror',
+                    'dual': 'Dual Mirror'
+                };
+                const typeValue = mirrorTypeMap[mirrorType];
+
+                // Toggle selection
+                const index = data.mirrorTypes.indexOf(typeValue);
+                if (index > -1) {
+                    data.mirrorTypes.splice(index, 1); // Remove if already selected
+                } else {
+                    data.mirrorTypes.push(typeValue); // Add if not selected
+                }
+
+                await setReportData(userId, data);
+
+                // Update embed to show current selections
+                const selectedText = data.mirrorTypes.length > 0
+                    ? data.mirrorTypes.join(', ')
+                    : 'None';
+
+                const embed = new EmbedBuilder()
+                    .setColor(0x00FF00)
+                    .setTitle('🏆 Report Match Result')
+                    .setDescription(`✅ Players recorded\n\n**Mirror Type (optional):** Select all that apply, then Continue:\n\nSelected: ${selectedText}`)
+                    .setFooter({ text: 'DFC Match Reporting - Step 6/6' })
+                    .setTimestamp();
+
+                // Keep same buttons
+                const mirrorTypeRow = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('mirrortoggle_split')
+                            .setLabel('Split Server')
+                            .setStyle(data.mirrorTypes.includes('Split Server') ? ButtonStyle.Success : ButtonStyle.Secondary),
+                        new ButtonBuilder()
+                            .setCustomId('mirrortoggle_single')
+                            .setLabel('Single Mirror')
+                            .setStyle(data.mirrorTypes.includes('Single Mirror') ? ButtonStyle.Success : ButtonStyle.Secondary),
+                        new ButtonBuilder()
+                            .setCustomId('mirrortoggle_dual')
+                            .setLabel('Dual Mirror')
+                            .setStyle(data.mirrorTypes.includes('Dual Mirror') ? ButtonStyle.Success : ButtonStyle.Secondary)
+                    );
+
+                const continueRow = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('reportcontinue')
+                            .setLabel('Continue to Match Details')
+                            .setStyle(ButtonStyle.Primary)
+                    );
+
+                await interaction.update({ embeds: [embed], components: [mirrorTypeRow, continueRow] });
+                return true;
+            }
+
             // Handle continue button (Step 5.5 -> Step 6 Modal)
             if (customId === 'reportcontinue') {
                 const data = await getReportData(userId);
@@ -601,23 +675,59 @@ module.exports = {
 
                 await setReportData(userId, data);
 
-                // Show button to continue to match details (can't chain modals)
-                const continueButton = new ActionRowBuilder()
-                    .addComponents(
-                        new ButtonBuilder()
-                            .setCustomId('reportcontinue')
-                            .setLabel('Continue to Match Details')
-                            .setStyle(ButtonStyle.Primary)
-                    );
+                // If mirror match, show mirror type selection; otherwise, just continue button
+                if (data.isMirror) {
+                    const mirrorTypeRow = new ActionRowBuilder()
+                        .addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('mirrortoggle_split')
+                                .setLabel('Split Server')
+                                .setStyle(ButtonStyle.Secondary),
+                            new ButtonBuilder()
+                                .setCustomId('mirrortoggle_single')
+                                .setLabel('Single Mirror')
+                                .setStyle(ButtonStyle.Secondary),
+                            new ButtonBuilder()
+                                .setCustomId('mirrortoggle_dual')
+                                .setLabel('Dual Mirror')
+                                .setStyle(ButtonStyle.Secondary)
+                        );
 
-                const embed = new EmbedBuilder()
-                    .setColor(0x00FF00)
-                    .setTitle('🏆 Report Match Result')
-                    .setDescription(`✅ Players recorded\n\n**Step 6/6:** Click below to enter match details:`)
-                    .setFooter({ text: 'DFC Match Reporting' })
-                    .setTimestamp();
+                    const continueRow = new ActionRowBuilder()
+                        .addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('reportcontinue')
+                                .setLabel('Continue to Match Details')
+                                .setStyle(ButtonStyle.Primary)
+                        );
 
-                await interaction.reply({ embeds: [embed], components: [continueButton], ephemeral: true });
+                    const embed = new EmbedBuilder()
+                        .setColor(0x00FF00)
+                        .setTitle('🏆 Report Match Result')
+                        .setDescription(`✅ Players recorded\n\n**Mirror Type (optional):** Select all that apply, then Continue:\n\nSelected: None`)
+                        .setFooter({ text: 'DFC Match Reporting - Step 6/6' })
+                        .setTimestamp();
+
+                    await interaction.reply({ embeds: [embed], components: [mirrorTypeRow, continueRow], ephemeral: true });
+                } else {
+                    // Non-mirror match, just show continue button
+                    const continueButton = new ActionRowBuilder()
+                        .addComponents(
+                            new ButtonBuilder()
+                                .setCustomId('reportcontinue')
+                                .setLabel('Continue to Match Details')
+                                .setStyle(ButtonStyle.Primary)
+                        );
+
+                    const embed = new EmbedBuilder()
+                        .setColor(0x00FF00)
+                        .setTitle('🏆 Report Match Result')
+                        .setDescription(`✅ Players recorded\n\n**Step 6/6:** Click below to enter match details:`)
+                        .setFooter({ text: 'DFC Match Reporting' })
+                        .setTimestamp();
+
+                    await interaction.reply({ embeds: [embed], components: [continueButton], ephemeral: true });
+                }
                 return true;
             }
 
@@ -755,6 +865,14 @@ module.exports = {
                     formData.append(FORM_ENTRIES.roundWins, data.roundWins);
                     formData.append(FORM_ENTRIES.roundLosses, data.roundLosses);
                     formData.append(FORM_ENTRIES.mirror, data.isMirror ? 'Yes' : 'No');
+
+                    // Add mirror types if present (checkbox field - append each value)
+                    if (data.mirrorTypes && data.mirrorTypes.length > 0) {
+                        data.mirrorTypes.forEach(type => {
+                            formData.append(FORM_ENTRIES.mirrorType, type);
+                        });
+                    }
+
                     formData.append(FORM_ENTRIES.winner, data.winner);
                     formData.append(FORM_ENTRIES.winnerClass, data.winnerClass);
                     formData.append(FORM_ENTRIES.winnerBuilds[data.winnerClass], data.winnerBuild);
