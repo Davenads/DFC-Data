@@ -96,6 +96,83 @@ async function clearReportData(userId) {
     }
 }
 
+// Validation helper functions
+function validateDate(dateString) {
+    if (!dateString || dateString.trim() === '') {
+        return { valid: true, value: '' }; // Empty is valid, will auto-fill
+    }
+
+    const datePattern = /^(0?[1-9]|1[0-2])\/(0?[1-9]|[12]\d|3[01])\/\d{4}$/;
+    if (!datePattern.test(dateString)) {
+        return { valid: false, error: 'Date must be in MM/DD/YYYY format (e.g., 11/02/2025)' };
+    }
+
+    // Validate it's a real date
+    const [month, day, year] = dateString.split('/').map(Number);
+    const date = new Date(year, month - 1, day);
+    if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+        return { valid: false, error: 'Invalid date. Please check month/day values.' };
+    }
+
+    return { valid: true, value: dateString };
+}
+
+function validateTitle(title) {
+    const validTitles = ['No', 'Initial', 'Defend', 'Reclaim'];
+    const normalized = title.trim();
+
+    // Try case-insensitive match
+    const match = validTitles.find(t => t.toLowerCase() === normalized.toLowerCase());
+    if (!match) {
+        return { valid: false, error: `Title must be one of: ${validTitles.join(', ')}` };
+    }
+
+    return { valid: true, value: match }; // Return properly cased value
+}
+
+function validateRounds(roundsString, fieldName) {
+    const trimmed = roundsString.trim();
+
+    if (!/^\d+$/.test(trimmed)) {
+        return { valid: false, error: `${fieldName} must be a number` };
+    }
+
+    const rounds = parseInt(trimmed, 10);
+    if (rounds < 0 || rounds > 20) {
+        return { valid: false, error: `${fieldName} must be between 0 and 20` };
+    }
+
+    return { valid: true, value: rounds.toString() };
+}
+
+function validatePlayerName(name, fieldName) {
+    const trimmed = name.trim();
+
+    if (trimmed.length < 2) {
+        return { valid: false, error: `${fieldName} must be at least 2 characters` };
+    }
+
+    if (trimmed.length > 100) {
+        return { valid: false, error: `${fieldName} must be 100 characters or less` };
+    }
+
+    return { valid: true, value: trimmed };
+}
+
+function validateBuild(build, fieldName) {
+    const trimmed = build.trim();
+
+    if (trimmed.length < 1) {
+        return { valid: false, error: `${fieldName} is required` };
+    }
+
+    if (trimmed.length > 100) {
+        return { valid: false, error: `${fieldName} must be 100 characters or less` };
+    }
+
+    return { valid: true, value: trimmed };
+}
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('reportwin')
@@ -478,19 +555,49 @@ module.exports = {
                     return true;
                 }
 
-                data.winner = interaction.fields.getTextInputValue('winner');
-                data.winnerBuild = interaction.fields.getTextInputValue('winnerBuild');
-                data.loser = interaction.fields.getTextInputValue('loser');
-                data.loserBuild = interaction.fields.getTextInputValue('loserBuild');
+                // Validate all inputs
+                const validationErrors = [];
 
-                // Handle optional date field - auto-populate if empty
-                let duelDate = interaction.fields.getTextInputValue('duelDate').trim();
-                if (!duelDate) {
-                    const today = new Date();
-                    duelDate = `${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}/${today.getFullYear()}`;
-                    console.log(`[${timestamp}] Auto-populated date: ${duelDate}`);
+                const winnerValidation = validatePlayerName(interaction.fields.getTextInputValue('winner'), 'Winner name');
+                if (!winnerValidation.valid) validationErrors.push(winnerValidation.error);
+
+                const winnerBuildValidation = validateBuild(interaction.fields.getTextInputValue('winnerBuild'), 'Winner build');
+                if (!winnerBuildValidation.valid) validationErrors.push(winnerBuildValidation.error);
+
+                const loserValidation = validatePlayerName(interaction.fields.getTextInputValue('loser'), 'Loser name');
+                if (!loserValidation.valid) validationErrors.push(loserValidation.error);
+
+                const loserBuildValidation = validateBuild(interaction.fields.getTextInputValue('loserBuild'), 'Loser build');
+                if (!loserBuildValidation.valid) validationErrors.push(loserBuildValidation.error);
+
+                const dateValidation = validateDate(interaction.fields.getTextInputValue('duelDate'));
+                if (!dateValidation.valid) validationErrors.push(dateValidation.error);
+
+                // If there are validation errors, show them and stop
+                if (validationErrors.length > 0) {
+                    const errorMessage = 'Validation errors:\n' + validationErrors.map((err, i) => `${i + 1}. ${err}`).join('\n');
+                    await interaction.reply({
+                        content: errorMessage + '\n\nPlease run `/reportwin` again and correct the errors.',
+                        ephemeral: true
+                    });
+                    await clearReportData(userId);
+                    return true;
                 }
-                data.duelDate = duelDate;
+
+                // All validation passed, store data
+                data.winner = winnerValidation.value;
+                data.winnerBuild = winnerBuildValidation.value;
+                data.loser = loserValidation.value;
+                data.loserBuild = loserBuildValidation.value;
+
+                // Handle date - auto-populate if empty
+                if (!dateValidation.value || dateValidation.value === '') {
+                    const today = new Date();
+                    data.duelDate = `${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}/${today.getFullYear()}`;
+                    console.log(`[${timestamp}] Auto-populated date: ${data.duelDate}`);
+                } else {
+                    data.duelDate = dateValidation.value;
+                }
 
                 await setReportData(userId, data);
 
@@ -523,10 +630,33 @@ module.exports = {
                     return true;
                 }
 
-                data.title = interaction.fields.getTextInputValue('title');
-                data.roundWins = interaction.fields.getTextInputValue('roundWins');
-                data.roundLosses = interaction.fields.getTextInputValue('roundLosses');
-                data.notes = interaction.fields.getTextInputValue('notes') || '';
+                // Validate all inputs
+                const validationErrors = [];
+
+                const titleValidation = validateTitle(interaction.fields.getTextInputValue('title'));
+                if (!titleValidation.valid) validationErrors.push(titleValidation.error);
+
+                const winsValidation = validateRounds(interaction.fields.getTextInputValue('roundWins'), 'Round Wins');
+                if (!winsValidation.valid) validationErrors.push(winsValidation.error);
+
+                const lossesValidation = validateRounds(interaction.fields.getTextInputValue('roundLosses'), 'Round Losses');
+                if (!lossesValidation.valid) validationErrors.push(lossesValidation.error);
+
+                // If there are validation errors, show them and stop
+                if (validationErrors.length > 0) {
+                    const errorMessage = 'Validation errors:\n' + validationErrors.map((err, i) => `${i + 1}. ${err}`).join('\n');
+                    await interaction.reply({
+                        content: errorMessage + '\n\nPlease click Continue again and correct the errors.',
+                        ephemeral: true
+                    });
+                    return true; // Don't clear data, user can click Continue button again
+                }
+
+                // All validation passed, store data
+                data.title = titleValidation.value;
+                data.roundWins = winsValidation.value;
+                data.roundLosses = lossesValidation.value;
+                data.notes = interaction.fields.getTextInputValue('notes').trim() || '';
 
                 console.log(`[${timestamp}] Processing reportwin submission:
                 User: ${interaction.user.tag} (${userId})
