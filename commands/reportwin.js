@@ -63,30 +63,30 @@ const TEST_FORM_ENTRIES = {
     roundWins: 'entry.526540015',
     roundLosses: 'entry.1002526413',
     mirror: 'entry.1320054110',
-    mirrorType: 'entry.935484935', // TODO: Verify this is the checkbox field for mirror type
+    mirrorType: 'entry.1822282902',
     winner: 'entry.2115916997',
     winnerClass: 'entry.935484935',
     loser: 'entry.1212393589',
     loserClass: 'entry.1151669949',
     notes: 'entry.1312255002',
-    // Winner builds by class - TODO: Complete these by testing each class
+    // Winner builds by class
     winnerBuilds: {
-        Amazon: 'entry.TODO',       // TODO: Fill in from test form
-        Assassin: 'entry.TODO',     // TODO: Fill in from test form
+        Amazon: 'entry.71129301',
+        Assassin: 'entry.1410865365',
         Barbarian: 'entry.526101734',
-        Druid: 'entry.TODO',        // TODO: Fill in from test form
-        Necromancer: 'entry.TODO',  // TODO: Fill in from test form
-        Paladin: 'entry.TODO',      // TODO: Fill in from test form
-        Sorceress: 'entry.TODO'     // TODO: Fill in from test form
+        Druid: 'entry.1200809719',
+        Necromancer: 'entry.686970788',
+        Paladin: 'entry.289234995',
+        Sorceress: 'entry.1299995905'
     },
-    // Loser builds by class - TODO: Complete these by testing each class
+    // Loser builds by class
     loserBuilds: {
-        Amazon: 'entry.TODO',       // TODO: Fill in from test form
-        Assassin: 'entry.TODO',     // TODO: Fill in from test form
-        Barbarian: 'entry.TODO',    // TODO: Fill in from test form
-        Druid: 'entry.TODO',        // TODO: Fill in from test form
-        Necromancer: 'entry.TODO',  // TODO: Fill in from test form
-        Paladin: 'entry.TODO',      // TODO: Fill in from test form
+        Amazon: 'entry.420855245',
+        Assassin: 'entry.2107665401',
+        Barbarian: 'entry.1591595355',
+        Druid: 'entry.2107775276',
+        Necromancer: 'entry.1768286282',
+        Paladin: 'entry.857564675',
         Sorceress: 'entry.545772854'
     }
 };
