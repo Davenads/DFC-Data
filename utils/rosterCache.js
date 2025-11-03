@@ -57,7 +57,7 @@ class RosterCache {
             const response = await sheets.spreadsheets.values.get({
                 auth,
                 spreadsheetId: process.env.SPREADSHEET_ID,
-                range: 'Roster!A2:D500', // Columns: Arena Name, Data Name, Discord Name, UUID
+                range: 'Roster!A2:E500', // Columns: Arena Name, Data Name, Discord Name, UUID, Leave Status
             });
 
             const rows = response.data.values || [];
@@ -69,10 +69,11 @@ class RosterCache {
                 const uuid = row[3]; // Column D: UUID
                 if (uuid) {
                     rosterMap[uuid] = {
-                        arenaName: row[0] || '',    // Column A
+                        arenaName: row[0] || '',     // Column A
                         dataName: row[1] || '',      // Column B
                         discordName: row[2] || '',   // Column C
-                        uuid: uuid                    // Column D
+                        uuid: uuid,                  // Column D
+                        leaveStatus: row[4] || ''    // Column E
                     };
                 }
             });

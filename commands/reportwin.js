@@ -176,7 +176,15 @@ function validateBuild(build, fieldName) {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('reportwin')
-        .setDescription('Report the result of a match'),
+        .setDescription('Report the result of a match')
+        .addUserOption(option =>
+            option.setName('winner')
+                .setDescription('Select the winner (@mention)')
+                .setRequired(true))
+        .addUserOption(option =>
+            option.setName('loser')
+                .setDescription('Select the loser (@mention)')
+                .setRequired(true)),
     role: 'DFC Dueler',
 
     async execute(interaction, sheets, auth) {
@@ -191,8 +199,71 @@ module.exports = {
         Channel: ${channelName} (${interaction.channelId})`);
 
         try {
+            // Get winner and loser from command options
+            const winnerUser = interaction.options.getUser('winner');
+            const loserUser = interaction.options.getUser('loser');
+
+            console.log(`[${timestamp}] Winner: ${winnerUser.tag} (${winnerUser.id})`);
+            console.log(`[${timestamp}] Loser: ${loserUser.tag} (${loserUser.id})`);
+
+            // Validate winner and loser are different
+            if (winnerUser.id === loserUser.id) {
+                return interaction.reply({
+                    content: 'Winner and Loser cannot be the same player.',
+                    ephemeral: true
+                });
+            }
+
+            // Look up winner in Roster
+            console.log(`[${timestamp}] Looking up winner in Roster...`);
+            const winnerRoster = await rosterCache.getUserByUUID(winnerUser.id);
+
+            if (!winnerRoster) {
+                return interaction.reply({
+                    content: `Winner ${winnerUser} not found in Roster. Please add them to the Roster sheet first.`,
+                    ephemeral: true
+                });
+            }
+
+            if (winnerRoster.leaveStatus && winnerRoster.leaveStatus.trim() !== '') {
+                return interaction.reply({
+                    content: `Winner ${winnerUser} has left (Leave Status: ${winnerRoster.leaveStatus}). Cannot report matches for inactive players.`,
+                    ephemeral: true
+                });
+            }
+
+            // Look up loser in Roster
+            console.log(`[${timestamp}] Looking up loser in Roster...`);
+            const loserRoster = await rosterCache.getUserByUUID(loserUser.id);
+
+            if (!loserRoster) {
+                return interaction.reply({
+                    content: `Loser ${loserUser} not found in Roster. Please add them to the Roster sheet first.`,
+                    ephemeral: true
+                });
+            }
+
+            if (loserRoster.leaveStatus && loserRoster.leaveStatus.trim() !== '') {
+                return interaction.reply({
+                    content: `Loser ${loserUser} has left (Leave Status: ${loserRoster.leaveStatus}). Cannot report matches for inactive players.`,
+                    ephemeral: true
+                });
+            }
+
+            console.log(`[${timestamp}] Roster validation passed`);
+            console.log(`[${timestamp}] Winner Data Name: ${winnerRoster.dataName}`);
+            console.log(`[${timestamp}] Loser Data Name: ${loserRoster.dataName}`);
+
             // Clear any existing session data
             await clearReportData(user.id);
+
+            // Store winner/loser Data Names in Redis
+            await setReportData(user.id, {
+                winnerName: winnerRoster.dataName,
+                loserName: loserRoster.dataName,
+                winnerDiscord: winnerUser.tag,
+                loserDiscord: loserUser.tag
+            });
 
             // Step 1: Show match type selection buttons
             const row = new ActionRowBuilder()
@@ -217,14 +288,15 @@ module.exports = {
             const embed = new EmbedBuilder()
                 .setColor(0x0099FF)
                 .setTitle('🏆 Report Match Result')
-                .setDescription('**Step 1/6:** Select the match type:')
+                .setDescription(`**Winner:** ${winnerRoster.dataName} (${winnerUser})\n**Loser:** ${loserRoster.dataName} (${loserUser})\n\n**Step 1/5:** Select the match type:`)
                 .setFooter({ text: 'DFC Match Reporting' })
                 .setTimestamp();
 
             await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
             console.log(`[${timestamp}] Match type selection shown to ${user.tag} (${user.id})`);
         } catch (error) {
-            console.error(`[${timestamp}] Error showing reportwin to ${user.tag} (${user.id}):`, error);
+            console.error(`[${timestamp}] Error in reportwin execute:`, error);
+            console.error(`[${timestamp}] Error stack:`, error.stack);
             await interaction.reply({ content: 'Failed to start match reporting. Please try again later.', ephemeral: true });
         }
     },
@@ -414,32 +486,16 @@ module.exports = {
                 data.loserClass = loserClass;
                 await setReportData(userId, data);
 
-                // Show modal for player names and builds
+                // Show modal for builds and date (names already from command args)
                 const modal = new ModalBuilder()
                     .setCustomId('reportplayers')
-                    .setTitle('Step 5/6: Player Details');
-
-                const winnerInput = new TextInputBuilder()
-                    .setCustomId('winner')
-                    .setLabel('Winner Name')
-                    .setStyle(TextInputStyle.Short)
-                    .setPlaceholder('Discord username or in-game name')
-                    .setRequired(true)
-                    .setMaxLength(100);
+                    .setTitle('Step 5/5: Builds & Date');
 
                 const winnerBuildInput = new TextInputBuilder()
                     .setCustomId('winnerBuild')
                     .setLabel(`Winner Build (${data.winnerClass})`)
                     .setStyle(TextInputStyle.Short)
                     .setPlaceholder('e.g., Wind, Ghost, Hybrid LS, etc.')
-                    .setRequired(true)
-                    .setMaxLength(100);
-
-                const loserInput = new TextInputBuilder()
-                    .setCustomId('loser')
-                    .setLabel('Loser Name')
-                    .setStyle(TextInputStyle.Short)
-                    .setPlaceholder('Discord username or in-game name')
                     .setRequired(true)
                     .setMaxLength(100);
 
@@ -460,9 +516,7 @@ module.exports = {
                     .setMaxLength(10);
 
                 modal.addComponents(
-                    new ActionRowBuilder().addComponents(winnerInput),
                     new ActionRowBuilder().addComponents(winnerBuildInput),
-                    new ActionRowBuilder().addComponents(loserInput),
                     new ActionRowBuilder().addComponents(loserBuildInput),
                     new ActionRowBuilder().addComponents(dateInput)
                 );
@@ -629,17 +683,12 @@ module.exports = {
                     return true;
                 }
 
-                // Validate all inputs
+                // Winner/loser names already validated and stored in Redis from execute() function
+                // Now we only need to validate builds and date from the modal
                 const validationErrors = [];
-
-                const winnerValidation = validatePlayerName(interaction.fields.getTextInputValue('winner'), 'Winner name');
-                if (!winnerValidation.valid) validationErrors.push(winnerValidation.error);
 
                 const winnerBuildValidation = validateBuild(interaction.fields.getTextInputValue('winnerBuild'), 'Winner build');
                 if (!winnerBuildValidation.valid) validationErrors.push(winnerBuildValidation.error);
-
-                const loserValidation = validatePlayerName(interaction.fields.getTextInputValue('loser'), 'Loser name');
-                if (!loserValidation.valid) validationErrors.push(loserValidation.error);
 
                 const loserBuildValidation = validateBuild(interaction.fields.getTextInputValue('loserBuild'), 'Loser build');
                 if (!loserBuildValidation.valid) validationErrors.push(loserBuildValidation.error);
@@ -658,10 +707,12 @@ module.exports = {
                     return true;
                 }
 
-                // All validation passed, store data
-                data.winner = winnerValidation.value;
+                // All validation passed, store build and date data
+                // Note: winner/loser names are already in Redis as data.winnerName and data.loserName
+                // Map them to data.winner and data.loser for consistency with rest of code
+                data.winner = data.winnerName;
+                data.loser = data.loserName;
                 data.winnerBuild = winnerBuildValidation.value;
-                data.loser = loserValidation.value;
                 data.loserBuild = loserBuildValidation.value;
 
                 // Handle date - auto-populate if empty
