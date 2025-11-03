@@ -880,6 +880,24 @@ module.exports = {
                 formData.append(FORM_ENTRIES.loserBuilds[data.loserClass], data.loserBuild);
                 if (data.notes) formData.append(FORM_ENTRIES.notes, data.notes);
 
+                // Log form data being submitted (for debugging)
+                console.log(`[${timestamp}] Form data being submitted:`, {
+                    duelDate: data.duelDate,
+                    matchType: data.matchType,
+                    title: data.title,
+                    roundWins: data.roundWins,
+                    roundLosses: data.roundLosses,
+                    mirror: data.isMirror ? 'Yes' : 'No',
+                    mirrorTypes: data.mirrorTypes || [],
+                    winner: data.winner,
+                    winnerClass: data.winnerClass,
+                    winnerBuild: data.winnerBuild,
+                    loser: data.loser,
+                    loserClass: data.loserClass,
+                    loserBuild: data.loserBuild,
+                    notes: data.notes || ''
+                });
+
                 try {
                     const formResponse = await fetch(formUrl, {
                         method: 'POST',
@@ -891,6 +909,22 @@ module.exports = {
                     });
 
                     console.log(`[${timestamp}] Form submission status: ${formResponse.status}`);
+                    console.log(`[${timestamp}] Form response headers:`, Object.fromEntries(formResponse.headers.entries()));
+
+                    // Try to read response body if available
+                    try {
+                        const responseText = await formResponse.text();
+                        if (responseText) {
+                            console.log(`[${timestamp}] Form response body (first 500 chars):`, responseText.substring(0, 500));
+                        }
+                    } catch (bodyError) {
+                        console.log(`[${timestamp}] Could not read response body:`, bodyError.message);
+                    }
+
+                    // Check if submission was successful
+                    if (formResponse.status !== 302 && formResponse.status !== 200) {
+                        console.warn(`[${timestamp}] WARNING: Unexpected form response status ${formResponse.status}. Expected 302 or 200.`);
+                    }
                 } catch (fetchError) {
                     console.error(`[${timestamp}] ERROR submitting to form:`, fetchError);
                     await interaction.editReply({
