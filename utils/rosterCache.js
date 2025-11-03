@@ -57,7 +57,7 @@ class RosterCache {
             const response = await sheets.spreadsheets.values.get({
                 auth,
                 spreadsheetId: process.env.SPREADSHEET_ID,
-                range: 'Roster!A2:E500', // Columns: Arena Name, Data Name, Discord Name, UUID, Leave Status
+                range: 'Roster!A2:J500', // Columns A-J: Arena Name, Data Name, Discord Name, UUID, DFC Role, Champion, Current Champ, Title, Notes, Leave Status
             });
 
             const rows = response.data.values || [];
@@ -69,11 +69,11 @@ class RosterCache {
                 const uuid = row[3]; // Column D: UUID
                 if (uuid) {
                     rosterMap[uuid] = {
-                        arenaName: row[0] || '',     // Column A
-                        dataName: row[1] || '',      // Column B
-                        discordName: row[2] || '',   // Column C
-                        uuid: uuid,                  // Column D
-                        leaveStatus: row[4] || ''    // Column E
+                        arenaName: row[0] || '',     // Column A: Arena Name
+                        dataName: row[1] || '',      // Column B: Data Name
+                        discordName: row[2] || '',   // Column C: Discord Name
+                        uuid: uuid,                  // Column D: UUID
+                        leaveStatus: row[9] || ''    // Column J: Leave Status (AFK/Leave/Banned)
                     };
                 }
             });
