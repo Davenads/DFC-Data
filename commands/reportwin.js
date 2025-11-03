@@ -944,6 +944,24 @@ module.exports = {
                     notes: data.notes || ''
                 });
 
+                // Log entry IDs being used (for debugging entry ID mismatches)
+                console.log(`[${timestamp}] Entry IDs being used:`, {
+                    duelDate: FORM_ENTRIES.duelDate,
+                    matchType: FORM_ENTRIES.matchType,
+                    title: FORM_ENTRIES.title,
+                    roundWins: FORM_ENTRIES.roundWins,
+                    roundLosses: FORM_ENTRIES.roundLosses,
+                    mirror: FORM_ENTRIES.mirror,
+                    mirrorType: FORM_ENTRIES.mirrorType,
+                    winner: FORM_ENTRIES.winner,
+                    winnerClass: FORM_ENTRIES.winnerClass,
+                    winnerBuilds: FORM_ENTRIES.winnerBuilds[data.winnerClass],
+                    loser: FORM_ENTRIES.loser,
+                    loserClass: FORM_ENTRIES.loserClass,
+                    loserBuilds: FORM_ENTRIES.loserBuilds[data.loserClass],
+                    notes: FORM_ENTRIES.notes
+                });
+
                 try {
                     const formResponse = await fetch(formUrl, {
                         method: 'POST',
@@ -957,9 +975,10 @@ module.exports = {
                     console.log(`[${timestamp}] Form submission status: ${formResponse.status}`);
                     console.log(`[${timestamp}] Form response headers:`, Object.fromEntries(formResponse.headers.entries()));
 
-                    // Try to read response body if available
+                    // Try to read response body for error details
+                    let responseText = '';
                     try {
-                        const responseText = await formResponse.text();
+                        responseText = await formResponse.text();
                         if (responseText) {
                             console.log(`[${timestamp}] Form response body (first 500 chars):`, responseText.substring(0, 500));
                         }
@@ -967,10 +986,25 @@ module.exports = {
                         console.log(`[${timestamp}] Could not read response body:`, bodyError.message);
                     }
 
-                    // Check if submission was successful
+                    // Check if submission was successful (Google Forms returns 302 redirect on success)
                     if (formResponse.status !== 302 && formResponse.status !== 200) {
-                        console.warn(`[${timestamp}] WARNING: Unexpected form response status ${formResponse.status}. Expected 302 or 200.`);
+                        const errorMsg = `Form submission failed with status ${formResponse.status}. This usually means:\n` +
+                            `- The form is not accepting responses\n` +
+                            `- The form is not linked to the ${environment} SSOT sheet\n` +
+                            `- There's a mismatch in form entry IDs\n\n` +
+                            `Please check the form configuration and try again.`;
+
+                        console.error(`[${timestamp}] ERROR: ${errorMsg}`);
+                        console.error(`[${timestamp}] Response body:`, responseText.substring(0, 1000));
+
+                        await interaction.editReply({
+                            content: errorMsg + `\n\n**Technical Details:**\nStatus: ${formResponse.status}\nEnvironment: ${environment}\nForm ID: ${formId}`
+                        });
+                        await clearReportData(userId);
+                        return true;
                     }
+
+                    console.log(`[${timestamp}] Form submission successful!`);
                 } catch (fetchError) {
                     console.error(`[${timestamp}] ERROR submitting to form:`, fetchError);
                     await interaction.editReply({
