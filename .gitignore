@@ -7,5 +7,15 @@ debug-ss/
 Duel Data Forms.gs
 duel data.gs
 
+# Backup and alternate version files
+*.backup
+*.url-version
+
+# Announcement drafts (not needed in production)
+announcement.md
+discord-announcement.md
+discord-announcement-update.md
+thursday-dfc-night-announcement.md
+
 # Claude Code local settings (user-specific)
 .claude/settings.local.json
