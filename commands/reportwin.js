@@ -55,39 +55,39 @@ const PROD_FORM_ENTRIES = {
     }
 };
 
-// Test Form entry IDs
+// Test Form entry IDs (same as production - form was copied)
 const TEST_FORM_ENTRIES = {
-    duelDate: 'entry.1895335701',
-    matchType: 'entry.1592134870',
-    title: 'entry.510006768',
-    roundWins: 'entry.526540015',
-    roundLosses: 'entry.1002526413',
-    mirror: 'entry.1320054110',
-    mirrorType: 'entry.1822282902',
-    winner: 'entry.2115916997',
-    winnerClass: 'entry.935484935',
-    loser: 'entry.1212393589',
-    loserClass: 'entry.1151669949',
-    notes: 'entry.1312255002',
+    duelDate: 'entry.666586256',
+    matchType: 'entry.781478868',
+    title: 'entry.2023271252',
+    roundWins: 'entry.163517227',
+    roundLosses: 'entry.1181419043',
+    mirror: 'entry.609831919',
+    mirrorType: 'entry.609696423',
+    winner: 'entry.1277410118',
+    winnerClass: 'entry.680532683',
+    loser: 'entry.163644941',
+    loserClass: 'entry.1258194465',
+    notes: 'entry.1405294917',
     // Winner builds by class
     winnerBuilds: {
-        Amazon: 'entry.71129301',
-        Assassin: 'entry.1410865365',
-        Barbarian: 'entry.526101734',
-        Druid: 'entry.1200809719',
-        Necromancer: 'entry.686970788',
-        Paladin: 'entry.289234995',
-        Sorceress: 'entry.1299995905'
+        Amazon: 'entry.1213271713',
+        Assassin: 'entry.1581661749',
+        Barbarian: 'entry.431357945',
+        Druid: 'entry.589644688',
+        Necromancer: 'entry.1267787377',
+        Paladin: 'entry.706357155',
+        Sorceress: 'entry.835898849'
     },
     // Loser builds by class
     loserBuilds: {
-        Amazon: 'entry.420855245',
-        Assassin: 'entry.2107665401',
-        Barbarian: 'entry.1591595355',
-        Druid: 'entry.2107775276',
-        Necromancer: 'entry.1768286282',
-        Paladin: 'entry.857564675',
-        Sorceress: 'entry.545772854'
+        Amazon: 'entry.1175026707',
+        Assassin: 'entry.1900276267',
+        Barbarian: 'entry.385883979',
+        Druid: 'entry.1436103576',
+        Necromancer: 'entry.1513417734',
+        Paladin: 'entry.1927282053',
+        Sorceress: 'entry.1431447468'
     }
 };
 
