@@ -56,38 +56,40 @@ const PROD_FORM_ENTRIES = {
 };
 
 // Test Form entry IDs
+// NOTE: Test form currently uses the SAME entry IDs as production form
+// Verified 2025-11-05 by extracting from https://docs.google.com/forms/d/e/1FAIpQLSe5Vx_8h4PCn46JzJ_WVohVIGkQwy6HZ4eGXrjKAqO8_o8d3A/viewform
 const TEST_FORM_ENTRIES = {
-    duelDate: 'entry.1895335701',
-    matchType: 'entry.1592134870',
-    title: 'entry.510006768',
-    roundWins: 'entry.526540015',
-    roundLosses: 'entry.1002526413',
-    mirror: 'entry.1320054110',
-    mirrorType: 'entry.1822282902',
-    winner: 'entry.2115916997',
-    winnerClass: 'entry.935484935',
-    loser: 'entry.1212393589',
-    loserClass: 'entry.1151669949',
-    notes: 'entry.1312255002',
+    duelDate: 'entry.666586256',
+    matchType: 'entry.781478868',
+    title: 'entry.2023271252',
+    roundWins: 'entry.163517227',
+    roundLosses: 'entry.1181419043',
+    mirror: 'entry.609831919',
+    mirrorType: 'entry.609696423',
+    winner: 'entry.1277410118',
+    winnerClass: 'entry.680532683',
+    loser: 'entry.163644941',
+    loserClass: 'entry.1258194465',
+    notes: 'entry.1405294917',
     // Winner builds by class
     winnerBuilds: {
-        Amazon: 'entry.71129301',
-        Assassin: 'entry.1410865365',
-        Barbarian: 'entry.526101734',
-        Druid: 'entry.1200809719',
-        Necromancer: 'entry.686970788',
-        Paladin: 'entry.289234995',
-        Sorceress: 'entry.1299995905'
+        Amazon: 'entry.1213271713',
+        Assassin: 'entry.1581661749',
+        Barbarian: 'entry.431357945',
+        Druid: 'entry.589644688',
+        Necromancer: 'entry.1267787377',
+        Paladin: 'entry.706357155',
+        Sorceress: 'entry.835898849'
     },
     // Loser builds by class
     loserBuilds: {
-        Amazon: 'entry.420855245',
-        Assassin: 'entry.2107665401',
-        Barbarian: 'entry.1591595355',
-        Druid: 'entry.2107775276',
-        Necromancer: 'entry.1768286282',
-        Paladin: 'entry.857564675',
-        Sorceress: 'entry.545772854'
+        Amazon: 'entry.1175026707',
+        Assassin: 'entry.1900276267',
+        Barbarian: 'entry.385883979',
+        Druid: 'entry.1436103576',
+        Necromancer: 'entry.1513417734',
+        Paladin: 'entry.1927282053',
+        Sorceress: 'entry.1431447468'
     }
 };
 
@@ -901,6 +903,9 @@ module.exports = {
                 const environment = testMode ? 'TEST' : 'PRODUCTION';
 
                 console.log(`[${timestamp}] ${environment} MODE: Submitting to Google Form...`);
+                console.log(`[${timestamp}] TEST_MODE env var:`, process.env.TEST_MODE);
+                console.log(`[${timestamp}] testMode boolean:`, testMode);
+                console.log(`[${timestamp}] Form ID:`, formId);
                 console.log(`[${timestamp}] Form URL: ${formUrl}`);
 
                 const formData = new URLSearchParams();
@@ -961,6 +966,37 @@ module.exports = {
                     loserBuilds: FORM_ENTRIES.loserBuilds[data.loserClass],
                     notes: FORM_ENTRIES.notes
                 });
+
+                // Validate that all required entry IDs exist
+                const requiredEntryIds = [
+                    { name: 'duelDate', value: FORM_ENTRIES.duelDate },
+                    { name: 'matchType', value: FORM_ENTRIES.matchType },
+                    { name: 'title', value: FORM_ENTRIES.title },
+                    { name: 'roundWins', value: FORM_ENTRIES.roundWins },
+                    { name: 'roundLosses', value: FORM_ENTRIES.roundLosses },
+                    { name: 'mirror', value: FORM_ENTRIES.mirror },
+                    { name: 'winner', value: FORM_ENTRIES.winner },
+                    { name: 'winnerClass', value: FORM_ENTRIES.winnerClass },
+                    { name: `winnerBuilds.${data.winnerClass}`, value: FORM_ENTRIES.winnerBuilds[data.winnerClass] },
+                    { name: 'loser', value: FORM_ENTRIES.loser },
+                    { name: 'loserClass', value: FORM_ENTRIES.loserClass },
+                    { name: `loserBuilds.${data.loserClass}`, value: FORM_ENTRIES.loserBuilds[data.loserClass] }
+                ];
+
+                const missingEntries = requiredEntryIds.filter(e => !e.value);
+                if (missingEntries.length > 0) {
+                    console.error(`[${timestamp}] ERROR: Missing entry IDs:`, missingEntries.map(e => e.name));
+                    await interaction.editReply({
+                        content: `Configuration error: Missing form entry IDs for ${missingEntries.map(e => e.name).join(', ')}`
+                    });
+                    await clearReportData(userId);
+                    return true;
+                }
+
+                // Log the actual POST body
+                const postBody = formData.toString();
+                console.log(`[${timestamp}] POST body length: ${postBody.length} bytes`);
+                console.log(`[${timestamp}] POST body (first 1000 chars):`, postBody.substring(0, 1000));
 
                 try {
                     const formResponse = await fetch(formUrl, {

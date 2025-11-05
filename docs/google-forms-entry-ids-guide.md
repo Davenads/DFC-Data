@@ -40,8 +40,8 @@ Each **question/field** in a Google Form has a unique **entry ID** like `entry.1
 - **Form ID (edit):** `1C3H4e069VL8qvR3JC3QsXG3LbHZ3s94HG1Q2NhbPAzg`
 - **Form ID (public):** `1FAIpQLSe5Vx_8h4PCn46JzJ_WVohVIGkQwy6HZ4eGXrjKAqO8_o8d3A`
 - **SSOT Sheet ID:** `137CZt90ZNoL66n0UohpD9y7m7nqQTk-b5UmMjfaJVms`
-- **Entry IDs:** See `TEST_FORM_ENTRIES` in `commands/reportwin.js` lines 59-92
-- **IMPORTANT:** Test form has **DIFFERENT** entry IDs than production!
+- **Entry IDs:** See `TEST_FORM_ENTRIES` in `commands/reportwin.js` lines 59-94
+- **IMPORTANT:** Test form currently uses the **SAME** entry IDs as production! (Verified 2025-11-05)
 
 ## How to Extract Entry IDs from a Form
 
@@ -139,40 +139,42 @@ The WebFetch tool can return stale/cached results. **Always verify with browser 
 4. Verify deployment completes in Heroku
 5. Test `/reportwin` command in Discord
 
-## Current Entry IDs (as of 2025-11-03)
+## Current Entry IDs (as of 2025-11-05)
 
-### TEST_FORM_ENTRIES (Correct Values)
+### TEST_FORM_ENTRIES
+**Note:** Test form currently uses the same entry IDs as production.
+
 ```javascript
 const TEST_FORM_ENTRIES = {
-    duelDate: 'entry.1895335701',
-    matchType: 'entry.1592134870',
-    title: 'entry.510006768',
-    roundWins: 'entry.526540015',
-    roundLosses: 'entry.1002526413',
-    mirror: 'entry.1320054110',
-    mirrorType: 'entry.1822282902',
-    winner: 'entry.2115916997',
-    winnerClass: 'entry.935484935',
-    loser: 'entry.1212393589',
-    loserClass: 'entry.1151669949',
-    notes: 'entry.1312255002',
+    duelDate: 'entry.666586256',
+    matchType: 'entry.781478868',
+    title: 'entry.2023271252',
+    roundWins: 'entry.163517227',
+    roundLosses: 'entry.1181419043',
+    mirror: 'entry.609831919',
+    mirrorType: 'entry.609696423',
+    winner: 'entry.1277410118',
+    winnerClass: 'entry.680532683',
+    loser: 'entry.163644941',
+    loserClass: 'entry.1258194465',
+    notes: 'entry.1405294917',
     winnerBuilds: {
-        Amazon: 'entry.71129301',
-        Assassin: 'entry.1410865365',
-        Barbarian: 'entry.526101734',
-        Druid: 'entry.1200809719',
-        Necromancer: 'entry.686970788',
-        Paladin: 'entry.289234995',
-        Sorceress: 'entry.1299995905'
+        Amazon: 'entry.1213271713',
+        Assassin: 'entry.1581661749',
+        Barbarian: 'entry.431357945',
+        Druid: 'entry.589644688',
+        Necromancer: 'entry.1267787377',
+        Paladin: 'entry.706357155',
+        Sorceress: 'entry.835898849'
     },
     loserBuilds: {
-        Amazon: 'entry.420855245',
-        Assassin: 'entry.2107665401',
-        Barbarian: 'entry.1591595355',
-        Druid: 'entry.2107775276',
-        Necromancer: 'entry.1768286282',
-        Paladin: 'entry.857564675',
-        Sorceress: 'entry.545772854'
+        Amazon: 'entry.1175026707',
+        Assassin: 'entry.1900276267',
+        Barbarian: 'entry.385883979',
+        Druid: 'entry.1436103576',
+        Necromancer: 'entry.1513417734',
+        Paladin: 'entry.1927282053',
+        Sorceress: 'entry.1431447468'
     }
 };
 ```
