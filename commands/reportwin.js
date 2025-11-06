@@ -916,15 +916,12 @@ module.exports = {
                 formData.append(FORM_ENTRIES.roundLosses, data.roundLosses);
                 formData.append(FORM_ENTRIES.mirror, data.isMirror ? 'Yes' : 'No');
 
-                // Add mirror types if present (checkbox field - append each value)
-                // Note: Mirror Type field is REQUIRED in the form, so we must send something even when empty
-                if (data.mirrorTypes && data.mirrorTypes.length > 0) {
+                // Add mirror types ONLY if mirror match (checkbox field - append each value)
+                // Don't send Mirror Type field at all when Mirror=No
+                if (data.isMirror && data.mirrorTypes && data.mirrorTypes.length > 0) {
                     data.mirrorTypes.forEach(type => {
                         formData.append(FORM_ENTRIES.mirrorType, type);
                     });
-                } else {
-                    // Send empty value for required field when no mirror types selected
-                    formData.append(FORM_ENTRIES.mirrorType, '');
                 }
 
                 formData.append(FORM_ENTRIES.winner, data.winner);
