@@ -1016,23 +1016,36 @@ module.exports = {
                     let responseText = '';
                     try {
                         responseText = await formResponse.text();
-                        if (responseText) {
-                            console.log(`[${timestamp}] Form response body (first 500 chars):`, responseText.substring(0, 500));
-                        }
                     } catch (bodyError) {
                         console.log(`[${timestamp}] Could not read response body:`, bodyError.message);
                     }
 
                     // Check if submission was successful (Google Forms returns 302 redirect on success)
                     if (formResponse.status !== 302 && formResponse.status !== 200) {
+                        console.error(`[${timestamp}] ❌ FORM SUBMISSION FAILED - STATUS ${formResponse.status}`);
+                        console.error(`[${timestamp}] 📝 FULL POST BODY:`, postBody);
+
+                        // Try to extract error message from Google Forms HTML response
+                        if (responseText) {
+                            const titleMatch = responseText.match(/<title>([^<]+)<\/title>/);
+                            if (titleMatch) {
+                                console.error(`[${timestamp}] 📄 Response page title: "${titleMatch[1]}"`);
+                            }
+
+                            // Check for "This is a required question" or validation messages
+                            if (responseText.includes('required question') || responseText.includes('Required')) {
+                                console.error(`[${timestamp}] ⚠️  Google Forms says a REQUIRED field is missing`);
+                            }
+                        }
+
                         const errorMsg = `Form submission failed with status ${formResponse.status}. This usually means:\n` +
                             `- The form is not accepting responses\n` +
                             `- The form is not linked to the ${environment} SSOT sheet\n` +
-                            `- There's a mismatch in form entry IDs\n\n` +
+                            `- There's a mismatch in form entry IDs\n` +
+                            `- A required field is missing\n\n` +
                             `Please check the form configuration and try again.`;
 
                         console.error(`[${timestamp}] ERROR: ${errorMsg}`);
-                        console.error(`[${timestamp}] Response body:`, responseText.substring(0, 1000));
 
                         await interaction.editReply({
                             content: errorMsg + `\n\n**Technical Details:**\nStatus: ${formResponse.status}\nEnvironment: ${environment}\nForm ID: ${formId}`
