@@ -227,3 +227,170 @@ const PROD_FORM_ENTRIES = {
 - **Environment Config:** `.env` (local), Heroku Config Vars (production)
 - **Form Entry IDs:** `commands/reportwin.js` lines 23-92
 - **Form Submission Logic:** `commands/reportwin.js` lines 899-1015
+
+---
+
+## Advanced Troubleshooting: Persistent 400 Errors (November 2025)
+
+### Issue Summary
+
+**Date:** November 6, 2025
+**Symptom:** `/reportwin` command with `test-mode=true` returns 400 error from Google Forms
+**Status:** UNDER INVESTIGATION
+
+### Verified Working Components ✅
+
+1. **Entry IDs are correct** - Verified via WebFetch extraction on 2025-11-06:
+   - All entry IDs in `TEST_FORM_ENTRIES` match the actual test form
+   - No mismatches found
+
+2. **Form is properly configured:**
+   - Form is accepting responses (no "closed" message)
+   - Form is linked to correct TEST SSOT sheet (137CZt90ZNoL66n0UohpD9y7m7nqQTk-b5UmMjfaJVms)
+   - Verified via form edit → Responses tab → shows correct destination
+
+3. **Environment variables in Heroku are correct:**
+   - `TEST_MODE=true`
+   - `TEST_FORM_ID=1FAIpQLSe5Vx_8h4PCn46JzJ_WVohVIGkQwy6HZ4eGXrjKAqO8_o8d3A`
+   - `TEST_SSOT_ID=137CZt90ZNoL66n0UohpD9y7m7nqQTk-b5UmMjfaJVms`
+
+### Troubleshooting Attempts
+
+#### Attempt 1: Mirror Type Field Required Issue
+**Discovery:** Mirror Type field had red asterisk (required) in form
+**Theory:** When Mirror=No, the field is empty but required, causing 400
+**Fix Applied (Commit e583278):**
+```javascript
+// Added else clause to send empty string for Mirror Type
+if (data.mirrorTypes && data.mirrorTypes.length > 0) {
+    data.mirrorTypes.forEach(type => {
+        formData.append(FORM_ENTRIES.mirrorType, type);
+    });
+} else {
+    formData.append(FORM_ENTRIES.mirrorType, '');
+}
+```
+**Result:** Still 400 error. POST body showed `entry.609696423=` (empty value sent)
+
+---
+
+#### Attempt 2: Don't Send Mirror Type When Mirror=No
+**Theory:** Sending empty string still triggers validation. Skip field entirely.
+**Fix Applied (Commit a1535ea):**
+```javascript
+// Only send Mirror Type if isMirror is true
+if (data.isMirror && data.mirrorTypes && data.mirrorTypes.length > 0) {
+    data.mirrorTypes.forEach(type => {
+        formData.append(FORM_ENTRIES.mirrorType, type);
+    });
+}
+```
+**Result:** Still 400 error. POST body no longer includes `entry.609696423`
+
+---
+
+#### Attempt 3: Made Mirror Type NOT Required in Form
+**Action:** Removed "Required" toggle from Mirror Type field in Google Form settings
+**Verified:** Red asterisk removed from Mirror Type field
+**Note:** Mirror (Yes/No) remains required, but Mirror Type (checkbox options) is NOT required
+**Result:** Still 400 error (as of 2025-11-06 05:23 UTC)
+
+---
+
+#### Attempt 4: Enhanced Error Logging (Commit cfc14a1)
+**Added detailed logging to diagnose exact failure:**
+```javascript
+// New logging added:
+console.error(`[${timestamp}] ❌ FORM SUBMISSION FAILED - STATUS ${formResponse.status}`);
+console.error(`[${timestamp}] 📝 FULL POST BODY:`, postBody);
+// Extract error from Google Forms HTML response
+const titleMatch = responseText.match(/<title>([^<]+)<\/title>/);
+// Check for "required question" messages
+if (responseText.includes('required question') || responseText.includes('Required')) {
+    console.error(`[${timestamp}] ⚠️  Google Forms says a REQUIRED field is missing`);
+}
+```
+**Status:** Deployed, awaiting next test run
+
+### Sample Error Logs
+
+**Most Recent Test (2025-11-06 03:52:48 UTC):**
+```
+[2025-11-06T03:52:48.890Z] TEST MODE: Submitting to Google Form...
+[2025-11-06T03:52:48.890Z] Form ID: 1FAIpQLSe5Vx_8h4PCn46JzJ_WVohVIGkQwy6HZ4eGXrjKAqO8_o8d3A
+[2025-11-06T03:52:48.890Z] POST body: entry.666586256=11%2F06%2F2025&entry.781478868=HLD&entry.2023271252=No&entry.163517227=6&entry.1181419043=4&entry.609831919=No&entry.609696423=&entry.1277410118=Mantrayana&entry.680532683=Amazon&entry.1213271713=t1&entry.163644941=Foozerman&entry.1258194465=Assassin&entry.1900276267=t2
+[2025-11-06T03:52:48.890Z] Form submission status: 400
+```
+
+### Data Being Submitted (Example)
+```javascript
+{
+  duelDate: '11/06/2025',
+  matchType: 'HLD',
+  title: 'No',
+  roundWins: '6',
+  roundLosses: '4',
+  mirror: 'No',
+  mirrorTypes: [],
+  winner: 'Mantrayana',
+  winnerClass: 'Amazon',
+  winnerBuild: 't1',
+  loser: 'Foozerman',
+  loserClass: 'Assassin',
+  loserBuild: 't2',
+  notes: ''
+}
+```
+
+### Outstanding Questions
+
+1. **Manual form submission test needed:**
+   - Does submitting the form manually through browser with Mirror=No work?
+   - What values does a successful browser submission send?
+   - Is there a hidden field or token we're missing?
+
+2. **Possible hidden validation rules:**
+   - Are there conditional validation rules in the form?
+   - Does the form use sections that affect field visibility?
+   - Are there any Google Apps Script triggers on form submission?
+
+3. **Date format validation:**
+   - Is `11/06/2025` (MM/DD/YYYY) accepted by the form?
+   - Does the form expect a different date format for future dates?
+
+4. **Player name validation:**
+   - Are "Mantrayana" and "Foozerman" in the dropdown list?
+   - Does the form validate player names against the roster?
+
+5. **Build name validation:**
+   - Are "t1", "t2", "t3" valid options for build names?
+   - Does the form expect different build name formats?
+
+### Next Debugging Steps
+
+1. **Analyze enhanced error logs** from next test run (commit cfc14a1)
+2. **Manual browser test:** Submit form manually with identical data
+3. **Inspect browser network traffic:** Use DevTools to see what a successful submission sends
+4. **Check for form scripts:** Verify no Google Apps Script is blocking submissions
+5. **Test with minimal data:** Try submitting with just required fields
+6. **Compare production vs test:** Does production form work with same data?
+
+### Commits Related to This Investigation
+
+- `e583278` - Fix 400 error by sending empty string for Mirror Type
+- `a1535ea` - Don't send Mirror Type field when Mirror=No
+- `cfc14a1` - Add detailed error logging for form submission failures
+
+### Form Configuration Snapshots
+
+**Test Form Settings (as of 2025-11-06):**
+- Edit URL: https://docs.google.com/forms/d/1C3H4e069VL8qvR3JC3QsXG3LbHZ3s94HG1Q2NhbPAzg/edit
+- Public URL: https://docs.google.com/forms/d/e/1FAIpQLSe5Vx_8h4PCn46JzJ_WVohVIGkQwy6HZ4eGXrjKAqO8_o8d3A/viewform
+- Response Destination: Confirmed linked to TEST SSOT (137CZt90ZNoL66n0UohpD9y7m7nqQTk-b5UmMjfaJVms)
+- Accepting Responses: Yes
+- Require Sign-In: No
+- Limit to 1 Response: No
+- Mirror (Yes/No): REQUIRED ✓
+- Mirror Type (checkboxes): NOT REQUIRED ✓
+
+**Debug Screenshots Location:** `debug-ss/` folder (latest screenshots show form configuration)
