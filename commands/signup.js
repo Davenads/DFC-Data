@@ -29,6 +29,37 @@ const matchTypeEmojis = {
     Melee: '<:Melee:1434536096238141501>'
 };
 
+/**
+ * Check if registration is currently open based on the weekly schedule
+ * Registration opens: Friday 12am ET
+ * Registration closes: Tuesday 11pm ET (23:00)
+ * @returns {boolean} True if registration is open, false otherwise
+ */
+function isRegistrationOpen() {
+    // Get current time in ET timezone
+    const etTime = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
+    const now = new Date(etTime);
+    const day = now.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+    const hour = now.getHours();
+
+    // Registration is open from Friday 00:00 through Tuesday 22:59:59
+    // Friday = 5, Saturday = 6, Sunday = 0, Monday = 1, Tuesday = 2
+    // Closed: Wednesday = 3, Thursday = 4
+
+    if (day === 3 || day === 4) {
+        // Wednesday or Thursday - closed
+        return false;
+    }
+
+    if (day === 2 && hour >= 23) {
+        // Tuesday at or after 11pm - closed
+        return false;
+    }
+
+    // Friday (all day), Saturday, Sunday, Monday, Tuesday (before 11pm) - open
+    return true;
+}
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('signup')
@@ -45,6 +76,20 @@ module.exports = {
         User: ${user.tag} (${user.id})
         Server: ${guildName} (${interaction.guildId || 'N/A'})
         Channel: ${channelName} (${interaction.channelId})`);
+
+        // Check if registration is currently open
+        if (!isRegistrationOpen()) {
+            const closedEmbed = new EmbedBuilder()
+                .setColor(0xFF0000)
+                .setTitle('📜 Registration Closed')
+                .setDescription('Registration is currently closed.\n\n**Registration Window:**\nOpens: Friday 12:00 AM ET\nCloses: Tuesday 11:00 PM ET')
+                .setFooter({ text: 'DFC Weekly Event Registration' })
+                .setTimestamp();
+
+            console.log(`[${timestamp}] Registration closed - informed ${user.tag} (${user.id})`);
+            await interaction.reply({ embeds: [closedEmbed], ephemeral: true });
+            return;
+        }
 
         try {
             // Step 1: Show match type selection buttons
