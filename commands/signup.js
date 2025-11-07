@@ -17,8 +17,8 @@ const classEmojis = {
     Amazon: '<:Amazon:953116506726744094>',
     Assassin: '<:Assassin:953116506697379891>',
     Barbarian: '<:barb:924434081406672977>',
-    Druid: '<:Druid:994817312563671050>',
-    Necromancer: '<:Necro:994817323653419058>',
+    Druid: '<:druid:924434081469575198>',
+    Necromancer: '<:necro:924434081532497961>',
     Paladin: '<:Pala:1039258310857195730>',
     Sorceress: '<:sorc:924434081163391058>'
 };
@@ -98,17 +98,14 @@ module.exports = {
                     new ButtonBuilder()
                         .setCustomId('signupmulti_hld')
                         .setLabel('HLD')
-                        .setEmoji('1434535063755952320')
                         .setStyle(ButtonStyle.Primary),
                     new ButtonBuilder()
                         .setCustomId('signupmulti_lld')
                         .setLabel('LLD')
-                        .setEmoji('1434535487481319598')
                         .setStyle(ButtonStyle.Primary),
                     new ButtonBuilder()
                         .setCustomId('signupmulti_melee')
                         .setLabel('Melee')
-                        .setEmoji('1434536096238141501')
                         .setStyle(ButtonStyle.Primary)
                 );
 
