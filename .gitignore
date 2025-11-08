@@ -16,6 +16,8 @@ announcement.md
 discord-announcement.md
 discord-announcement-update.md
 thursday-dfc-night-announcement.md
+signup-mod-announcement.md
 
 # Claude Code local settings (user-specific)
 .claude/settings.local.json
+.claude/CLAUDE.md
