@@ -26,8 +26,8 @@ const classEmojis = {
 const matchTypeEmojis = {
     HLD: '<:HLD:1434535063755952320>',
     LLD: '<:LLD:1434535487481319598>',
-    Melee: '<:Melee:1434536096238141501>',
-    Teams: '👥' // Using generic emoji until custom emoji is available
+    MELEE: '<:Melee:1434536096238141501>',
+    TEAMS: '👥' // Using generic emoji until custom emoji is available
 };
 
 /**
