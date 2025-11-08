@@ -1,5 +1,5 @@
 const NodeCache = require('node-cache');
-const { SlashCommandBuilder } = require('@discordjs/builders');
+const { SlashCommandBuilder, PermissionFlagBits } = require('discord.js');
 const { EmbedBuilder } = require('discord.js');
 
 // Create a cache instance
@@ -9,6 +9,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('register')
         .setDescription('Add your arena name to the DFC roster')
+        .setDefaultMemberPermissions(PermissionFlagBits.ModerateMembers)
         .addStringOption(option =>
             option.setName('dueler_name')
                 .setDescription('In-game dueling/arena name')
