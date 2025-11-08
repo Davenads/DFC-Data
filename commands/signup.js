@@ -23,6 +23,14 @@ const classEmojis = {
     Sorceress: '<:sorc:924434081163391058>'
 };
 
+// Extract emoji IDs for button usage
+const classEmojiIds = Object.fromEntries(
+    Object.entries(classEmojis).map(([className, emojiString]) => {
+        const match = emojiString.match(/:(\d+)>/);
+        return [className, match ? match[1] : null];
+    })
+);
+
 const matchTypeEmojis = {
     HLD: '<:HLD:1434535063755952320>',
     LLD: '<:LLD:1434535487481319598>',
@@ -142,22 +150,22 @@ module.exports = {
                     new ButtonBuilder()
                         .setCustomId(`signupclass_${matchType}_Amazon`)
                         .setLabel('Amazon')
-                        .setEmoji('953116506726744094')
+                        .setEmoji(classEmojiIds.Amazon)
                         .setStyle(ButtonStyle.Secondary),
                     new ButtonBuilder()
                         .setCustomId(`signupclass_${matchType}_Assassin`)
                         .setLabel('Assassin')
-                        .setEmoji('953116506697379891')
+                        .setEmoji(classEmojiIds.Assassin)
                         .setStyle(ButtonStyle.Secondary),
                     new ButtonBuilder()
                         .setCustomId(`signupclass_${matchType}_Barbarian`)
                         .setLabel('Barbarian')
-                        .setEmoji('924434081406672977')
+                        .setEmoji(classEmojiIds.Barbarian)
                         .setStyle(ButtonStyle.Secondary),
                     new ButtonBuilder()
                         .setCustomId(`signupclass_${matchType}_Druid`)
                         .setLabel('Druid')
-                        .setEmoji('1436845962369826897')
+                        .setEmoji(classEmojiIds.Druid)
                         .setStyle(ButtonStyle.Secondary)
                 );
 
@@ -166,17 +174,17 @@ module.exports = {
                     new ButtonBuilder()
                         .setCustomId(`signupclass_${matchType}_Necromancer`)
                         .setLabel('Necromancer')
-                        .setEmoji('1436845477587980328')
+                        .setEmoji(classEmojiIds.Necromancer)
                         .setStyle(ButtonStyle.Secondary),
                     new ButtonBuilder()
                         .setCustomId(`signupclass_${matchType}_Paladin`)
                         .setLabel('Paladin')
-                        .setEmoji('1039258310857195730')
+                        .setEmoji(classEmojiIds.Paladin)
                         .setStyle(ButtonStyle.Secondary),
                     new ButtonBuilder()
                         .setCustomId(`signupclass_${matchType}_Sorceress`)
                         .setLabel('Sorceress')
-                        .setEmoji('924434081163391058')
+                        .setEmoji(classEmojiIds.Sorceress)
                         .setStyle(ButtonStyle.Secondary)
                 );
 
