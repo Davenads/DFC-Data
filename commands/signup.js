@@ -26,7 +26,8 @@ const classEmojis = {
 const matchTypeEmojis = {
     HLD: '<:HLD:1434535063755952320>',
     LLD: '<:LLD:1434535487481319598>',
-    Melee: '<:Melee:1434536096238141501>'
+    Melee: '<:Melee:1434536096238141501>',
+    Teams: '👥' // Using generic emoji until custom emoji is available
 };
 
 /**
@@ -106,13 +107,17 @@ module.exports = {
                     new ButtonBuilder()
                         .setCustomId('signupmulti_melee')
                         .setLabel('Melee')
+                        .setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .setCustomId('signupmulti_teams')
+                        .setLabel('Teams')
                         .setStyle(ButtonStyle.Primary)
                 );
 
             const embed = new EmbedBuilder()
                 .setColor(0x0099FF)
                 .setTitle('📜 Weekly Event Signup')
-                .setDescription('**Step 1/3:** Please select your match type:')
+                .setDescription('**Step 1/3:** Please select your match type:\n\n*Note: To sign up for multiple match types, submit a separate entry for each.*')
                 .setFooter({ text: 'DFC Weekly Event Registration' })
                 .setTimestamp();
 
@@ -254,7 +259,8 @@ module.exports = {
                 const divisionMap = {
                     'HLD': 'Unlimited (HLD)',
                     'LLD': 'Low Level Dueling (LLD)',
-                    'MELEE': 'Melee'
+                    'MELEE': 'Melee',
+                    'TEAMS': 'Teams'
                 };
 
                 // Prepare form data for Google Form submission
