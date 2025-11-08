@@ -13,8 +13,8 @@ const classEmojis = {
     Amazon: '<:Amazon:953116506726744094>',
     Assassin: '<:Assassin:953116506697379891>',
     Barbarian: '<:barb:924434081406672977>',
-    Druid: '<:druid:1436845962369826897>',
-    Necromancer: '<:necro:1436845477587980328>',
+    Druid: '<:Druid:953116506839973928>',
+    Necromancer: '<:Necro:953116507058085918>',
     Paladin: '<:Pala:1039258310857195730>',
     Sorceress: '<:sorc:924434081163391058>'
 };
@@ -419,7 +419,7 @@ module.exports = {
                         new ButtonBuilder()
                             .setCustomId('reportwinclass_Druid')
                             .setLabel('Druid')
-                            .setEmoji('1436845962369826897')
+                            .setEmoji('953116506839973928')
                             .setStyle(ButtonStyle.Secondary)
                     );
 
@@ -428,7 +428,7 @@ module.exports = {
                         new ButtonBuilder()
                             .setCustomId('reportwinclass_Necromancer')
                             .setLabel('Necromancer')
-                            .setEmoji('1436845477587980328')
+                            .setEmoji('953116507058085918')
                             .setStyle(ButtonStyle.Secondary),
                         new ButtonBuilder()
                             .setCustomId('reportwinclass_Paladin')
@@ -487,7 +487,7 @@ module.exports = {
                         new ButtonBuilder()
                             .setCustomId('reportloseclass_Druid')
                             .setLabel('Druid')
-                            .setEmoji('1436845962369826897')
+                            .setEmoji('953116506839973928')
                             .setStyle(ButtonStyle.Secondary)
                     );
 
@@ -496,7 +496,7 @@ module.exports = {
                         new ButtonBuilder()
                             .setCustomId('reportloseclass_Necromancer')
                             .setLabel('Necromancer')
-                            .setEmoji('1436845477587980328')
+                            .setEmoji('953116507058085918')
                             .setStyle(ButtonStyle.Secondary),
                         new ButtonBuilder()
                             .setCustomId('reportloseclass_Paladin')
