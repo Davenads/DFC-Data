@@ -265,10 +265,16 @@ module.exports = {
 
                 // Prepare form data for Google Form submission
                 const formData = new URLSearchParams();
+                const mappedDivision = divisionMap[matchType] || matchType;
+
+                console.log(`[${timestamp}] TEAMS DEBUG - matchType: "${matchType}", mapped: "${mappedDivision}"`);
+
                 formData.append('entry.2092238618', discordName); // Discord Handle
-                formData.append('entry.1556369182', divisionMap[matchType] || matchType); // Division
+                formData.append('entry.1556369182', mappedDivision); // Division
                 formData.append('entry.479301265', chosenClass); // Class
                 formData.append('entry.2132117571', `${chosenBuild}${notes ? ' - ' + notes : ''}`); // Build Type / Notes
+
+                console.log(`[${timestamp}] TEAMS DEBUG - Form data being submitted:`, formData.toString());
 
                 // Submit to Google Form (using Node.js 20+ native fetch)
                 const formResponse = await fetch(
