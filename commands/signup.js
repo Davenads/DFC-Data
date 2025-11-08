@@ -17,8 +17,8 @@ const classEmojis = {
     Amazon: '<:Amazon:953116506726744094>',
     Assassin: '<:Assassin:953116506697379891>',
     Barbarian: '<:barb:924434081406672977>',
-    Druid: '<:druid:924434081469575198>',
-    Necromancer: '<:necro:924434081532497961>',
+    Druid: '<:Druid:953116506839973928>',
+    Necromancer: '<:Necro:953116507058085918>',
     Paladin: '<:Pala:1039258310857195730>',
     Sorceress: '<:sorc:924434081163391058>'
 };
