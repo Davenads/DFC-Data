@@ -157,7 +157,7 @@ module.exports = {
                     new ButtonBuilder()
                         .setCustomId(`signupclass_${matchType}_Druid`)
                         .setLabel('Druid')
-                        .setEmoji('994817312563671050')
+                        .setEmoji('1436845962369826897')
                         .setStyle(ButtonStyle.Secondary)
                 );
 
@@ -166,7 +166,7 @@ module.exports = {
                     new ButtonBuilder()
                         .setCustomId(`signupclass_${matchType}_Necromancer`)
                         .setLabel('Necromancer')
-                        .setEmoji('994817323653419058')
+                        .setEmoji('1436845477587980328')
                         .setStyle(ButtonStyle.Secondary),
                     new ButtonBuilder()
                         .setCustomId(`signupclass_${matchType}_Paladin`)
