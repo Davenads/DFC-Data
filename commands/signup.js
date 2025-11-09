@@ -306,7 +306,7 @@ module.exports = {
         }
 
         // Handle Continue button (after class selection)
-        if (customId.startsWith('signupcontinue_')) {
+        if (customId === 'signupcontinue') {
             const data = await getSignupData(interaction.user.id);
 
             if (!data || data.selectedClasses.length === 0) {
