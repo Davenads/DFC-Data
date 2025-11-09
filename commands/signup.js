@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { getSignupData, setSignupData, clearSignupData } = require('../utils/signupCache');
 
 // Custom emoji IDs from production Discord server
 const classEmojis = {
@@ -57,6 +58,134 @@ function isRegistrationOpen() {
     return true;
 }
 
+/**
+ * Update class selection screen with toggle buttons
+ * @param {Interaction} interaction - Discord interaction
+ * @param {string} matchType - Selected match type (HLD, LLD, etc.)
+ * @param {Array<string>} selectedClasses - Currently selected classes
+ */
+async function updateClassSelectionScreen(interaction, matchType, selectedClasses) {
+    const row1 = new ActionRowBuilder()
+        .addComponents(
+            new ButtonBuilder()
+                .setCustomId(`signupclass_${matchType}_Amazon`)
+                .setLabel('Amazon')
+                .setEmoji(classEmojiIds.Amazon)
+                .setStyle(selectedClasses.includes('Amazon') ? ButtonStyle.Success : ButtonStyle.Secondary),
+            new ButtonBuilder()
+                .setCustomId(`signupclass_${matchType}_Assassin`)
+                .setLabel('Assassin')
+                .setEmoji(classEmojiIds.Assassin)
+                .setStyle(selectedClasses.includes('Assassin') ? ButtonStyle.Success : ButtonStyle.Secondary),
+            new ButtonBuilder()
+                .setCustomId(`signupclass_${matchType}_Barbarian`)
+                .setLabel('Barbarian')
+                .setEmoji(classEmojiIds.Barbarian)
+                .setStyle(selectedClasses.includes('Barbarian') ? ButtonStyle.Success : ButtonStyle.Secondary),
+            new ButtonBuilder()
+                .setCustomId(`signupclass_${matchType}_Druid`)
+                .setLabel('Druid')
+                .setEmoji(classEmojiIds.Druid)
+                .setStyle(selectedClasses.includes('Druid') ? ButtonStyle.Success : ButtonStyle.Secondary)
+        );
+
+    const row2 = new ActionRowBuilder()
+        .addComponents(
+            new ButtonBuilder()
+                .setCustomId(`signupclass_${matchType}_Necromancer`)
+                .setLabel('Necromancer')
+                .setEmoji(classEmojiIds.Necromancer)
+                .setStyle(selectedClasses.includes('Necromancer') ? ButtonStyle.Success : ButtonStyle.Secondary),
+            new ButtonBuilder()
+                .setCustomId(`signupclass_${matchType}_Paladin`)
+                .setLabel('Paladin')
+                .setEmoji(classEmojiIds.Paladin)
+                .setStyle(selectedClasses.includes('Paladin') ? ButtonStyle.Success : ButtonStyle.Secondary),
+            new ButtonBuilder()
+                .setCustomId(`signupclass_${matchType}_Sorceress`)
+                .setLabel('Sorceress')
+                .setEmoji(classEmojiIds.Sorceress)
+                .setStyle(selectedClasses.includes('Sorceress') ? ButtonStyle.Success : ButtonStyle.Secondary)
+        );
+
+    const row3 = new ActionRowBuilder()
+        .addComponents(
+            new ButtonBuilder()
+                .setCustomId('signupcontinue')
+                .setLabel('Continue')
+                .setStyle(ButtonStyle.Primary)
+                .setDisabled(selectedClasses.length === 0)
+        );
+
+    const selectionText = selectedClasses.length > 0
+        ? `**Selected (${selectedClasses.length}):** ${selectedClasses.join(', ')}`
+        : '**Selected:** None';
+
+    const embed = new EmbedBuilder()
+        .setColor(0x00FF00)
+        .setTitle('📜 Weekly Event Signup')
+        .setDescription(`✅ Division: **${matchType}**\n\n**Step 2:** Select your classes (click to toggle):\n\n${selectionText}\n\n*Click Continue when ready*`)
+        .setFooter({ text: 'DFC Weekly Event Registration' })
+        .setTimestamp();
+
+    await interaction.update({ embeds: [embed], components: [row1, row2, row3] });
+}
+
+/**
+ * Show build entry modal(s) based on class count
+ * @param {Interaction} interaction - Discord interaction
+ * @param {Object} data - Session data
+ * @param {number} modalNumber - Which modal to show (1 or 2)
+ */
+async function showBuildModal(interaction, data, modalNumber) {
+    const classesPerModal = 4;
+    const startIdx = (modalNumber - 1) * classesPerModal;
+    const endIdx = Math.min(startIdx + classesPerModal, data.selectedClasses.length);
+    const classesInThisModal = data.selectedClasses.slice(startIdx, endIdx);
+    const totalModals = Math.ceil(data.selectedClasses.length / classesPerModal);
+    const isLastModal = endIdx === data.selectedClasses.length;
+
+    const modalTitle = totalModals > 1
+        ? `${data.division} Signup - Builds (${modalNumber} of ${totalModals})`
+        : `${data.division} Signup - Enter Builds`;
+
+    const modal = new ModalBuilder()
+        .setCustomId(`signupmodal_${modalNumber}`)
+        .setTitle(modalTitle);
+
+    // Add build fields for classes in this modal
+    for (const className of classesInThisModal) {
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId(`build_${className}`)
+                    .setLabel(`${className} Build`)
+                    .setStyle(TextInputStyle.Short)
+                    .setMaxLength(100)
+                    .setRequired(true)
+                    .setPlaceholder(`Enter ${className} build type`)
+            )
+        );
+    }
+
+    // Add notes field only in final modal
+    if (isLastModal) {
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('notes')
+                    .setLabel('Notes (Optional)')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setMaxLength(500)
+                    .setRequired(false)
+                    .setPlaceholder('Additional comments... Do not share sensitive info!')
+            )
+        );
+    }
+
+    await interaction.showModal(modal);
+}
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('signup')
@@ -113,7 +242,7 @@ module.exports = {
             const embed = new EmbedBuilder()
                 .setColor(0x0099FF)
                 .setTitle('📜 Weekly Event Signup')
-                .setDescription('**Step 1/3:** Please select your match type:\n\n*Note: To sign up for multiple match types, submit a separate entry for each.*')
+                .setDescription('**Step 1:** Select your division:\n\n*Note: You can select multiple classes for this division. To sign up for additional divisions, run /signup again.*')
                 .setFooter({ text: 'DFC Weekly Event Registration' })
                 .setTimestamp();
 
@@ -132,94 +261,113 @@ module.exports = {
         if (customId.startsWith('signupmulti_')) {
             const matchType = customId.replace('signupmulti_', '').toUpperCase();
 
-            // Show class selection buttons
-            const row1 = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId(`signupclass_${matchType}_Amazon`)
-                        .setLabel('Amazon')
-                        .setEmoji(classEmojiIds.Amazon)
-                        .setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder()
-                        .setCustomId(`signupclass_${matchType}_Assassin`)
-                        .setLabel('Assassin')
-                        .setEmoji(classEmojiIds.Assassin)
-                        .setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder()
-                        .setCustomId(`signupclass_${matchType}_Barbarian`)
-                        .setLabel('Barbarian')
-                        .setEmoji(classEmojiIds.Barbarian)
-                        .setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder()
-                        .setCustomId(`signupclass_${matchType}_Druid`)
-                        .setLabel('Druid')
-                        .setEmoji(classEmojiIds.Druid)
-                        .setStyle(ButtonStyle.Secondary)
-                );
+            // Initialize session data
+            const sessionData = {
+                userId: interaction.user.id,
+                division: matchType,
+                selectedClasses: [],
+                builds: {},
+                notes: ''
+            };
+            await setSignupData(interaction.user.id, sessionData);
 
-            const row2 = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId(`signupclass_${matchType}_Necromancer`)
-                        .setLabel('Necromancer')
-                        .setEmoji(classEmojiIds.Necromancer)
-                        .setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder()
-                        .setCustomId(`signupclass_${matchType}_Paladin`)
-                        .setLabel('Paladin')
-                        .setEmoji(classEmojiIds.Paladin)
-                        .setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder()
-                        .setCustomId(`signupclass_${matchType}_Sorceress`)
-                        .setLabel('Sorceress')
-                        .setEmoji(classEmojiIds.Sorceress)
-                        .setStyle(ButtonStyle.Secondary)
-                );
-
-            const embed = new EmbedBuilder()
-                .setColor(0x00FF00)
-                .setTitle('📜 Weekly Event Signup')
-                .setDescription(`✅ Match Type: **${matchType}**\n\n**Step 2/3:** Now select your class:`)
-                .setFooter({ text: 'DFC Weekly Event Registration' })
-                .setTimestamp();
-
-            await interaction.update({ embeds: [embed], components: [row1, row2] });
+            // Show class selection with toggle buttons
+            await updateClassSelectionScreen(interaction, matchType, []);
             return true;
         }
 
-        // Handle class selection (Step 2 -> Step 3 Modal)
+        // Handle class toggle selection
         if (customId.startsWith('signupclass_')) {
             const parts = customId.replace('signupclass_', '').split('_');
             const matchType = parts[0];
-            const chosenClass = parts[1];
+            const clickedClass = parts[1];
 
-            // Show modal for build and notes
-            const modal = new ModalBuilder()
-                .setCustomId(`signupmodal_${matchType}_${chosenClass}`)
-                .setTitle(`Step 3/3: ${matchType} ${chosenClass}`);
+            // Get current session data
+            let data = await getSignupData(interaction.user.id);
+            if (!data) {
+                await interaction.reply({ content: 'Session expired. Please run /signup again.', ephemeral: true });
+                return true;
+            }
 
-            const buildInput = new TextInputBuilder()
-                .setCustomId('build')
-                .setLabel('Build Type')
-                .setStyle(TextInputStyle.Short)
-                .setPlaceholder('e.g., T/V, Wind, Ghost, etc.')
-                .setRequired(true)
-                .setMaxLength(100);
+            // Toggle class selection
+            const index = data.selectedClasses.indexOf(clickedClass);
+            if (index > -1) {
+                data.selectedClasses.splice(index, 1); // Remove
+            } else {
+                data.selectedClasses.push(clickedClass); // Add
+            }
 
-            const notesInput = new TextInputBuilder()
-                .setCustomId('notes')
-                .setLabel('Notes (Optional)')
-                .setStyle(TextInputStyle.Paragraph)
-                .setPlaceholder('Additional comments... Do not share sensitive info!')
-                .setRequired(false)
-                .setMaxLength(500);
+            // Save updated selection
+            await setSignupData(interaction.user.id, data);
 
-            const buildRow = new ActionRowBuilder().addComponents(buildInput);
-            const notesRow = new ActionRowBuilder().addComponents(notesInput);
+            // Update screen with new selections
+            await updateClassSelectionScreen(interaction, matchType, data.selectedClasses);
+            return true;
+        }
 
-            modal.addComponents(buildRow, notesRow);
+        // Handle Continue button (after class selection)
+        if (customId.startsWith('signupcontinue_')) {
+            const data = await getSignupData(interaction.user.id);
 
-            await interaction.showModal(modal);
+            if (!data || data.selectedClasses.length === 0) {
+                await interaction.reply({ content: 'Please select at least one class before continuing.', ephemeral: true });
+                return true;
+            }
+
+            // Check if warning needed (5+ classes)
+            if (data.selectedClasses.length >= 5) {
+                const embed = new EmbedBuilder()
+                    .setColor(0xFFA500)
+                    .setTitle('⚠️ Multiple Forms Required')
+                    .setDescription(`You selected **${data.selectedClasses.length} classes**. You'll need to complete **2 forms** to enter all build details.\n\n**Selected Classes:**\n${data.selectedClasses.join(', ')}`)
+                    .setFooter({ text: 'DFC Weekly Event Registration' })
+                    .setTimestamp();
+
+                const row = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('signupproceed')
+                            .setLabel('Continue Anyway')
+                            .setStyle(ButtonStyle.Primary),
+                        new ButtonBuilder()
+                            .setCustomId(`signupback_${data.division}`)
+                            .setLabel('Go Back')
+                            .setStyle(ButtonStyle.Secondary)
+                    );
+
+                await interaction.update({ embeds: [embed], components: [row] });
+                return true;
+            }
+
+            // 1-4 classes: Show modal directly
+            await showBuildModal(interaction, data, 1);
+            return true;
+        }
+
+        // Handle "Continue Anyway" from warning
+        if (customId === 'signupproceed') {
+            const data = await getSignupData(interaction.user.id);
+            if (!data) {
+                await interaction.reply({ content: 'Session expired. Please run /signup again.', ephemeral: true });
+                return true;
+            }
+
+            await showBuildModal(interaction, data, 1);
+            return true;
+        }
+
+        // Handle "Go Back" from warning
+        if (customId.startsWith('signupback_')) {
+            const matchType = customId.replace('signupback_', '');
+            const data = await getSignupData(interaction.user.id);
+
+            if (!data) {
+                await interaction.reply({ content: 'Session expired. Please run /signup again.', ephemeral: true });
+                return true;
+            }
+
+            // Show class selection screen again
+            await updateClassSelectionScreen(interaction, matchType, data.selectedClasses);
             return true;
         }
 
@@ -232,26 +380,66 @@ module.exports = {
         if (customId.startsWith('signupmodal_')) {
             const timestamp = new Date().toISOString();
             const user = interaction.user;
+            const modalNumber = parseInt(customId.replace('signupmodal_', ''));
 
-            const parts = customId.replace('signupmodal_', '').split('_');
-            const matchType = parts[0];
-            const chosenClass = parts[1];
-            const chosenBuild = interaction.fields.getTextInputValue('build');
-            const notes = interaction.fields.getTextInputValue('notes') || '';
-            const discordName = user.username;
+            // Get session data
+            let data = await getSignupData(interaction.user.id);
+            if (!data) {
+                await interaction.reply({ content: 'Session expired. Please run /signup again.', ephemeral: true });
+                return true;
+            }
 
-            console.log(`[${timestamp}] Processing signup submission:
+            // Extract build values from this modal
+            const classesPerModal = 4;
+            const startIdx = (modalNumber - 1) * classesPerModal;
+            const endIdx = Math.min(startIdx + classesPerModal, data.selectedClasses.length);
+            const classesInThisModal = data.selectedClasses.slice(startIdx, endIdx);
+
+            for (const className of classesInThisModal) {
+                const buildValue = interaction.fields.getTextInputValue(`build_${className}`);
+                data.builds[className] = buildValue;
+            }
+
+            // Check if this is the last modal
+            const isLastModal = endIdx === data.selectedClasses.length;
+
+            if (!isLastModal) {
+                // More classes to process - save progress and show next modal
+                await setSignupData(interaction.user.id, data);
+                await interaction.deferUpdate();
+
+                // Show next modal
+                await showBuildModal(interaction, data, modalNumber + 1);
+                return true;
+            }
+
+            // Last modal - extract notes and submit
+            try {
+                data.notes = interaction.fields.getTextInputValue('notes') || '';
+            } catch {
+                data.notes = '';
+            }
+
+            console.log(`[${timestamp}] Processing multi-class signup submission:
             User: ${user.tag} (${user.id})
-            Match Type: ${matchType}
-            Class: ${chosenClass}
-            Build: ${chosenBuild}
-            Notes: ${notes}`);
+            Division: ${data.division}
+            Classes: ${data.selectedClasses.join(', ')}
+            Builds: ${JSON.stringify(data.builds)}
+            Notes: ${data.notes}`);
 
             try {
                 // Defer reply to prevent timeout
                 await interaction.deferReply({ ephemeral: true });
 
-                // Map match type to division format expected by form
+                // Construct class string: "Amazon, Necromancer, Paladin"
+                const classString = data.selectedClasses.join(', ');
+
+                // Construct build string: "Amazon - Java, Necro - Bone, Pala - Hammerdin / notes"
+                const buildPairs = data.selectedClasses.map(cls => `${cls} - ${data.builds[cls]}`);
+                const buildString = buildPairs.join(', ');
+                const finalBuildString = data.notes ? `${buildString} / ${data.notes}` : buildString;
+
+                // Map division to Google Form format
                 const divisionMap = {
                     'HLD': 'Unlimited (HLD)',
                     'LLD': 'Low Level Dueling (LLD)',
@@ -259,20 +447,22 @@ module.exports = {
                     'TEAMS': 'Teams'
                 };
 
-                // Prepare form data for Google Form submission
+                const mappedDivision = divisionMap[data.division] || data.division;
+
+                // Prepare form data
                 const formData = new URLSearchParams();
-                const mappedDivision = divisionMap[matchType] || matchType;
-
-                console.log(`[${timestamp}] TEAMS DEBUG - matchType: "${matchType}", mapped: "${mappedDivision}"`);
-
-                formData.append('entry.2092238618', discordName); // Discord Handle
+                formData.append('entry.2092238618', user.username); // Discord Handle
                 formData.append('entry.1556369182', mappedDivision); // Division
-                formData.append('entry.479301265', chosenClass); // Class
-                formData.append('entry.2132117571', `${chosenBuild}${notes ? ' - ' + notes : ''}`); // Build Type / Notes
+                formData.append('entry.479301265', classString); // Class (multi-class string)
+                formData.append('entry.2132117571', finalBuildString); // Build Type / Notes (formatted)
 
-                console.log(`[${timestamp}] TEAMS DEBUG - Form data being submitted:`, formData.toString());
+                console.log(`[${timestamp}] Submitting multi-class signup:
+                Discord: ${user.username}
+                Division: ${mappedDivision}
+                Classes: ${classString}
+                Builds: ${finalBuildString}`);
 
-                // Submit to Google Form (using Node.js 20+ native fetch)
+                // Submit to Google Form
                 const formResponse = await fetch(
                     'https://docs.google.com/forms/d/e/1FAIpQLSeviV0Uz8ufF6P58TsPmI_F2gsnJDLyJTbiy_-FDZgcmb7TfQ/formResponse',
                     {
@@ -281,33 +471,42 @@ module.exports = {
                             'Content-Type': 'application/x-www-form-urlencoded',
                         },
                         body: formData.toString(),
-                        redirect: 'manual' // Google Forms redirects on success
+                        redirect: 'manual'
                     }
                 );
 
                 console.log(`[${timestamp}] Form submission status: ${formResponse.status}`);
 
-                // Create confirmation embed (styled like current signup.js)
+                // Create confirmation embed
                 const embed = new EmbedBuilder()
                     .setColor(0xFFA500)
-                    .setTitle('📜 Weekly Event Signup')
-                    .addFields(
-                        { name: 'Player', value: `**${discordName}**`, inline: true },
-                        { name: 'Class', value: `${classEmojis[chosenClass]} **${chosenClass}**`, inline: true },
-                        { name: 'Build', value: `**${chosenBuild}**`, inline: true },
-                        { name: 'Match Type', value: `${matchTypeEmojis[matchType]} **${matchType}**`, inline: true }
-                    )
+                    .setTitle('✅ Signup Successful!')
+                    .setDescription(`You've signed up for **${data.division}** with the following classes:`)
                     .setTimestamp()
-                    .setFooter({ text: 'Successfully signed up for the weekly event!' });
+                    .setFooter({ text: 'DFC Weekly Event Registration' });
 
-                if (notes) {
-                    embed.addFields({ name: '📝 Notes', value: notes, inline: false });
+                // Add field for each class
+                for (const className of data.selectedClasses) {
+                    embed.addFields({
+                        name: `${classEmojis[className]} ${className}`,
+                        value: `Build: **${data.builds[className]}**`,
+                        inline: true
+                    });
+                }
+
+                // Add notes if present
+                if (data.notes) {
+                    embed.addFields({ name: '📝 Notes', value: data.notes, inline: false });
                 }
 
                 await interaction.editReply({ embeds: [embed] });
-                console.log(`[${timestamp}] Signup completed successfully for ${user.tag} (${user.id})`);
+
+                // Clear session data
+                await clearSignupData(interaction.user.id);
+
+                console.log(`[${timestamp}] Multi-class signup completed successfully for ${user.tag} (${user.id})`);
             } catch (error) {
-                console.error(`[${timestamp}] Error processing signup for ${user.tag} (${user.id}):`, error);
+                console.error(`[${timestamp}] Error processing multi-class signup for ${user.tag} (${user.id}):`, error);
 
                 if (interaction.deferred) {
                     await interaction.editReply({ content: 'Failed to sign you up. Please try again later.' });
