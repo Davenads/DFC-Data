@@ -1,15 +1,3 @@
-/**
- * /signup command - Multi-step wizard for weekly event signups
- *
- * This is a user-friendly multi-step signup flow that uses buttons and modals.
- * Users select match type -> class -> enter build details through an interactive wizard.
- *
- * Usage: /signup (then follow the interactive prompts)
- *
- * Replaced the original argument-based version (backed up as signup-with-initial-args.js.backup)
- * on 2025-11-05
- */
-
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 
 // Custom emoji IDs from production Discord server
