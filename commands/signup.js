@@ -27,6 +27,17 @@ const matchTypeEmojis = {
     TEAMS: '👥' // Using generic emoji until custom emoji is available
 };
 
+// Class name abbreviations for form submission (to minimize cell string length)
+const classAbbreviations = {
+    Amazon: 'Zon',
+    Barbarian: 'Barb',
+    Paladin: 'Pala',
+    Sorceress: 'Sorc',
+    Druid: 'Dudu',
+    Assassin: 'Sin',
+    Necromancer: 'Necro'
+};
+
 /**
  * Check if registration is currently open based on the weekly schedule
  * Registration opens: Friday 12am ET
@@ -459,8 +470,8 @@ module.exports = {
                 // Defer reply to prevent timeout
                 await interaction.deferReply({ ephemeral: true });
 
-                // Construct build string: "Amazon - Java, Necro - Bone, Pala - Hammerdin / notes"
-                const buildPairs = data.selectedClasses.map(cls => `${cls} - ${data.builds[cls]}`);
+                // Construct build string with abbreviated class names: "Zon - Java, Necro - Bone, Pala - Hammerdin / notes"
+                const buildPairs = data.selectedClasses.map(cls => `${classAbbreviations[cls]} - ${data.builds[cls]}`);
                 const buildString = buildPairs.join(', ');
                 const finalBuildString = data.notes ? `${buildString} / ${data.notes}` : buildString;
 
@@ -519,7 +530,7 @@ module.exports = {
                 for (const className of data.selectedClasses) {
                     embed.addFields({
                         name: className,
-                        value: `Build: **${data.builds[className]}**`,
+                        value: `**${data.builds[className]}**`,
                         inline: true
                     });
                 }
