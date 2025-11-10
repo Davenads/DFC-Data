@@ -431,9 +431,6 @@ module.exports = {
                 // Defer reply to prevent timeout
                 await interaction.deferReply({ ephemeral: true });
 
-                // Construct class string: "Amazon, Necromancer, Paladin"
-                const classString = data.selectedClasses.join(', ');
-
                 // Construct build string: "Amazon - Java, Necro - Bone, Pala - Hammerdin / notes"
                 const buildPairs = data.selectedClasses.map(cls => `${cls} - ${data.builds[cls]}`);
                 const buildString = buildPairs.join(', ');
@@ -453,13 +450,18 @@ module.exports = {
                 const formData = new URLSearchParams();
                 formData.append('entry.2092238618', user.username); // Discord Handle
                 formData.append('entry.1556369182', mappedDivision); // Division
-                formData.append('entry.479301265', classString); // Class (multi-class string)
+
+                // Class field: Submit each class separately (checkbox field requires multiple entries)
+                for (const className of data.selectedClasses) {
+                    formData.append('entry.479301265', className);
+                }
+
                 formData.append('entry.2132117571', finalBuildString); // Build Type / Notes (formatted)
 
                 console.log(`[${timestamp}] Submitting multi-class signup:
                 Discord: ${user.username}
                 Division: ${mappedDivision}
-                Classes: ${classString}
+                Classes: ${data.selectedClasses.join(', ')}
                 Builds: ${finalBuildString}`);
 
                 // Submit to Google Form
