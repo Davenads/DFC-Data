@@ -371,6 +371,20 @@ module.exports = {
             return true;
         }
 
+        // Handle "Continue to Modal 2" button (for 5-7 class signups)
+        if (customId.startsWith('signupcontinuemodal_')) {
+            const modalNumber = parseInt(customId.replace('signupcontinuemodal_', ''));
+            const data = await getSignupData(interaction.user.id);
+
+            if (!data) {
+                await interaction.reply({ content: 'Session expired. Please run /signup again.', ephemeral: true });
+                return true;
+            }
+
+            await showBuildModal(interaction, data, modalNumber);
+            return true;
+        }
+
         return false;
     },
 
@@ -404,12 +418,26 @@ module.exports = {
             const isLastModal = endIdx === data.selectedClasses.length;
 
             if (!isLastModal) {
-                // More classes to process - save progress and show next modal
+                // More classes to process - save progress and show button to continue
                 await setSignupData(interaction.user.id, data);
-                await interaction.deferUpdate();
 
-                // Show next modal
-                await showBuildModal(interaction, data, modalNumber + 1);
+                const classesRemaining = data.selectedClasses.length - endIdx;
+                const embed = new EmbedBuilder()
+                    .setColor(0x00FF00)
+                    .setTitle('✅ Progress Saved')
+                    .setDescription(`Builds entered for ${endIdx} of ${data.selectedClasses.length} classes.\n\nClick **Continue** to enter builds for the remaining ${classesRemaining} class${classesRemaining > 1 ? 'es' : ''}.`)
+                    .setFooter({ text: 'DFC Weekly Event Registration' })
+                    .setTimestamp();
+
+                const row = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`signupcontinuemodal_${modalNumber + 1}`)
+                            .setLabel('Continue')
+                            .setStyle(ButtonStyle.Primary)
+                    );
+
+                await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
                 return true;
             }
 
@@ -490,7 +518,7 @@ module.exports = {
                 // Add field for each class
                 for (const className of data.selectedClasses) {
                     embed.addFields({
-                        name: `${classEmojis[className]} ${className}`,
+                        name: className,
                         value: `Build: **${data.builds[className]}**`,
                         inline: true
                     });
