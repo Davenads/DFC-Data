@@ -69,13 +69,15 @@ module.exports = {
 
       console.log(`[${timestamp}] [AUTOCOMPLETE] Found ${duelerPlayers.length} DFC Duelers registered in roster`);
 
-      const searchTerm = focusedValue.toLowerCase();
-
-      // Don't show results for empty search - prevents overwhelming autocomplete
-      if (searchTerm.length === 0) {
-        await interaction.respond([]);
-        return;
+      // Log diagnostic info if no duelers found
+      if (duelerPlayers.length === 0) {
+        const totalMembers = guild.members.cache.size;
+        const membersWithRole = guild.members.cache.filter(m => m.roles.cache.has(dfcDuelerRole.id)).size;
+        const rosterSize = Object.keys(roster).length;
+        console.log(`[${timestamp}] [AUTOCOMPLETE] DEBUG: Total members: ${totalMembers}, Members with DFC Dueler role: ${membersWithRole}, Roster entries: ${rosterSize}`);
       }
+
+      const searchTerm = focusedValue.toLowerCase();
 
       // Filter by search term matching Arena Name or Discord name
       const filteredPlayers = duelerPlayers.filter(player =>
@@ -83,10 +85,20 @@ module.exports = {
         player.discordName.toLowerCase().includes(searchTerm)
       ).slice(0, 25); // Limit to 25 players to meet Discord's requirements
 
+      console.log(`[${timestamp}] [AUTOCOMPLETE] Filtered to ${filteredPlayers.length} players matching "${searchTerm}"`);
+
       const results = filteredPlayers.map(player => ({
         name: player.arenaName,
         value: player.arenaName
       }));
+
+      // If no results found but search term exists, provide a manual entry option
+      if (results.length === 0 && searchTerm.length > 0) {
+        results.push({
+          name: `Type "${searchTerm}" manually (no matches found)`,
+          value: searchTerm
+        });
+      }
 
       await interaction.respond(results);
       const totalTime = Date.now() - startTime;

@@ -35,7 +35,7 @@ module.exports = {
       if (rows.length === 0) {
         console.log(`[${timestamp}] No fight card data found for request by ${user.tag} (${user.id})`);
         return interaction.editReply({ 
-          content: '📋 **Fight Card**\n\nNo upcoming matches found.'
+          content: '📋 **Fight Card**\n\nNo upcoming matches found. Stay tuned as Coooley announces matchups!'
         });
       }
 
