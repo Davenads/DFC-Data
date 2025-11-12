@@ -2,7 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { google } = require('googleapis');
 const { createGoogleAuth } = require('../utils/googleAuth');
 const duelDataCache = require('../utils/duelDataCache');
-const playerListCache = require('../utils/playerListCache');
+const rosterCache = require('../utils/rosterCache');
 const rankingsCache = require('../utils/rankingsCache');
 
 module.exports = {
@@ -25,47 +25,88 @@ module.exports = {
     const timestamp = new Date().toISOString();
     const focusedValue = interaction.options.getFocused();
     const user = interaction.user;
-    
+
     console.log(`[${timestamp}] [AUTOCOMPLETE] Started for user: ${user.tag} (${user.id}), search: "${focusedValue}"`);
-    
+
     try {
-      // Get player list from Redis cache (much faster than Google Sheets)
-      const cacheStart = Date.now();
-      const uniquePlayers = await playerListCache.getCachedPlayerList();
-      console.log(`[${timestamp}] [AUTOCOMPLETE] Player list fetched in ${Date.now() - cacheStart}ms`);
-      
-      const searchTerm = interaction.options.getFocused().toLowerCase();
-      
+      // Get the guild and find the DFC Dueler role
+      const guild = interaction.guild;
+      if (!guild) {
+        console.log(`[${timestamp}] [AUTOCOMPLETE] No guild found, returning empty results`);
+        await interaction.respond([]);
+        return;
+      }
+
+      const dfcDuelerRole = guild.roles.cache.find(role => role.name === 'DFC Dueler');
+      if (!dfcDuelerRole) {
+        console.error(`[${timestamp}] [AUTOCOMPLETE] DFC Dueler role not found`);
+        await interaction.respond([]);
+        return;
+      }
+
+      // Fetch all members with the DFC Dueler role and roster data in parallel
+      const fetchStart = Date.now();
+      const [, roster] = await Promise.all([
+        guild.members.fetch(),
+        rosterCache.getCachedRoster()
+      ]);
+      console.log(`[${timestamp}] [AUTOCOMPLETE] Guild members and roster fetched in ${Date.now() - fetchStart}ms`);
+
+      // Get members with DFC Dueler role who are registered in the roster
+      const duelerPlayers = [];
+      guild.members.cache.forEach(member => {
+        if (member.roles.cache.has(dfcDuelerRole.id)) {
+          const rosterEntry = roster[member.id];
+          if (rosterEntry && rosterEntry.arenaName) {
+            duelerPlayers.push({
+              arenaName: rosterEntry.arenaName,
+              discordName: member.displayName,
+              uuid: member.id
+            });
+          }
+        }
+      });
+
+      console.log(`[${timestamp}] [AUTOCOMPLETE] Found ${duelerPlayers.length} DFC Duelers registered in roster`);
+
+      const searchTerm = focusedValue.toLowerCase();
+
       // Don't show results for empty search - prevents overwhelming autocomplete
       if (searchTerm.length === 0) {
         await interaction.respond([]);
         return;
       }
-      
-      const filteredPlayers = uniquePlayers.filter(player =>
-        player.toLowerCase().includes(searchTerm)
+
+      // Filter by search term matching Arena Name or Discord name
+      const filteredPlayers = duelerPlayers.filter(player =>
+        player.arenaName.toLowerCase().includes(searchTerm) ||
+        player.discordName.toLowerCase().includes(searchTerm)
       ).slice(0, 25); // Limit to 25 players to meet Discord's requirements
 
-      const results = filteredPlayers.map(player => ({ name: player, value: player }));
+      const results = filteredPlayers.map(player => ({
+        name: player.arenaName,
+        value: player.arenaName
+      }));
+
       await interaction.respond(results);
       const totalTime = Date.now() - startTime;
       console.log(`[${timestamp}] [AUTOCOMPLETE] Completed in ${totalTime}ms - returned ${results.length} results for "${searchTerm}"`);
     } catch (error) {
-      const errorMessage = `[${timestamp}] Error fetching player names for autocomplete by ${user.tag} (${user.id})`;
+      const errorMessage = `[${timestamp}] Error fetching DFC Duelers for autocomplete by ${user.tag} (${user.id})`;
       console.error(errorMessage, error);
-      
+
       // Provide fallback suggestions based on search term
-      const searchTerm = interaction.options.getFocused().toLowerCase();
+      const searchTerm = focusedValue.toLowerCase();
       let fallbackResults = [];
-      
+
       if (searchTerm.length > 0) {
         // Provide a fallback suggestion that allows manual entry
-        fallbackResults = [{ 
-          name: `Type "${searchTerm}" manually (autocomplete unavailable)`, 
-          value: searchTerm 
+        fallbackResults = [{
+          name: `Type "${searchTerm}" manually (autocomplete unavailable)`,
+          value: searchTerm
         }];
       }
-      
+
       await interaction.respond(fallbackResults);
       const totalTime = Date.now() - startTime;
       console.log(`[${timestamp}] [AUTOCOMPLETE] Error fallback completed in ${totalTime}ms`);
@@ -98,18 +139,46 @@ module.exports = {
     } else {
       // Prefix command (!stats)
       const args = prefixArgs;
-      
+
       // Parse arguments: !stats [player] [days]
       if (args.length > 0) {
         playerName = args[0];
-        
+
+        // Check if playerName is a user mention (e.g., <@123456789012345678> or <@!123456789012345678>)
+        const userMentionMatch = playerName.match(/^<@!?(\d+)>$/);
+        if (userMentionMatch) {
+          const userId = userMentionMatch[1];
+          console.log(`[${timestamp}] [${commandType}] User mention detected: ${userId}`);
+
+          // Look up the user in the roster cache
+          try {
+            const rosterEntry = await rosterCache.getUserByUUID(userId);
+            if (rosterEntry && rosterEntry.arenaName) {
+              playerName = rosterEntry.arenaName;
+              console.log(`[${timestamp}] [${commandType}] Found Arena Name from roster: ${playerName}`);
+            } else {
+              console.log(`[${timestamp}] [${commandType}] User ${userId} not found in roster`);
+              return interaction.reply({
+                content: `⚠️ **Error**: The mentioned user isn't currently in the roster data.\n\nPlease make sure they have registered using the /register command.`,
+                ephemeral: true
+              });
+            }
+          } catch (error) {
+            console.error(`[${timestamp}] [${commandType}] Error looking up user in roster:`, error);
+            return interaction.reply({
+              content: `⚠️ **Error**: Failed to look up user in roster. Please try again later.`,
+              ephemeral: true
+            });
+          }
+        }
+
         // Second argument would be days if it's a number
         if (args.length > 1 && !isNaN(parseInt(args[1]))) {
           inputDays = parseInt(args[1]);
         }
       }
     }
-    
+
     console.log(`[${timestamp}] [${commandType}] Parameters parsed in ${Date.now() - paramStart}ms - Player: ${playerName}, Days: ${inputDays}`);
     
     const days = inputDays || 100; // Default to 100 days if no input provided
@@ -158,15 +227,43 @@ module.exports = {
     }
 
     try {
+      // Validate player exists in roster
+      const rosterStart = Date.now();
+      console.log(`[${timestamp}] [${commandType}] Validating player against roster...`);
+
+      const roster = await rosterCache.getCachedRoster();
+      const rosterEntries = Object.values(roster);
+      const playerInRoster = rosterEntries.find(entry =>
+        entry.arenaName && entry.arenaName.toLowerCase() === playerName.toLowerCase()
+      );
+
+      if (!playerInRoster) {
+        console.log(`[${timestamp}] [${commandType}] Player ${playerName} not found in roster`);
+
+        const errorMessage = `⚠️ **Error**: Player **${playerName}** isn't currently in the roster data.\n\n` +
+          `Please make sure:\n` +
+          `• The player name is spelled correctly\n` +
+          `• The player has registered using the /register command\n` +
+          `• You selected from the autocomplete suggestions (slash command only)`;
+
+        if (isSlashCommand) {
+          return interaction.editReply({ content: errorMessage, ephemeral: true });
+        } else {
+          return interaction.reply({ content: errorMessage, ephemeral: true });
+        }
+      }
+
+      console.log(`[${timestamp}] [${commandType}] Player validated in roster in ${Date.now() - rosterStart}ms`);
+
       // Get rankings and duel data (no ELO data needed for simplified stats)
       const dataStart = Date.now();
       console.log(`[${timestamp}] [${commandType}] Fetching rankings and duel data...`);
-      
+
       const [rankingsRows, duelRows] = await Promise.all([
         rankingsCache.getCachedRankings(),
         duelDataCache.getCachedData()
       ]);
-      
+
       console.log(`[${timestamp}] [${commandType}] Data fetched in ${Date.now() - dataStart}ms`);
 
       // Check if player exists in duel data
