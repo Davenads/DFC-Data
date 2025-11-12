@@ -105,25 +105,29 @@ module.exports = {
         const focusedValue = interaction.options.getFocused();
 
         try {
-            // Fetch data from the Google Sheet to get all dueler names for autocomplete
-            const auth = createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets.readonly']);
-
-            const client = await auth.getClient();
-
-            const res = await sheets.spreadsheets.values.get({
-                auth: client,
-                spreadsheetId: SPREADSHEET_ID,
-                range: `${SHEET_NAME}!C:C`, // Assuming column C is "Player Name"
-            });
-
-            const rows = res.data.values;
-            if (!rows || rows.length === 0) {
+            // Get the guild and find the DFC Dueler role
+            const guild = interaction.guild;
+            if (!guild) {
                 await interaction.respond([]);
                 return;
             }
 
-            const duelers = [...new Set(rows.map(row => row[0]).filter(Boolean))]; // Get all non-empty player names and remove duplicates
-            const filtered = duelers.filter(name =>
+            const dfcDuelerRole = guild.roles.cache.find(role => role.name === 'DFC Dueler');
+            if (!dfcDuelerRole) {
+                console.error('DFC Dueler role not found');
+                await interaction.respond([]);
+                return;
+            }
+
+            // Fetch all members with the DFC Dueler role
+            await guild.members.fetch();
+            const duelers = guild.members.cache
+                .filter(member => member.roles.cache.has(dfcDuelerRole.id))
+                .map(member => member.displayName);
+
+            // Remove duplicates and filter by focused value
+            const uniqueDuelers = [...new Set(duelers)];
+            const filtered = uniqueDuelers.filter(name =>
                 name.toLowerCase().includes(focusedValue.toLowerCase())
             );
 
