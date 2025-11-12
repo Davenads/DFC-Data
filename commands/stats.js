@@ -57,9 +57,9 @@ module.exports = {
       guild.members.cache.forEach(member => {
         if (member.roles.cache.has(dfcDuelerRole.id)) {
           const rosterEntry = roster[member.id];
-          if (rosterEntry && rosterEntry.arenaName) {
+          if (rosterEntry && rosterEntry.dataName) {
             duelerPlayers.push({
-              arenaName: rosterEntry.arenaName,
+              arenaName: rosterEntry.dataName,
               discordName: member.displayName,
               uuid: member.id
             });
