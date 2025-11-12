@@ -5,7 +5,7 @@ module.exports = {
     .setName('help')
     .setDescription('Get help with DFC Bot commands'),
 
-  async handleButton(interaction, sheets, auth) {
+  async handleButton(interaction) {
     if (!['show_deprecated', 'back_to_help'].includes(interaction.customId)) {
       return false; // Not our button
     }
@@ -69,42 +69,42 @@ module.exports = {
           .setDescription('Here are the main commands available for the DFC Bot:')
           .addFields(
             { 
-              name: '🏆 !rankings', 
+              name: '🏆 /rankings', 
               value: 'View the official DFC rankings based on tournament performance.', 
               inline: false 
             },
             {
-              name: '📝 !register [arena_name] [@player]',
-              value: 'Add an arena name to the DFC roster. Optionally mention a player to register them.',
+              name: '📝 /register [arena_name]',
+              value: 'Add your arena name to the DFC Roster tab in Google Sheets.',
               inline: false
             },
             { 
-              name: '🗓️ !signup', 
+              name: '🗓️ /signup', 
               value: 'Sign up for upcoming tournaments and events.', 
               inline: false 
             },
             { 
-              name: '🆕 !recentsignups', 
+              name: '🆕 /recentsignups', 
               value: 'View recent tournament signups.', 
               inline: false 
             },
             { 
-              name: '📊 !stats', 
+              name: '📊 /stats', 
               value: 'View player statistics including W/L record, winrate, rank, and recent matches.', 
               inline: false 
             },
             { 
-              name: '⚔️ !recentduels', 
+              name: '⚔️ /recentduels', 
               value: 'View recent duels from the last X days (up to 30 days). Usage: `!recentduels [days]`', 
               inline: false 
             },
             { 
-              name: '🥊 !fightcard', 
+              name: '🥊 /fightcard', 
               value: 'Shows upcoming matches in order with divisions.', 
               inline: false 
             },
             { 
-              name: '🔄 !refreshcache', 
+              name: '🔄 /refreshcache', 
               value: 'Manual cache refresh (Moderator only).', 
               inline: false 
             }
@@ -174,8 +174,8 @@ module.exports = {
             inline: false 
           },
           {
-            name: '📝 !register [arena_name] [@player]',
-            value: 'Add an arena name to the DFC roster. Optionally mention a player to register them.',
+            name: '📝 !register [arena_name]',
+            value: 'Add your arena name to the DFC roster (one-time setup).',
             inline: false
           },
           { 
