@@ -9,22 +9,22 @@
 const classEmojis = {
     Amazon: '<:Amazon:953116506726744094>',
     Assassin: '<:Assassin:953116506697379891>',
-    Barbarian: '<:barb:924434081406672977>',
+    Barbarian: '<:Barb:953116506986782770>',
     Druid: '<:Druid:953116506839973928>',
     Necromancer: '<:Necro:953116507058085918>',
     Paladin: '<:Paladin:953116506928074762>',
-    Sorceress: '<:sorc:924434081163391058>'
+    Sorceress: '<:Sorceress:953116506873552997>'
 };
 
 // Extract emoji IDs for button usage (used in interactive components)
 const classEmojiIds = {
     Amazon: '953116506726744094',
     Assassin: '953116506697379891',
-    Barbarian: '924434081406672977',
+    Barbarian: '953116506986782770',
     Druid: '953116506839973928',
     Necromancer: '953116507058085918',
     Paladin: '953116506928074762',
-    Sorceress: '924434081163391058'
+    Sorceress: '953116506873552997'
 };
 
 // Match type emojis
