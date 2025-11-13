@@ -33,7 +33,7 @@ class RankingsCache {
                 console.log('No cached rankings found, attempting to refresh cache');
                 // Try to refresh cache, but fallback to live data if that fails
                 try {
-                    const allRankings = await this.refreshRankingsCache();
+                    const allRankings = await this.refreshCache();
                     return division ? allRankings[division] : allRankings;
                 } catch (refreshError) {
                     console.error('Rankings cache refresh failed, falling back to Google Sheets:', refreshError);
@@ -137,7 +137,7 @@ class RankingsCache {
         }
     }
 
-    async refreshRankingsCache() {
+    async refreshCache() {
         if (this.isRefreshing) {
             console.log('Rankings cache refresh already in progress, waiting...');
             // Wait for current refresh to complete
