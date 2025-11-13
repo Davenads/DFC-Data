@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const duelDataCache = require('../utils/duelDataCache');
+const { getClassEmoji } = require('../utils/emojis');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -69,20 +70,9 @@ module.exports = {
         });
         embedsToSend = [embed];
       } else {
-        // Class emojis
-        const classEmojis = {
-          'amazon': '🏹',
-          'assassin': '🥷',
-          'barbarian': '⚔️',
-          'druid': '🐺',
-          'necromancer': '💀',
-          'paladin': '🛡️',
-          'sorceress': '🔮'
-        };
-
         // Build matches and split into multiple embeds if needed
         const matchStrings = [];
-        
+
         for (const match of recentMatches) {
           const eventDate = new Date(match[0]); // Event Date
           const formattedDate = `${eventDate.getMonth() + 1}/${eventDate.getDate()}`;
@@ -95,9 +85,9 @@ module.exports = {
           const roundLosses = match[7] || ''; // Round Losses
           const matchType = match[8] || 'Unknown'; // Match Type
           const title = match[11] || ''; // Title
-          
-          const winnerClassEmoji = classEmojis[winnerClass.toLowerCase()] || '👤';
-          const loserClassEmoji = classEmojis[loserClass.toLowerCase()] || '👤';
+
+          const winnerClassEmoji = getClassEmoji(winnerClass, true);
+          const loserClassEmoji = getClassEmoji(loserClass, true);
           
           let matchString = `**${formattedDate}** - ${winner} def. ${loser}`;
           

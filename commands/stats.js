@@ -4,6 +4,7 @@ const { createGoogleAuth } = require('../utils/googleAuth');
 const duelDataCache = require('../utils/duelDataCache');
 const rosterCache = require('../utils/rosterCache');
 const rankingsCache = require('../utils/rankingsCache');
+const { getClassEmoji } = require('../utils/emojis');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -499,17 +500,6 @@ module.exports = {
         const matchesToShow = recentMatches.slice(0, 5);
         
         if (matchesToShow.length > 0) {
-          // Class emojis
-          const classEmojis = {
-            'amazon': '🏹',
-            'assassin': '🥷',
-            'barbarian': '⚔️',
-            'druid': '🐺',
-            'necromancer': '💀',
-            'paladin': '🛡️',
-            'sorceress': '🔮'
-          };
-          
           const matchDetails = matchesToShow.map(match => {
             const eventDate = new Date(match[0]);
             const formattedDate = `${eventDate.getMonth() + 1}/${eventDate.getDate()}`;
@@ -520,17 +510,17 @@ module.exports = {
             const loserClass = match[5] || '';
             const loserBuild = match[6] || '';
             const matchType = match[8] || 'Unknown';
-            
+
             const isWinner = winner.toLowerCase() === playerName.toLowerCase();
             const playerClass = isWinner ? winnerClass.toLowerCase() : loserClass.toLowerCase();
             const playerBuild = isWinner ? winnerBuild : loserBuild;
             const opponentClass = isWinner ? loserClass.toLowerCase() : winnerClass.toLowerCase();
             const opponentBuild = isWinner ? loserBuild : winnerBuild;
             const opponent = isWinner ? loser : winner;
-            
+
             // Get emojis for classes
-            const playerClassEmoji = classEmojis[playerClass] || '👤';
-            const opponentClassEmoji = classEmojis[opponentClass] || '👤';
+            const playerClassEmoji = getClassEmoji(playerClass, true);
+            const opponentClassEmoji = getClassEmoji(opponentClass, true);
             
             return `${formattedDate} - ${isWinner ? '✅ Win' : '❌ Loss'} vs ${opponent}\n` +
                    `${playerClassEmoji} ${playerClass} ${playerBuild} vs ${opponentClassEmoji} ${opponentClass} ${opponentBuild}\n` +

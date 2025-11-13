@@ -1,23 +1,7 @@
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const redisClient = require('../utils/redisClient');
 const rosterCache = require('../utils/rosterCache');
-
-// Custom emoji IDs from production Discord server
-const matchTypeEmojis = {
-    HLD: '<:HLD:1434535063755952320>',
-    LLD: '<:LLD:1434535487481319598>',
-    Melee: '<:Melee:1434536096238141501>'
-};
-
-const classEmojis = {
-    Amazon: '<:Amazon:953116506726744094>',
-    Assassin: '<:Assassin:953116506697379891>',
-    Barbarian: '<:barb:924434081406672977>',
-    Druid: '<:Druid:953116506839973928>',
-    Necromancer: '<:Necro:953116507058085918>',
-    Paladin: '<:Pala:1039258310857195730>',
-    Sorceress: '<:sorc:924434081163391058>'
-};
+const { classEmojis, matchTypeEmojis } = require('../utils/emojis');
 
 // Production Form entry IDs
 const PROD_FORM_ENTRIES = {

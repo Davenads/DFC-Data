@@ -1,31 +1,6 @@
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { getSignupData, setSignupData, clearSignupData } = require('../utils/signupCache');
-
-// Custom emoji IDs from production Discord server
-const classEmojis = {
-    Amazon: '<:Amazon:953116506726744094>',
-    Assassin: '<:Assassin:953116506697379891>',
-    Barbarian: '<:barb:924434081406672977>',
-    Druid: '<:Druid:953116506839973928>',
-    Necromancer: '<:Necro:953116507058085918>',
-    Paladin: '<:Pala:1039258310857195730>',
-    Sorceress: '<:sorc:924434081163391058>'
-};
-
-// Extract emoji IDs for button usage
-const classEmojiIds = Object.fromEntries(
-    Object.entries(classEmojis).map(([className, emojiString]) => {
-        const match = emojiString.match(/:(\d+)>/);
-        return [className, match ? match[1] : null];
-    })
-);
-
-const matchTypeEmojis = {
-    HLD: '<:HLD:1434535063755952320>',
-    LLD: '<:LLD:1434535487481319598>',
-    MELEE: '<:Melee:1434536096238141501>',
-    TEAMS: '👥' // Using generic emoji until custom emoji is available
-};
+const { classEmojiIds } = require('../utils/emojis');
 
 // Class name abbreviations for form submission (to minimize cell string length)
 const classAbbreviations = {

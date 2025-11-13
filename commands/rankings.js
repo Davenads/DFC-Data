@@ -2,6 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 const { google } = require('googleapis');
 const { createGoogleAuth } = require('../utils/googleAuth');
 const duelDataCache = require('../utils/duelDataCache');
+const { getClassEmoji } = require('../utils/emojis');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -241,17 +242,6 @@ module.exports = {
           inline: false 
         });
       } else {
-        // Class emojis
-        const classEmojis = {
-          'amazon': '🏹',
-          'assassin': '🥷',
-          'barbarian': '⚔️',
-          'druid': '🐺',
-          'necromancer': '💀',
-          'paladin': '🛡️',
-          'sorceress': '🔮'
-        };
-
         const matchDetails = matchesToShow.map(match => {
           const eventDate = new Date(match[0]);
           const formattedDate = `${eventDate.getMonth() + 1}/${eventDate.getDate()}`;
@@ -262,9 +252,9 @@ module.exports = {
           const loserClass = match[5] || '';
           const loserBuild = match[6] || '';
           const matchType = match[8] || 'Unknown';
-          
-          const winnerClassEmoji = classEmojis[winnerClass.toLowerCase()] || '👤';
-          const loserClassEmoji = classEmojis[loserClass.toLowerCase()] || '👤';
+
+          const winnerClassEmoji = getClassEmoji(winnerClass, true);
+          const loserClassEmoji = getClassEmoji(loserClass, true);
           
           return `**${formattedDate}** - ${winner} def. ${loser}\n` +
                  `${winnerClassEmoji} ${winnerClass} ${winnerBuild} vs ${loserClassEmoji} ${loserClass} ${loserBuild}\n` +

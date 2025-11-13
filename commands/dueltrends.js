@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const duelDataCache = require('../utils/duelDataCache');
+const { getClassEmoji } = require('../utils/emojis');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -141,17 +142,6 @@ module.exports = {
         });
       }
 
-      // Class emojis
-      const classEmojis = {
-        'amazon': '🏹',
-        'assassin': '🥷', 
-        'barbarian': '⚔️',
-        'druid': '🐺',
-        'necromancer': '💀',
-        'paladin': '🛡️',
-        'sorceress': '🔮'
-      };
-
       // Data analysis
       const buildCounts = {};
       const classCounts = {};
@@ -250,7 +240,7 @@ module.exports = {
       // Class distribution
       if (topClasses.length > 0) {
         const classDistribution = topClasses.map(([className, count]) => {
-          const emoji = classEmojis[className] || '👤';
+          const emoji = getClassEmoji(className, true);
           const percentage = ((count / (recentMatches.length * 2)) * 100).toFixed(1);
           const capitalizedClass = className.charAt(0).toUpperCase() + className.slice(1);
           return `${emoji} **${capitalizedClass}**: ${count} (${percentage}%)`;
@@ -274,8 +264,8 @@ module.exports = {
       if (topMatchups.length > 0) {
         const matchupsList = topMatchups.map(([matchup, count], index) => {
           const [class1, class2] = matchup.split(' vs ');
-          const class1Emoji = classEmojis[class1] || '👤';
-          const class2Emoji = classEmojis[class2] || '👤';
+          const class1Emoji = getClassEmoji(class1, true);
+          const class2Emoji = getClassEmoji(class2, true);
           
           // Calculate win rates
           const wins = matchupWins[matchup] || {};

@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('@discordjs/builders');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { getClassEmoji } = require('../utils/emojis');
 
 // Helper function to check if a signup is between now and the most recent past Thursday at 6:00pm ET
 const isWithinRange = (timestamp) => {
@@ -142,16 +143,16 @@ module.exports = {
                     const division = signup[2] || 'Unknown';
                     const characterClass = signup[3] || 'Unknown';
                     const buildType = signup[4] || 'Unknown';
-                    
+
                     // Determine emoji for class
                     let classEmoji = '⚔️'; // Default
-                    if (characterClass.includes('Paladin')) classEmoji = '⚔️';
-                    else if (characterClass.includes('Necromancer')) classEmoji = '💀';
-                    else if (characterClass.includes('Assassin')) classEmoji = '🗡️';
-                    else if (characterClass.includes('Druid')) classEmoji = '🐺';
-                    else if (characterClass.includes('Amazon')) classEmoji = '🏹';
-                    else if (characterClass.includes('Sorceress')) classEmoji = '🔮';
-                    else if (characterClass.includes('Barbarian')) classEmoji = '🛡️';
+                    if (characterClass.includes('Paladin')) classEmoji = getClassEmoji('Paladin', true);
+                    else if (characterClass.includes('Necromancer')) classEmoji = getClassEmoji('Necromancer', true);
+                    else if (characterClass.includes('Assassin')) classEmoji = getClassEmoji('Assassin', true);
+                    else if (characterClass.includes('Druid')) classEmoji = getClassEmoji('Druid', true);
+                    else if (characterClass.includes('Amazon')) classEmoji = getClassEmoji('Amazon', true);
+                    else if (characterClass.includes('Sorceress')) classEmoji = getClassEmoji('Sorceress', true);
+                    else if (characterClass.includes('Barbarian')) classEmoji = getClassEmoji('Barbarian', true);
                     
                     embed.addFields({
                         name: `${classEmoji} ${discordHandle}`,
