@@ -3,49 +3,6 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { getClassEmoji } = require('../utils/emojis');
 const signupsCache = require('../utils/signupsCache');
 
-// Helper function to check if a signup is between now and the most recent past Thursday at 6:00pm ET
-const isWithinRange = (timestamp) => {
-    // Current date and signup date
-    const currentDate = new Date();
-    const signupDate = new Date(timestamp);
-    
-    // Find the most recent Thursday at 6:00pm ET (either past Thursday or upcoming if we're before Thursday)
-    const mostRecentThursday = new Date();
-    
-    // Current day of week (0 = Sunday, 4 = Thursday)
-    const currentDay = mostRecentThursday.getDay();
-    
-    // If today is Thursday
-    if (currentDay === 4) {
-        const currentHour = mostRecentThursday.getHours();
-        
-        // If it's before 6pm on Thursday, use last week's Thursday
-        if (currentHour < 18) {
-            mostRecentThursday.setDate(mostRecentThursday.getDate() - 7);
-        }
-    } 
-    // If we're after Thursday (Friday, Saturday, Sunday)
-    else if (currentDay > 4) {
-        // Roll back to this week's Thursday
-        mostRecentThursday.setDate(mostRecentThursday.getDate() - (currentDay - 4));
-    } 
-    // If we're before Thursday (Monday, Tuesday, Wednesday)
-    else {
-        // Roll back to last week's Thursday
-        mostRecentThursday.setDate(mostRecentThursday.getDate() - (currentDay + 3));
-    }
-    
-    // Set to 6:00 PM ET
-    mostRecentThursday.setHours(18, 0, 0, 0);
-    
-    // Get the upcoming Thursday at 6:00pm ET
-    const upcomingThursday = new Date(mostRecentThursday);
-    upcomingThursday.setDate(upcomingThursday.getDate() + 7);
-    
-    // Check if signup is after the most recent Thursday cutoff and before or equal to now
-    return signupDate >= mostRecentThursday && signupDate <= currentDate;
-};
-
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('recentsignups')
@@ -67,19 +24,17 @@ module.exports = {
 
             // Fetch signups from cache (falls back to Google Sheets if cache unavailable)
             const signups = await signupsCache.getCachedData();
-            
-            // Skip header row and filter for signups in the last 7 days but before cutoff
-            const recentSignups = signups.slice(1).filter(row => {
-                if (!row[0]) return false; // Skip if no timestamp
-                return isWithinRange(row[0]);
-            });
-            
-            if (recentSignups.length === 0) {
-                return interaction.editReply({ content: 'No recent signups found for the upcoming tournament.', ephemeral: true });
-            }
 
-            // Sort by timestamp (newest first)
-            recentSignups.sort((a, b) => new Date(b[0]) - new Date(a[0]));
+            // Skip header row, filter out empty rows, sort by timestamp (newest first), and take top 20
+            const recentSignups = signups
+                .slice(1)
+                .filter(row => row[0]) // Skip rows without timestamp
+                .sort((a, b) => new Date(b[0]) - new Date(a[0])) // Newest first
+                .slice(0, 20); // Take top 20
+
+            if (recentSignups.length === 0) {
+                return interaction.editReply({ content: 'No recent signups found.', ephemeral: true });
+            }
             
             // Pagination setup
             const signupsPerPage = 5;
@@ -91,35 +46,11 @@ module.exports = {
                 const startIdx = (page - 1) * signupsPerPage;
                 const endIdx = Math.min(startIdx + signupsPerPage, recentSignups.length);
                 const currentSignups = recentSignups.slice(startIdx, endIdx);
-                
-                // Get the most recent Thursday date for display
-                const mostRecentThursday = new Date();
-                const currentDay = mostRecentThursday.getDay();
-                
-                // Calculate the most recent Thursday (same logic as in isWithinRange function)
-                if (currentDay === 4) {
-                    const currentHour = mostRecentThursday.getHours();
-                    if (currentHour < 18) {
-                        mostRecentThursday.setDate(mostRecentThursday.getDate() - 7);
-                    }
-                } else if (currentDay > 4) {
-                    mostRecentThursday.setDate(mostRecentThursday.getDate() - (currentDay - 4));
-                } else {
-                    mostRecentThursday.setDate(mostRecentThursday.getDate() - (currentDay + 3));
-                }
-                mostRecentThursday.setHours(18, 0, 0, 0);
-                
-                // Format date for display
-                const formattedDate = mostRecentThursday.toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                });
-                
+
                 const embed = new EmbedBuilder()
                     .setColor(0x0099FF)
                     .setTitle('🏆 Recent Tournament Signups')
-                    .setDescription(`Signups since ${formattedDate} at 6:00 PM ET`)
+                    .setDescription(`Showing the ${recentSignups.length} most recent signups`)
                     .setFooter({ text: `Page ${page}/${totalPages} · ${recentSignups.length} total signups` });
                 
                 // Add each signup as a field
