@@ -253,8 +253,8 @@ module.exports = {
           const loserBuild = match[6] || '';
           const matchType = match[8] || 'Unknown';
 
-          const winnerClassEmoji = getClassEmoji(winnerClass, true);
-          const loserClassEmoji = getClassEmoji(loserClass, true);
+          const winnerClassEmoji = getClassEmoji(winnerClass);
+          const loserClassEmoji = getClassEmoji(loserClass);
           
           return `**${formattedDate}** - ${winner} def. ${loser}\n` +
                  `${winnerClassEmoji} ${winnerClass} ${winnerBuild} vs ${loserClassEmoji} ${loserClass} ${loserBuild}\n` +

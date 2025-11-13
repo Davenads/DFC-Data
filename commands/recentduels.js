@@ -86,8 +86,8 @@ module.exports = {
           const matchType = match[8] || 'Unknown'; // Match Type
           const title = match[11] || ''; // Title
 
-          const winnerClassEmoji = getClassEmoji(winnerClass, true);
-          const loserClassEmoji = getClassEmoji(loserClass, true);
+          const winnerClassEmoji = getClassEmoji(winnerClass);
+          const loserClassEmoji = getClassEmoji(loserClass);
           
           let matchString = `**${formattedDate}** - ${winner} def. ${loser}`;
           

@@ -240,7 +240,7 @@ module.exports = {
       // Class distribution
       if (topClasses.length > 0) {
         const classDistribution = topClasses.map(([className, count]) => {
-          const emoji = getClassEmoji(className, true);
+          const emoji = getClassEmoji(className);
           const percentage = ((count / (recentMatches.length * 2)) * 100).toFixed(1);
           const capitalizedClass = className.charAt(0).toUpperCase() + className.slice(1);
           return `${emoji} **${capitalizedClass}**: ${count} (${percentage}%)`;
@@ -264,8 +264,8 @@ module.exports = {
       if (topMatchups.length > 0) {
         const matchupsList = topMatchups.map(([matchup, count], index) => {
           const [class1, class2] = matchup.split(' vs ');
-          const class1Emoji = getClassEmoji(class1, true);
-          const class2Emoji = getClassEmoji(class2, true);
+          const class1Emoji = getClassEmoji(class1);
+          const class2Emoji = getClassEmoji(class2);
           
           // Calculate win rates
           const wins = matchupWins[matchup] || {};

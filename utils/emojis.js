@@ -23,7 +23,7 @@ const classEmojiIds = {
     Barbarian: '924434081406672977',
     Druid: '953116506839973928',
     Necromancer: '953116507058085918',
-    Paladin: '1039258310857195730',
+    Paladin: '953116506928074762',
     Sorceress: '924434081163391058'
 };
 

@@ -146,13 +146,13 @@ module.exports = {
 
                     // Determine emoji for class
                     let classEmoji = '⚔️'; // Default
-                    if (characterClass.includes('Paladin')) classEmoji = getClassEmoji('Paladin', true);
-                    else if (characterClass.includes('Necromancer')) classEmoji = getClassEmoji('Necromancer', true);
-                    else if (characterClass.includes('Assassin')) classEmoji = getClassEmoji('Assassin', true);
-                    else if (characterClass.includes('Druid')) classEmoji = getClassEmoji('Druid', true);
-                    else if (characterClass.includes('Amazon')) classEmoji = getClassEmoji('Amazon', true);
-                    else if (characterClass.includes('Sorceress')) classEmoji = getClassEmoji('Sorceress', true);
-                    else if (characterClass.includes('Barbarian')) classEmoji = getClassEmoji('Barbarian', true);
+                    if (characterClass.includes('Paladin')) classEmoji = getClassEmoji('Paladin');
+                    else if (characterClass.includes('Necromancer')) classEmoji = getClassEmoji('Necromancer');
+                    else if (characterClass.includes('Assassin')) classEmoji = getClassEmoji('Assassin');
+                    else if (characterClass.includes('Druid')) classEmoji = getClassEmoji('Druid');
+                    else if (characterClass.includes('Amazon')) classEmoji = getClassEmoji('Amazon');
+                    else if (characterClass.includes('Sorceress')) classEmoji = getClassEmoji('Sorceress');
+                    else if (characterClass.includes('Barbarian')) classEmoji = getClassEmoji('Barbarian');
                     
                     embed.addFields({
                         name: `${classEmoji} ${discordHandle}`,

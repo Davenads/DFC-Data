@@ -519,8 +519,8 @@ module.exports = {
             const opponent = isWinner ? loser : winner;
 
             // Get emojis for classes
-            const playerClassEmoji = getClassEmoji(playerClass, true);
-            const opponentClassEmoji = getClassEmoji(opponentClass, true);
+            const playerClassEmoji = getClassEmoji(playerClass);
+            const opponentClassEmoji = getClassEmoji(opponentClass);
             
             return `${formattedDate} - ${isWinner ? '✅ Win' : '❌ Loss'} vs ${opponent}\n` +
                    `${playerClassEmoji} ${playerClass} ${playerBuild} vs ${opponentClassEmoji} ${opponentClass} ${opponentBuild}\n` +
