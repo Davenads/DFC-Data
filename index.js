@@ -10,7 +10,6 @@ const redisClient = require('./utils/redisClient');
 const duelDataCache = require('./utils/duelDataCache');
 const rosterCache = require('./utils/rosterCache');
 const signupsCache = require('./utils/signupsCache');
-const rankingsCache = require('./utils/rankingsCache');
 
 // Define the prefix for message commands
 const PREFIX = '!';
@@ -68,10 +67,9 @@ client.once('ready', async () => {
         await Promise.all([
             duelDataCache.refreshCache(),
             rosterCache.refreshCache(),
-            signupsCache.refreshCache(),
-            rankingsCache.refreshCache()
+            signupsCache.refreshCache()
         ]);
-        console.log('Initial cache load completed (Duel Data + Roster + Signups + Rankings)');
+        console.log('Initial cache load completed (Duel Data + Roster + Signups)');
     } catch (error) {
         console.error('Failed to initialize Redis or cache:', error);
         console.log('Bot will continue running with Google Sheets fallback');
@@ -84,10 +82,9 @@ client.once('ready', async () => {
             await Promise.all([
                 duelDataCache.refreshCache(),
                 rosterCache.refreshCache(),
-                signupsCache.refreshCache(),
-                rankingsCache.refreshCache()
+                signupsCache.refreshCache()
             ]);
-            console.log('Thursday cache refresh completed successfully (Duel Data + Roster + Signups + Rankings)');
+            console.log('Thursday cache refresh completed successfully (Duel Data + Roster + Signups)');
         } catch (error) {
             console.error('Thursday cache refresh failed, will fallback to Google Sheets:', error);
         }
@@ -102,10 +99,9 @@ client.once('ready', async () => {
             await Promise.all([
                 duelDataCache.refreshCache(),
                 rosterCache.refreshCache(),
-                signupsCache.refreshCache(),
-                rankingsCache.refreshCache()
+                signupsCache.refreshCache()
             ]);
-            console.log('Friday cache refresh completed successfully (Duel Data + Roster + Signups + Rankings)');
+            console.log('Friday cache refresh completed successfully (Duel Data + Roster + Signups)');
         } catch (error) {
             console.error('Friday cache refresh failed, will fallback to Google Sheets:', error);
         }
@@ -120,10 +116,9 @@ client.once('ready', async () => {
             await Promise.all([
                 duelDataCache.refreshCache(),
                 rosterCache.refreshCache(),
-                signupsCache.refreshCache(),
-                rankingsCache.refreshCache()
+                signupsCache.refreshCache()
             ]);
-            console.log('Friday evening cache refresh completed successfully (Duel Data + Roster + Signups + Rankings)');
+            console.log('Friday evening cache refresh completed successfully (Duel Data + Roster + Signups)');
         } catch (error) {
             console.error('Friday evening cache refresh failed, will fallback to Google Sheets:', error);
         }

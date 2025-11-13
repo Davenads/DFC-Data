@@ -3,7 +3,6 @@ const { google } = require('googleapis');
 const { createGoogleAuth } = require('../utils/googleAuth');
 const duelDataCache = require('../utils/duelDataCache');
 const rosterCache = require('../utils/rosterCache');
-const rankingsCache = require('../utils/rankingsCache');
 const { getClassEmoji } = require('../utils/emojis');
 
 module.exports = {
@@ -268,14 +267,11 @@ module.exports = {
 
       console.log(`[${timestamp}] [${commandType}] Player validated in roster in ${Date.now() - rosterStart}ms`);
 
-      // Get rankings and duel data (no ELO data needed for simplified stats)
+      // Get duel data (no ELO or rankings data needed for simplified stats)
       const dataStart = Date.now();
-      console.log(`[${timestamp}] [${commandType}] Fetching rankings and duel data...`);
+      console.log(`[${timestamp}] [${commandType}] Fetching duel data...`);
 
-      const [rankingsRows, duelRows] = await Promise.all([
-        rankingsCache.getCachedRankings(),
-        duelDataCache.getCachedData()
-      ]);
+      const duelRows = await duelDataCache.getCachedData();
 
       console.log(`[${timestamp}] [${commandType}] Data fetched in ${Date.now() - dataStart}ms`);
 
@@ -360,51 +356,12 @@ module.exports = {
 
       // Player exists in duel data, continue with stats calculation
 
-      // Rankings data already fetched concurrently above
-      console.log(`[${timestamp}] [${commandType}] Processing rankings data (${rankingsRows.length} rows)...`);
-      
-      // Check if player is the champion
-      let isChampion = false;
-      for (let i = 0; i < rankingsRows.length; i++) {
-        if (rankingsRows[i][0] === 'Champion' && 
-            rankingsRows[i][1] && 
-            rankingsRows[i][1].toLowerCase() === playerName.toLowerCase()) {
-          isChampion = true;
-          break;
-        }
-      }
-
-      // Check player's ranking (if any)
-      let playerRank = null;
-      for (let i = 0; i < rankingsRows.length; i++) {
-        if (rankingsRows[i][1] && rankingsRows[i][1].toLowerCase() === playerName.toLowerCase() && 
-            rankingsRows[i][0] && !isNaN(rankingsRows[i][0])) {
-          playerRank = rankingsRows[i][0].toString();
-          break;
-        }
-      }
-
       // Create the embed
       const embed = new EmbedBuilder()
         .setColor(0x0099ff)
         .setTitle(`📊 Stats for ${playerName} (Last ${days} Days)`)
         .setFooter({ text: 'DFC Stats' })
         .setTimestamp();
-
-      // Add rank information if applicable
-      if (isChampion) {
-        embed.addFields({ name: '👑 Rank', value: 'Champion', inline: false });
-      } else if (playerRank) {
-        // Add emojis for top 3 ranks
-        const rankEmojis = {
-          '1': '🥇 1st Place',
-          '2': '🥈 2nd Place',
-          '3': '🥉 3rd Place'
-        };
-        
-        const rankDisplay = rankEmojis[playerRank] || `#${playerRank}`;
-        embed.addFields({ name: '🏆 Rank', value: rankDisplay, inline: false });
-      }
 
       // Stats will be calculated after date filtering
       let matchTypeStats = {};
