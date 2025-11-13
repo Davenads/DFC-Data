@@ -24,6 +24,9 @@ refresh-cache-logs.md
 # Conversation summaries
 conversation-summary.md
 
+# Planning documents
+recentduels-pagination-plan.md
+
 # Claude Code local settings (user-specific)
 .claude/settings.local.json
 .claude/CLAUDE.md

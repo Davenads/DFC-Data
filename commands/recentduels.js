@@ -171,26 +171,35 @@ module.exports = {
         embedsToSend = embeds;
       }
 
-      // Send the first embed as a reply, then send additional embeds as follow-up messages
-      let firstEmbed = embedsToSend[0];
-      let replyContent = {};
-      
-      if (usedDefault) {
-        replyContent.content = `💡 **Tip**: You can specify the number of days to look back by using \`!recentduels [days]\` (e.g., \`!recentduels 20\`) - up to 30 days max.`;
-        replyContent.embeds = [firstEmbed];
-      } else {
-        replyContent.embeds = [firstEmbed];
-      }
-      
-      await interaction.editReply({ ...replyContent, ephemeral: true });
-      
-      // Send additional embeds as follow-up messages if there are any
-      if (embedsToSend.length > 1) {
-        for (let i = 1; i < embedsToSend.length; i++) {
-          await interaction.followUp({ embeds: [embedsToSend[i]], ephemeral: true });
+      // Try to send embeds via DM
+      try {
+        // Send all embeds to user via DM
+        for (const embed of embedsToSend) {
+          await user.send({ embeds: [embed] });
         }
+
+        // Create notification embed for channel
+        const notificationEmbed = new EmbedBuilder()
+          .setColor(0x0099FF) // Blue color
+          .setTitle('📬 Recent Duels Sent!')
+          .setDescription(`Check your DM from <@${interaction.client.user.id}> for recent duels from the last ${days} day${days === 1 ? '' : 's'}.`)
+          .setTimestamp();
+
+        let replyContent = { embeds: [notificationEmbed], ephemeral: true };
+
+        if (usedDefault) {
+          replyContent.content = `💡 **Tip**: You can specify the number of days to look back by using \`/recentduels days:[number]\` (e.g., \`/recentduels days:20\`) - up to 30 days max.`;
+        }
+
+        await interaction.editReply(replyContent);
+        console.log(`[${timestamp}] Recent duels command completed successfully for ${user.tag} (${user.id}) - sent ${recentMatches.length} matches in ${days} days via DM`);
+      } catch (dmError) {
+        console.error(`[${timestamp}] Failed to send DM to ${user.tag} (${user.id})`, dmError);
+        await interaction.editReply({
+          content: '❌ Unable to send you a DM. Please check that your DMs are enabled for this server.',
+          ephemeral: true
+        });
       }
-      console.log(`[${timestamp}] Recent duels command completed successfully for ${user.tag} (${user.id}) - found ${recentMatches.length} matches in ${days} days`);
     } catch (error) {
       const errorMessage = `[${timestamp}] Error fetching recent duels for ${user.tag} (${user.id})`;
       console.error(errorMessage, error);
