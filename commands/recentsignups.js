@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('@discordjs/builders');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { getClassEmoji } = require('../utils/emojis');
+const signupsCache = require('../utils/signupsCache');
 
 // Helper function to check if a signup is between now and the most recent past Thursday at 6:00pm ET
 const isWithinRange = (timestamp) => {
@@ -63,16 +64,9 @@ module.exports = {
 
         try {
             await interaction.deferReply({ ephemeral: true });
-            const authClient = auth; // Auth is already a JWT client
 
-            // Fetch signups from the "DFC Recent Signups" tab
-            const res = await sheets.spreadsheets.values.get({
-                auth: authClient,
-                spreadsheetId: process.env.SPREADSHEET_ID,
-                range: 'DFC Recent Signups!A:E',
-            });
-            
-            const signups = res.data.values || [];
+            // Fetch signups from cache (falls back to Google Sheets if cache unavailable)
+            const signups = await signupsCache.getCachedData();
             
             // Skip header row and filter for signups in the last 7 days but before cutoff
             const recentSignups = signups.slice(1).filter(row => {

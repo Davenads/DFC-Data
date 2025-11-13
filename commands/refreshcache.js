@@ -2,11 +2,12 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const duelDataCache = require('../utils/duelDataCache');
 const playerListCache = require('../utils/playerListCache');
 const rosterCache = require('../utils/rosterCache');
+const signupsCache = require('../utils/signupsCache');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('refreshcache')
-    .setDescription('Manually refresh Duel Data, Player List, and Roster caches')
+    .setDescription('Manually refresh Duel Data, Player List, Roster, and Signups caches')
     .setDefaultMemberPermissions('0'), // Restrict to administrators
 
   async execute(interaction) {
@@ -33,6 +34,7 @@ module.exports = {
       const oldDuelTimestamp = await duelDataCache.getCacheTimestamp();
       const oldPlayerTimestamp = await playerListCache.getCacheTimestamp();
       const oldRosterTimestamp = await rosterCache.getCacheTimestamp();
+      const oldSignupsTimestamp = await signupsCache.getCacheTimestamp();
 
       const oldDuelDate = oldDuelTimestamp ? new Date(oldDuelTimestamp).toLocaleString('en-US', {
         timeZone: 'America/New_York',
@@ -61,17 +63,28 @@ module.exports = {
         timeZoneName: 'short'
       }) : 'Never';
 
+      const oldSignupsDate = oldSignupsTimestamp ? new Date(oldSignupsTimestamp).toLocaleString('en-US', {
+        timeZone: 'America/New_York',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZoneName: 'short'
+      }) : 'Never';
+
       // Refresh all caches
-      const [duelData, playerList, rosterMap] = await Promise.all([
+      const [duelData, playerList, rosterMap, signupsData] = await Promise.all([
         duelDataCache.refreshCache(),
         playerListCache.refreshPlayerListCache(),
-        rosterCache.refreshCache()
+        rosterCache.refreshCache(),
+        signupsCache.refreshCache()
       ]);
       
       // Get new cache timestamps
       const newDuelTimestamp = await duelDataCache.getCacheTimestamp();
       const newPlayerTimestamp = await playerListCache.getCacheTimestamp();
       const newRosterTimestamp = await rosterCache.getCacheTimestamp();
+      const newSignupsTimestamp = await signupsCache.getCacheTimestamp();
 
       const newDuelDate = new Date(newDuelTimestamp).toLocaleString('en-US', {
         timeZone: 'America/New_York',
@@ -100,19 +113,30 @@ module.exports = {
         timeZoneName: 'short'
       });
 
+      const newSignupsDate = new Date(newSignupsTimestamp).toLocaleString('en-US', {
+        timeZone: 'America/New_York',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZoneName: 'short'
+      });
+
       const rosterCount = Object.keys(rosterMap).length;
 
       const embed = new EmbedBuilder()
         .setColor(0x00FF00)
         .setTitle('✅ Cache Refresh Complete')
-        .setDescription('All caches (Duel Data, Player List, and Roster) have been successfully refreshed.')
+        .setDescription('All caches (Duel Data, Player List, Roster, and Signups) have been successfully refreshed.')
         .addFields(
           { name: '📊 Duel Rows Cached', value: duelData.length.toString(), inline: true },
           { name: '👥 Players Cached', value: playerList.length.toString(), inline: true },
           { name: '📋 Roster Entries', value: rosterCount.toString(), inline: true },
+          { name: '📝 Signup Rows Cached', value: signupsData.length.toString(), inline: true },
           { name: 'Previous Duel Update', value: oldDuelDate, inline: true },
           { name: 'Previous Player Update', value: oldPlayerDate, inline: true },
           { name: 'Previous Roster Update', value: oldRosterDate, inline: true },
+          { name: 'Previous Signups Update', value: oldSignupsDate, inline: true },
           { name: '🆕 All Updated', value: 'Just now', inline: false }
         )
         .setTimestamp()
@@ -120,7 +144,7 @@ module.exports = {
 
       await interaction.editReply({ embeds: [embed] });
 
-      console.log(`[${timestamp}] Manual cache refresh completed successfully by ${user.tag} (${user.id}) - ${duelData.length} duel rows, ${playerList.length} players, and ${rosterCount} roster entries cached`);
+      console.log(`[${timestamp}] Manual cache refresh completed successfully by ${user.tag} (${user.id}) - ${duelData.length} duel rows, ${playerList.length} players, ${rosterCount} roster entries, and ${signupsData.length} signup rows cached`);
     } catch (error) {
       console.error(`[${timestamp}] Manual cache refresh failed for ${user.tag} (${user.id}):`, error);
       
