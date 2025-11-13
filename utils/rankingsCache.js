@@ -4,61 +4,135 @@ const redisClient = require('./redisClient');
 
 const CACHE_KEY = 'dfc-data:rankings';
 const CACHE_TIMESTAMP_KEY = 'dfc-data:rankings-timestamp';
-const CACHE_TTL = 86400; // 1 day in seconds (rankings change less frequently)
+const CACHE_TTL = 604800; // 1 week in seconds (same as duel data cache)
+const DIVISIONS = ['HLD', 'LLD', 'Melee'];
 
 class RankingsCache {
     constructor() {
         this.isRefreshing = false;
     }
 
-    async getCachedRankings() {
+    async getCachedRankings(division = null) {
         try {
             // Try to connect to Redis
             await redisClient.connect();
             const client = redisClient.getClient();
-            
+
             if (!client || !redisClient.isReady()) {
                 console.log('Redis client not available for rankings, falling back to Google Sheets');
-                return await this.fetchLiveRankings();
+                return division ? await this.fetchLiveRankingsForDivision(division) : await this.fetchAllLiveRankings();
             }
 
             const cachedData = await client.get(CACHE_KEY);
-            
+
             if (cachedData) {
                 console.log('Retrieved rankings from Redis cache');
-                return JSON.parse(cachedData);
+                const allRankings = JSON.parse(cachedData);
+                return division ? allRankings[division] : allRankings;
             } else {
                 console.log('No cached rankings found, attempting to refresh cache');
                 // Try to refresh cache, but fallback to live data if that fails
                 try {
-                    return await this.refreshRankingsCache();
+                    const allRankings = await this.refreshRankingsCache();
+                    return division ? allRankings[division] : allRankings;
                 } catch (refreshError) {
                     console.error('Rankings cache refresh failed, falling back to Google Sheets:', refreshError);
-                    return await this.fetchLiveRankings();
+                    return division ? await this.fetchLiveRankingsForDivision(division) : await this.fetchAllLiveRankings();
                 }
             }
         } catch (error) {
             console.error('Redis connection/operation failed for rankings, falling back to Google Sheets:', error);
-            return await this.fetchLiveRankings();
+            return division ? await this.fetchLiveRankingsForDivision(division) : await this.fetchAllLiveRankings();
         }
     }
 
-    async fetchLiveRankings() {
+    async fetchLiveRankingsForDivision(division) {
         const sheets = google.sheets('v4');
         const auth = createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
 
         try {
+            // Write the division to cell B3 in the 'Official Rankings - Bot' tab
+            await sheets.spreadsheets.values.update({
+                auth,
+                spreadsheetId: process.env.SPREADSHEET_ID,
+                range: "'Official Rankings - Bot'!B3",
+                valueInputOption: 'RAW',
+                requestBody: {
+                    values: [[division]]
+                }
+            });
+
+            // Small delay to allow formulas to recalculate
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Fetch rankings data from the Official Rankings - Bot tab
             const response = await sheets.spreadsheets.values.get({
                 auth,
                 spreadsheetId: process.env.SPREADSHEET_ID,
-                range: 'Official Rankings!A1:B30', // Get enough rows for champion + top 20
+                range: "'Official Rankings - Bot'!A1:B30", // Get enough rows for champion + top 20
             });
 
-            const rankings = response.data.values || [];
-            console.log(`Fetched ${rankings.length} ranking rows from Google Sheets`);
-            return rankings;
+            const rows = response.data.values || [];
+
+            // Parse the data to extract champion and ranked players
+            let champion = null;
+            for (let i = 0; i < rows.length; i++) {
+                if (rows[i][0] === 'Champion' && rows[i][1]) {
+                    champion = rows[i][1];
+                    break;
+                }
+            }
+
+            // Process the top 20 ranked players
+            const rankedPlayers = [];
+            let startRow = 4; // Starting from row 4 where numbered rankings begin
+
+            // Find where the numbered rankings actually start
+            for (let i = 0; i < rows.length; i++) {
+                if (rows[i][0] === '1' || rows[i][0] === 1) {
+                    startRow = i;
+                    break;
+                }
+            }
+
+            // Collect up to 20 ranked players
+            for (let i = startRow; i < rows.length && rankedPlayers.length < 20; i++) {
+                if (rows[i] && rows[i][0] && rows[i][1]) {
+                    const rank = rows[i][0].toString();
+                    const name = rows[i][1];
+
+                    // Only add if we have valid data
+                    if (rank && name) {
+                        rankedPlayers.push({ rank, name });
+                    }
+                }
+            }
+
+            console.log(`Fetched ${division} rankings: Champion=${champion}, Ranked Players=${rankedPlayers.length}`);
+            return { champion, rankedPlayers };
         } catch (error) {
-            console.error('Error fetching live rankings from Google Sheets:', error);
+            console.error(`Error fetching live ${division} rankings from Google Sheets:`, error);
+            throw error;
+        }
+    }
+
+    async fetchAllLiveRankings() {
+        const sheets = google.sheets('v4');
+        const auth = createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
+
+        try {
+            const allRankings = {};
+
+            // Fetch rankings for each division sequentially
+            for (const division of DIVISIONS) {
+                console.log(`Fetching rankings for ${division}...`);
+                allRankings[division] = await this.fetchLiveRankingsForDivision(division);
+            }
+
+            console.log(`Fetched all rankings for ${DIVISIONS.length} divisions`);
+            return allRankings;
+        } catch (error) {
+            console.error('Error fetching all live rankings from Google Sheets:', error);
             throw error;
         }
     }
@@ -75,33 +149,36 @@ class RankingsCache {
                 return await this.getCachedRankings();
             } catch (error) {
                 console.error('Error after waiting for rankings refresh, falling back to live data:', error);
-                return await this.fetchLiveRankings();
+                return await this.fetchAllLiveRankings();
             }
         }
 
         this.isRefreshing = true;
-        
+
         try {
-            console.log('Refreshing rankings cache...');
-            const rankings = await this.fetchLiveRankings();
-            
+            console.log('Refreshing rankings cache for all divisions...');
+            const allRankings = await this.fetchAllLiveRankings();
+
             // Try to store in Redis, but don't fail if Redis is unavailable
             try {
                 await redisClient.connect();
                 const client = redisClient.getClient();
-                
+
                 if (client && redisClient.isReady()) {
-                    await client.setEx(CACHE_KEY, CACHE_TTL, JSON.stringify(rankings));
+                    await client.setEx(CACHE_KEY, CACHE_TTL, JSON.stringify(allRankings));
                     await client.setEx(CACHE_TIMESTAMP_KEY, CACHE_TTL, Date.now().toString());
-                    console.log(`Rankings cache refreshed with ${rankings.length} rows, TTL: ${CACHE_TTL}s`);
+                    const divisionSummary = DIVISIONS.map(div =>
+                        `${div}: ${allRankings[div]?.rankedPlayers?.length || 0} players`
+                    ).join(', ');
+                    console.log(`Rankings cache refreshed for all divisions (${divisionSummary}), TTL: ${CACHE_TTL}s`);
                 } else {
                     console.log('Redis not available for rankings cache storage, but returning live data');
                 }
             } catch (redisError) {
                 console.error('Redis storage failed during rankings refresh, but returning live data:', redisError);
             }
-            
-            return rankings;
+
+            return allRankings;
         } catch (error) {
             console.error('Error refreshing rankings cache:', error);
             throw error;
