@@ -94,12 +94,12 @@ module.exports = {
                 const row = new ActionRowBuilder()
                     .addComponents(
                         new ButtonBuilder()
-                            .setCustomId('previous')
+                            .setCustomId('recentsignups_previous')
                             .setLabel('Previous')
                             .setStyle(ButtonStyle.Primary)
                             .setDisabled(page === 1),
                         new ButtonBuilder()
-                            .setCustomId('next')
+                            .setCustomId('recentsignups_next')
                             .setLabel('Next')
                             .setStyle(ButtonStyle.Primary)
                             .setDisabled(page === totalPages)
@@ -124,12 +124,12 @@ module.exports = {
                 });
                 
                 collector.on('collect', async i => {
-                    if (i.customId === 'previous') {
+                    if (i.customId === 'recentsignups_previous') {
                         currentPage--;
-                    } else if (i.customId === 'next') {
+                    } else if (i.customId === 'recentsignups_next') {
                         currentPage++;
                     }
-                    
+
                     await i.update({
                         embeds: [createEmbed(currentPage)],
                         components: [createButtons(currentPage)]
