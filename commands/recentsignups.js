@@ -7,7 +7,17 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('recentsignups')
         .setDescription('View recent tournament signups'),
-    
+
+    // Handle pagination buttons (return true to mark as handled by this command)
+    async handleButton(interaction) {
+        if (interaction.customId.startsWith('recentsignups_')) {
+            // These buttons are handled by the message component collector
+            // Return true to prevent the global handler from interfering
+            return true;
+        }
+        return false;
+    },
+
     async execute(interaction, sheets, auth) {
         const timestamp = new Date().toISOString();
         const user = interaction.user;
