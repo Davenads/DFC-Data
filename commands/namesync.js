@@ -18,7 +18,7 @@ module.exports = {
             });
         }
 
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply();
 
         try {
             // Fetch all guild members into cache
@@ -35,7 +35,6 @@ module.exports = {
             }
 
             const activeMismatches = [];
-            const leftUsers = [];
 
             // Iterate through roster entries
             for (const [uuid, rosterEntry] of Object.entries(roster)) {
@@ -48,14 +47,8 @@ module.exports = {
                 // Try to find member in guild
                 const guildMember = interaction.guild.members.cache.get(uuid);
 
-                if (!guildMember) {
-                    // User has left the server
-                    leftUsers.push({
-                        arenaName: rosterEntry.arenaName,
-                        cachedName: rosterEntry.discordName,
-                        uuid: uuid
-                    });
-                } else {
+                // Only check users currently in the server
+                if (guildMember) {
                     // User is in server - compare names
                     const currentUsername = guildMember.user.username;
                     const cachedUsername = rosterEntry.discordName;
@@ -72,9 +65,11 @@ module.exports = {
             }
 
             // Build embed
+            const totalRosterEntries = Object.keys(roster).length;
             const embed = new EmbedBuilder()
                 .setColor(activeMismatches.length > 0 ? 0xFF6B6B : 0x51CF66)
                 .setTitle('Discord Username Sync Check')
+                .setDescription(`Cross-referencing **Roster** sheet (Column C: Discord Name) against live Discord usernames.\n\nTotal roster entries: **${totalRosterEntries}**`)
                 .setTimestamp();
 
             // Add active mismatches section
@@ -122,36 +117,14 @@ module.exports = {
                 }
             } else {
                 embed.addFields({
-                    name: '✅ Active Mismatches',
+                    name: '✅ No Mismatches Found',
                     value: 'All active users have synchronized Discord names!'
                 });
             }
 
-            // Add left users section
-            if (leftUsers.length > 0) {
-                const leftText = leftUsers
-                    .map(entry => `**${entry.arenaName}**\nLast known: \`${entry.cachedName}\``)
-                    .join('\n');
-
-                // Check if we need to truncate
-                if (leftText.length > 1024) {
-                    const truncatedText = leftText.substring(0, 1000) + `\n... and ${leftUsers.length - leftText.substring(0, 1000).split('\n').filter(line => line.includes('**')).length} more`;
-                    embed.addFields({
-                        name: `👋 Left Server (${leftUsers.length})`,
-                        value: truncatedText
-                    });
-                } else {
-                    embed.addFields({
-                        name: `👋 Left Server (${leftUsers.length})`,
-                        value: leftText
-                    });
-                }
-            }
-
             // Add summary footer
-            const totalChecked = Object.keys(roster).length;
             embed.setFooter({
-                text: `Checked ${totalChecked} roster entries | ${activeMismatches.length} mismatches | ${leftUsers.length} left server`
+                text: `${activeMismatches.length} mismatch${activeMismatches.length !== 1 ? 'es' : ''} found`
             });
 
             return interaction.editReply({ embeds: [embed] });
