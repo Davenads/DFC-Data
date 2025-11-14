@@ -38,6 +38,16 @@ module.exports = {
         .setMinValue(1)
         .setMaxValue(50)),
 
+  // Handle pagination buttons (return true to mark as handled by this command)
+  async handleButton(interaction) {
+    if (interaction.customId.startsWith('rankings_legacy_')) {
+      // These buttons are handled by the message component collector
+      // Return true to prevent the global handler from interfering
+      return true;
+    }
+    return false;
+  },
+
   async execute(interaction) {
     const rankType = interaction.options.getString('rank_type');
     const matchType = interaction.options.getString('match_type');
@@ -140,12 +150,12 @@ module.exports = {
       const updateReply = async () => {
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
-            .setCustomId('prev_page')
+            .setCustomId('rankings_legacy_prev_page')
             .setLabel('Previous')
             .setStyle(ButtonStyle.Primary)
             .setDisabled(currentPage === 0),
           new ButtonBuilder()
-            .setCustomId('next_page')
+            .setCustomId('rankings_legacy_next_page')
             .setLabel('Next')
             .setStyle(ButtonStyle.Primary)
             .setDisabled(currentPage === totalPages - 1),
@@ -162,9 +172,9 @@ module.exports = {
       });
 
       collector.on('collect', async i => {
-        if (i.customId === 'prev_page' && currentPage > 0) {
+        if (i.customId === 'rankings_legacy_prev_page' && currentPage > 0) {
           currentPage--;
-        } else if (i.customId === 'next_page' && currentPage < totalPages - 1) {
+        } else if (i.customId === 'rankings_legacy_next_page' && currentPage < totalPages - 1) {
           currentPage++;
         }
         await i.deferUpdate();
