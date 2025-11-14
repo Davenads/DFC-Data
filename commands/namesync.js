@@ -28,9 +28,6 @@ module.exports = {
             console.log(`[NAMESYNC] Deferring reply for ${invokedBy}`);
             await interaction.deferReply();
 
-            // Use cached guild members instead of fetching all (prevents timeout on large guilds)
-            console.log(`[NAMESYNC] Using cached guild members (${interaction.guild.members.cache.size} cached)`);
-
             // Get cached roster
             console.log(`[NAMESYNC] Retrieving roster from cache...`);
             const cacheStart = Date.now();
@@ -47,8 +44,10 @@ module.exports = {
             console.log(`[NAMESYNC] Processing ${Object.keys(roster).length} roster entries...`);
 
             const activeMismatches = [];
+            let checkedCount = 0;
+            let notInServerCount = 0;
 
-            // Iterate through roster entries
+            // Iterate through roster entries and fetch each member individually
             for (const [uuid, rosterEntry] of Object.entries(roster)) {
                 // Skip entries without UUID (shouldn't happen, but defensive)
                 if (!uuid || uuid === 'undefined') continue;
@@ -56,25 +55,35 @@ module.exports = {
                 // Skip entries without cached Discord name
                 if (!rosterEntry.discordName) continue;
 
-                // Try to find member in guild
-                const guildMember = interaction.guild.members.cache.get(uuid);
+                try {
+                    // Fetch member by UUID - this checks if they're in the server
+                    const guildMember = await interaction.guild.members.fetch(uuid).catch(() => null);
 
-                // Only check users currently in the server
-                if (guildMember) {
-                    // User is in server - compare names
-                    const currentUsername = guildMember.user.username;
-                    const cachedUsername = rosterEntry.discordName;
+                    if (guildMember) {
+                        checkedCount++;
+                        // User is in server - compare current username with cached name from roster
+                        const currentUsername = guildMember.user.username;
+                        const cachedUsername = rosterEntry.discordName;
 
-                    if (currentUsername !== cachedUsername) {
-                        activeMismatches.push({
-                            arenaName: rosterEntry.arenaName,
-                            cachedName: cachedUsername,
-                            currentName: currentUsername,
-                            uuid: uuid
-                        });
+                        if (currentUsername !== cachedUsername) {
+                            activeMismatches.push({
+                                arenaName: rosterEntry.arenaName,
+                                cachedName: cachedUsername,
+                                currentName: currentUsername,
+                                uuid: uuid
+                            });
+                        }
+                    } else {
+                        // User not in server anymore
+                        notInServerCount++;
                     }
+                } catch (error) {
+                    // Member fetch failed (likely not in server)
+                    notInServerCount++;
                 }
             }
+
+            console.log(`[NAMESYNC] Checked ${checkedCount} active members, ${notInServerCount} not in server, found ${activeMismatches.length} mismatches`);
 
             console.log(`[NAMESYNC] Found ${activeMismatches.length} mismatches out of ${Object.keys(roster).length} entries`);
 
