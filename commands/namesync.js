@@ -1,5 +1,80 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const rosterCache = require('../utils/rosterCache');
+
+// Items per page to stay well within Discord's limits
+const ITEMS_PER_PAGE = 10;
+
+/**
+ * Build embed for a specific page of mismatches
+ * @param {Array} mismatches - All mismatches
+ * @param {number} totalRosterEntries - Total roster entries
+ * @param {number} page - Current page (0-indexed)
+ * @returns {Object} - Discord message object with embed and components
+ */
+function buildNameSyncEmbed(mismatches, totalRosterEntries, page) {
+    const totalPages = mismatches.length > 0 ? Math.ceil(mismatches.length / ITEMS_PER_PAGE) : 1;
+    const currentPage = Math.max(0, Math.min(page, totalPages - 1));
+
+    const embed = new EmbedBuilder()
+        .setColor(mismatches.length > 0 ? 0xFF6B6B : 0x51CF66)
+        .setTitle('Discord Username Sync Check')
+        .setDescription(`Cross-referencing **Roster** sheet (Column C: Discord Name) against live Discord usernames.\n\nTotal roster entries: **${totalRosterEntries}**`)
+        .setTimestamp();
+
+    if (mismatches.length > 0) {
+        // Get items for current page
+        const startIdx = currentPage * ITEMS_PER_PAGE;
+        const endIdx = Math.min(startIdx + ITEMS_PER_PAGE, mismatches.length);
+        const pageMismatches = mismatches.slice(startIdx, endIdx);
+
+        const mismatchText = pageMismatches
+            .map(entry => `**${entry.arenaName}**\nCached: \`${entry.cachedName}\` → Current: \`${entry.currentName}\``)
+            .join('\n\n');
+
+        embed.addFields({
+            name: `⚠️ Active Mismatches (${mismatches.length} total)`,
+            value: mismatchText
+        });
+
+        // Add page indicator if multiple pages
+        if (totalPages > 1) {
+            embed.setFooter({
+                text: `Page ${currentPage + 1} of ${totalPages} • ${mismatches.length} mismatch${mismatches.length !== 1 ? 'es' : ''} found`
+            });
+        } else {
+            embed.setFooter({
+                text: `${mismatches.length} mismatch${mismatches.length !== 1 ? 'es' : ''} found`
+            });
+        }
+    } else {
+        embed.addFields({
+            name: '✅ No Mismatches Found',
+            value: 'All active users have synchronized Discord names!'
+        });
+        embed.setFooter({ text: '0 mismatches found' });
+    }
+
+    // Add pagination buttons if needed
+    const components = [];
+    if (mismatches.length > 0 && totalPages > 1) {
+        const row = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`namesync_page_${currentPage - 1}`)
+                    .setLabel('◀ Previous')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setDisabled(currentPage === 0),
+                new ButtonBuilder()
+                    .setCustomId(`namesync_page_${currentPage + 1}`)
+                    .setLabel('Next ▶')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setDisabled(currentPage === totalPages - 1)
+            );
+        components.push(row);
+    }
+
+    return { embeds: [embed], components };
+}
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -26,7 +101,7 @@ module.exports = {
             }
 
             console.log(`[NAMESYNC] Deferring reply for ${invokedBy}`);
-            await interaction.deferReply();
+            await interaction.deferReply({ ephemeral: true });
 
             // Get cached roster
             console.log(`[NAMESYNC] Retrieving roster from cache...`);
@@ -100,84 +175,12 @@ module.exports = {
 
             console.log(`[NAMESYNC] Found ${activeMismatches.length} mismatches out of ${Object.keys(roster).length} entries`);
 
-            // Build embed
+            // Build and send embed with pagination
             console.log(`[NAMESYNC] Building embed...`);
-            const totalRosterEntries = Object.keys(roster).length;
-            const embed = new EmbedBuilder()
-                .setColor(activeMismatches.length > 0 ? 0xFF6B6B : 0x51CF66)
-                .setTitle('Discord Username Sync Check')
-                .setDescription(`Cross-referencing **Roster** sheet (Column C: Discord Name) against live Discord usernames.\n\nTotal roster entries: **${totalRosterEntries}**`)
-                .setTimestamp();
-
-            // Add active mismatches section
-            if (activeMismatches.length > 0) {
-                // Limit display to prevent exceeding 6000 char embed limit
-                const MAX_DISPLAY = 15;
-                const displayMismatches = activeMismatches.slice(0, MAX_DISPLAY);
-                const hasMore = activeMismatches.length > MAX_DISPLAY;
-
-                const mismatchText = displayMismatches
-                    .map(entry => `**${entry.arenaName}**\nCached: \`${entry.cachedName}\` → Current: \`${entry.currentName}\``)
-                    .join('\n\n');
-
-                // Check if we need to split into multiple fields
-                if (mismatchText.length > 1024) {
-                    const chunks = [];
-                    let currentChunk = '';
-
-                    for (const entry of displayMismatches) {
-                        const line = `**${entry.arenaName}**\nCached: \`${entry.cachedName}\` → Current: \`${entry.currentName}\`\n\n`;
-
-                        if ((currentChunk + line).length > 1024) {
-                            chunks.push(currentChunk);
-                            currentChunk = line;
-                        } else {
-                            currentChunk += line;
-                        }
-                    }
-                    if (currentChunk) chunks.push(currentChunk);
-
-                    // Add first chunk as main field
-                    embed.addFields({
-                        name: `⚠️ Active Mismatches (${activeMismatches.length})`,
-                        value: chunks[0]
-                    });
-
-                    // Add additional chunks as continuation fields
-                    for (let i = 1; i < chunks.length; i++) {
-                        embed.addFields({
-                            name: `⚠️ Active Mismatches (continued)`,
-                            value: chunks[i]
-                        });
-                    }
-                } else {
-                    embed.addFields({
-                        name: `⚠️ Active Mismatches (${activeMismatches.length})`,
-                        value: mismatchText
-                    });
-                }
-
-                // Add truncation notice if needed
-                if (hasMore) {
-                    embed.addFields({
-                        name: '📋 Note',
-                        value: `Showing first ${MAX_DISPLAY} of ${activeMismatches.length} mismatches to stay within Discord's character limits.`
-                    });
-                }
-            } else {
-                embed.addFields({
-                    name: '✅ No Mismatches Found',
-                    value: 'All active users have synchronized Discord names!'
-                });
-            }
-
-            // Add summary footer
-            embed.setFooter({
-                text: `${activeMismatches.length} mismatch${activeMismatches.length !== 1 ? 'es' : ''} found • Today at ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
-            });
+            const response = buildNameSyncEmbed(activeMismatches, Object.keys(roster).length, 0);
 
             console.log(`[NAMESYNC] Sending embed reply...`);
-            await interaction.editReply({ embeds: [embed] });
+            await interaction.editReply(response);
 
             const totalTime = Date.now() - startTime;
             console.log(`[NAMESYNC] Command completed successfully in ${totalTime}ms for ${invokedBy}`);
@@ -200,6 +203,73 @@ module.exports = {
                 }
             } catch (replyError) {
                 console.error(`[NAMESYNC] ERROR: Failed to send error message:`, replyError);
+            }
+        }
+    },
+
+    async handleButton(interaction) {
+        const customId = interaction.customId;
+
+        // Parse page number from customId (format: namesync_page_N)
+        if (!customId.startsWith('namesync_page_')) return;
+
+        const page = parseInt(customId.split('_')[2]);
+        if (isNaN(page)) return;
+
+        console.log(`[NAMESYNC] Button clicked: page ${page} by ${interaction.user.username}`);
+
+        try {
+            await interaction.deferUpdate();
+
+            // Re-fetch roster and recalculate mismatches
+            const roster = await rosterCache.getCachedRoster();
+            if (!roster || Object.keys(roster).length === 0) {
+                return interaction.editReply({
+                    content: '❌ Roster cache is empty. Try running `/refreshcache` first.',
+                    embeds: [],
+                    components: []
+                });
+            }
+
+            // Fetch all guild members
+            const allMembers = await interaction.guild.members.fetch({ force: false });
+
+            // Recalculate mismatches
+            const activeMismatches = [];
+            for (const [uuid, rosterEntry] of Object.entries(roster)) {
+                if (!uuid || uuid === 'undefined') continue;
+                if (!rosterEntry.discordName) continue;
+
+                const guildMember = allMembers.get(uuid);
+                if (guildMember) {
+                    const currentUsername = guildMember.user.username;
+                    const cachedUsername = rosterEntry.discordName;
+
+                    if (currentUsername !== cachedUsername) {
+                        activeMismatches.push({
+                            arenaName: rosterEntry.arenaName,
+                            cachedName: cachedUsername,
+                            currentName: currentUsername,
+                            uuid: uuid
+                        });
+                    }
+                }
+            }
+
+            // Build embed for requested page
+            const response = buildNameSyncEmbed(activeMismatches, Object.keys(roster).length, page);
+            await interaction.editReply(response);
+
+        } catch (error) {
+            console.error(`[NAMESYNC] ERROR in handleButton:`, error);
+            try {
+                await interaction.editReply({
+                    content: '❌ An error occurred while navigating pages.',
+                    embeds: [],
+                    components: []
+                });
+            } catch (replyError) {
+                console.error(`[NAMESYNC] ERROR: Failed to send button error message:`, replyError);
             }
         }
     }
