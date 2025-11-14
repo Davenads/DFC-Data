@@ -7,32 +7,47 @@ module.exports = {
         .setDescription('Check for Discord username mismatches in the roster'),
 
     async execute(interaction) {
-        // Check for Moderator role
-        const member = await interaction.guild.members.fetch(interaction.user.id);
-        const moderatorRole = interaction.guild.roles.cache.find(role => role.name === 'Moderator');
-
-        if (!moderatorRole || !member.roles.cache.has(moderatorRole.id)) {
-            return interaction.reply({
-                content: '❌ You must have the Moderator role to use this command.',
-                ephemeral: true
-            });
-        }
-
-        await interaction.deferReply();
+        const startTime = Date.now();
+        const invokedBy = `${interaction.user.username} (${interaction.user.id})`;
+        console.log(`[NAMESYNC] Command invoked by ${invokedBy} at ${new Date().toISOString()}`);
 
         try {
-            // Fetch all guild members into cache
-            await interaction.guild.members.fetch();
+            // Check for Moderator role
+            console.log(`[NAMESYNC] Checking Moderator role for ${invokedBy}`);
+            const member = await interaction.guild.members.fetch(interaction.user.id);
+            const moderatorRole = interaction.guild.roles.cache.find(role => role.name === 'Moderator');
 
-            // Get cached roster
-            const roster = await rosterCache.getCachedRoster();
-
-            if (!roster || Object.keys(roster).length === 0) {
-                return interaction.editReply({
-                    content: '❌ Roster cache is empty. Try running `/refreshcache` first.',
+            if (!moderatorRole || !member.roles.cache.has(moderatorRole.id)) {
+                console.log(`[NAMESYNC] Permission denied for ${invokedBy} - missing Moderator role`);
+                return interaction.reply({
+                    content: '❌ You must have the Moderator role to use this command.',
                     ephemeral: true
                 });
             }
+
+            console.log(`[NAMESYNC] Deferring reply for ${invokedBy}`);
+            await interaction.deferReply();
+
+            // Fetch all guild members into cache
+            console.log(`[NAMESYNC] Fetching guild members...`);
+            const fetchStart = Date.now();
+            await interaction.guild.members.fetch();
+            console.log(`[NAMESYNC] Guild members fetched in ${Date.now() - fetchStart}ms`);
+
+            // Get cached roster
+            console.log(`[NAMESYNC] Retrieving roster from cache...`);
+            const cacheStart = Date.now();
+            const roster = await rosterCache.getCachedRoster();
+            console.log(`[NAMESYNC] Roster retrieved in ${Date.now() - cacheStart}ms`);
+
+            if (!roster || Object.keys(roster).length === 0) {
+                console.log(`[NAMESYNC] ERROR: Roster cache is empty`);
+                return interaction.editReply({
+                    content: '❌ Roster cache is empty. Try running `/refreshcache` first.'
+                });
+            }
+
+            console.log(`[NAMESYNC] Processing ${Object.keys(roster).length} roster entries...`);
 
             const activeMismatches = [];
 
@@ -64,7 +79,10 @@ module.exports = {
                 }
             }
 
+            console.log(`[NAMESYNC] Found ${activeMismatches.length} mismatches out of ${Object.keys(roster).length} entries`);
+
             // Build embed
+            console.log(`[NAMESYNC] Building embed...`);
             const totalRosterEntries = Object.keys(roster).length;
             const embed = new EmbedBuilder()
                 .setColor(activeMismatches.length > 0 ? 0xFF6B6B : 0x51CF66)
@@ -139,14 +157,31 @@ module.exports = {
                 text: `${activeMismatches.length} mismatch${activeMismatches.length !== 1 ? 'es' : ''} found • Today at ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
             });
 
-            return interaction.editReply({ embeds: [embed] });
+            console.log(`[NAMESYNC] Sending embed reply...`);
+            await interaction.editReply({ embeds: [embed] });
+
+            const totalTime = Date.now() - startTime;
+            console.log(`[NAMESYNC] Command completed successfully in ${totalTime}ms for ${invokedBy}`);
 
         } catch (error) {
-            console.error('Error in namesync command:', error);
-            return interaction.editReply({
-                content: '❌ An error occurred while checking name synchronization. Please try again later.',
-                ephemeral: true
-            });
+            console.error(`[NAMESYNC] ERROR: Command failed for ${invokedBy}:`, error);
+            console.error(`[NAMESYNC] Error stack:`, error.stack);
+
+            try {
+                // Check if we've already replied/deferred
+                if (interaction.deferred || interaction.replied) {
+                    await interaction.editReply({
+                        content: '❌ An error occurred while checking name synchronization. Please try again later.'
+                    });
+                } else {
+                    await interaction.reply({
+                        content: '❌ An error occurred while checking name synchronization. Please try again later.',
+                        ephemeral: true
+                    });
+                }
+            } catch (replyError) {
+                console.error(`[NAMESYNC] ERROR: Failed to send error message:`, replyError);
+            }
         }
     }
 };
