@@ -5,68 +5,63 @@ const { getClassEmoji } = require('../utils/emojis');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('recentduels')
-    .setDescription('Get recent duels from the last X days (up to 30 days)')
+    .setDescription('Get the most recent duels (up to 40 duels)')
     .addIntegerOption(option =>
-      option.setName('days')
-        .setDescription('Number of days to look back (1-30, defaults to 7)')
+      option.setName('count')
+        .setDescription('Number of recent duels to show (1-40, defaults to 20)')
         .setRequired(false)
         .setMinValue(1)
-        .setMaxValue(30)),
+        .setMaxValue(40)),
 
   async execute(interaction) {
-    const inputDays = interaction.options.getInteger('days');
-    const days = inputDays || 7; // Default to 7 days if no input provided
-    const usedDefault = inputDays === null;
-    
+    const inputCount = interaction.options.getInteger('count');
+    const count = inputCount || 20; // Default to 20 duels if no input provided
+    const usedDefault = inputCount === null;
+
     const timestamp = new Date().toISOString();
     const user = interaction.user;
     const guildName = interaction.guild ? interaction.guild.name : 'DM';
     const channelName = interaction.channel ? interaction.channel.name : 'Unknown';
-    
+
     console.log(`[${timestamp}] Executing recentduels command:
     User: ${user.tag} (${user.id})
     Server: ${guildName} (${interaction.guildId || 'N/A'})
     Channel: ${channelName} (${interaction.channelId})
-    Days: ${days} ${usedDefault ? '(default)' : '(specified)'}`);
+    Count: ${count} ${usedDefault ? '(default)' : '(specified)'}`);
 
     await interaction.deferReply({ ephemeral: true });
 
     try {
-      // Calculate the cutoff date
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - days);
-
       // Get duel data from cache
       const duelRows = await duelDataCache.getCachedData();
 
-      // Filter matches within the specified time period
-      const recentMatches = duelRows.filter(row => {
-        if (row.length < 5) return false;
-        
-        const matchDate = new Date(row[0]); // Event Date column
-        if (isNaN(matchDate.getTime())) return false;
-        
-        return matchDate >= cutoffDate;
-      });
+      // Filter out invalid rows and sort by most recent first
+      const validMatches = duelRows
+        .filter(row => {
+          if (row.length < 5) return false;
+          const matchDate = new Date(row[0]); // Event Date column
+          return !isNaN(matchDate.getTime());
+        })
+        .sort((a, b) => new Date(b[0]) - new Date(a[0]));
 
-      // Sort by most recent first
-      recentMatches.sort((a, b) => new Date(b[0]) - new Date(a[0]));
+      // Get the most recent X duels
+      const recentMatches = validMatches.slice(0, count);
 
       // Create the embed
       const embed = new EmbedBuilder()
         .setColor(0x00FF00) // Green color
-        .setTitle(`⚔️ Recent Duels - Last ${days} Day${days === 1 ? '' : 's'}`)
-        .setDescription(`Found ${recentMatches.length} duel${recentMatches.length === 1 ? '' : 's'} in the last ${days} day${days === 1 ? '' : 's'}`)
+        .setTitle(`⚔️ Recent Duels - Last ${count} Match${count === 1 ? '' : 'es'}`)
+        .setDescription(`Showing ${recentMatches.length} recent duel${recentMatches.length === 1 ? '' : 's'}`)
         .setTimestamp()
         .setFooter({ text: 'DFC Recent Duels' });
 
       let embedsToSend;
 
       if (recentMatches.length === 0) {
-        embed.addFields({ 
-          name: 'No Recent Duels', 
-          value: `No duels found in the last ${days} day${days === 1 ? '' : 's'}.`,
-          inline: false 
+        embed.addFields({
+          name: 'No Recent Duels',
+          value: 'No duels found in the database.',
+          inline: false
         });
         embedsToSend = [embed];
       } else {
@@ -118,10 +113,10 @@ module.exports = {
             // Create embed for current batch
             const embedForBatch = new EmbedBuilder()
               .setColor(0x00FF00)
-              .setTitle(embeds.length === 0 ? `⚔️ Recent Duels - Last ${days} Day${days === 1 ? '' : 's'}` : `⚔️ Recent Duels (cont.)`);
-            
+              .setTitle(embeds.length === 0 ? `⚔️ Recent Duels - Last ${count} Match${count === 1 ? '' : 'es'}` : `⚔️ Recent Duels (cont.)`);
+
             if (embeds.length === 0) {
-              embedForBatch.setDescription(`Found ${recentMatches.length} duel${recentMatches.length === 1 ? '' : 's'} in the last ${days} day${days === 1 ? '' : 's'}`);
+              embedForBatch.setDescription(`Showing ${recentMatches.length} recent duel${recentMatches.length === 1 ? '' : 's'}`);
             }
             
             embedForBatch.addFields({
@@ -149,10 +144,10 @@ module.exports = {
         if (currentMatches.length > 0) {
           const embedForBatch = new EmbedBuilder()
             .setColor(0x00FF00)
-            .setTitle(embeds.length === 0 ? `⚔️ Recent Duels - Last ${days} Day${days === 1 ? '' : 's'}` : `⚔️ Recent Duels (cont.)`);
-          
+            .setTitle(embeds.length === 0 ? `⚔️ Recent Duels - Last ${count} Match${count === 1 ? '' : 'es'}` : `⚔️ Recent Duels (cont.)`);
+
           if (embeds.length === 0) {
-            embedForBatch.setDescription(`Found ${recentMatches.length} duel${recentMatches.length === 1 ? '' : 's'} in the last ${days} day${days === 1 ? '' : 's'}`);
+            embedForBatch.setDescription(`Showing ${recentMatches.length} recent duel${recentMatches.length === 1 ? '' : 's'}`);
           }
           
           embedForBatch.addFields({
@@ -173,26 +168,28 @@ module.exports = {
 
       // Try to send embeds via DM
       try {
-        // Send all embeds to user via DM
-        for (const embed of embedsToSend) {
-          await user.send({ embeds: [embed] });
+        // Send embeds to user via DM in batches of up to 10 embeds per message
+        const EMBEDS_PER_MESSAGE = 10;
+        for (let i = 0; i < embedsToSend.length; i += EMBEDS_PER_MESSAGE) {
+          const embedBatch = embedsToSend.slice(i, i + EMBEDS_PER_MESSAGE);
+          await user.send({ embeds: embedBatch });
         }
 
         // Create notification embed for channel
         const notificationEmbed = new EmbedBuilder()
           .setColor(0x0099FF) // Blue color
           .setTitle('📬 Recent Duels Sent!')
-          .setDescription(`Check your DM from <@${interaction.client.user.id}> for recent duels from the last ${days} day${days === 1 ? '' : 's'}.`)
+          .setDescription(`Check your DM from <@${interaction.client.user.id}> for the last ${count} duel${count === 1 ? '' : 's'}.`)
           .setTimestamp();
 
         let replyContent = { embeds: [notificationEmbed], ephemeral: true };
 
         if (usedDefault) {
-          replyContent.content = `💡 **Tip**: You can specify the number of days to look back by using \`/recentduels days:[number]\` (e.g., \`/recentduels days:20\`) - up to 30 days max.`;
+          replyContent.content = `💡 **Tip**: You can specify the number of duels using \`/recentduels count:[number]\` (e.g., \`/recentduels count:30\`) - up to 40 duels max.`;
         }
 
         await interaction.editReply(replyContent);
-        console.log(`[${timestamp}] Recent duels command completed successfully for ${user.tag} (${user.id}) - sent ${recentMatches.length} matches in ${days} days via DM`);
+        console.log(`[${timestamp}] Recent duels command completed successfully for ${user.tag} (${user.id}) - sent ${recentMatches.length} of ${count} requested duels via DM`);
       } catch (dmError) {
         console.error(`[${timestamp}] Failed to send DM to ${user.tag} (${user.id})`, dmError);
         await interaction.editReply({
