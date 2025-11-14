@@ -1,8 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const rosterCache = require('../utils/rosterCache');
 const redis = require('../utils/redisClient');
-const { google } = require('googleapis');
-const { createGoogleAuth } = require('../utils/googleAuth');
 
 // Items per page to stay well within Discord's limits
 const ITEMS_PER_PAGE = 10;
@@ -58,10 +56,9 @@ function buildNameSyncEmbed(mismatches, totalRosterEntries, page, userId) {
         embed.setFooter({ text: '0 mismatches found' });
     }
 
-    // Add buttons
+    // Add pagination buttons if needed
     const components = [];
 
-    // Pagination buttons (if multiple pages)
     if (mismatches.length > 0 && totalPages > 1) {
         const paginationRow = new ActionRowBuilder()
             .addComponents(
@@ -79,107 +76,7 @@ function buildNameSyncEmbed(mismatches, totalRosterEntries, page, userId) {
         components.push(paginationRow);
     }
 
-    // Update Test Sheet button (if there are mismatches)
-    if (mismatches.length > 0) {
-        const actionRow = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder()
-                    .setCustomId(`namesync_update_${userId}`)
-                    .setLabel('📝 Update Test Sheet')
-                    .setStyle(ButtonStyle.Primary)
-            );
-        components.push(actionRow);
-    }
-
     return { embeds: [embed], components };
-}
-
-/**
- * Update 'Roster Test' sheet Column C with live Discord names for mismatched players
- * @param {Object} interaction - Discord interaction
- * @param {Array} mismatches - Array of mismatch objects
- */
-async function handleUpdateTestSheet(interaction, mismatches) {
-    try {
-        const auth = createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
-        const sheets = google.sheets({ version: 'v4', auth });
-        const spreadsheetId = process.env.TEST_MODE === 'true' ? process.env.TEST_SSOT_ID : process.env.PROD_SSOT_ID;
-
-        // Fetch existing 'Roster Test' data
-        console.log(`[NAMESYNC] Fetching Roster Test sheet data...`);
-        const response = await sheets.spreadsheets.values.get({
-            spreadsheetId,
-            range: 'Roster Test!A:D',
-        });
-
-        const rows = response.data.values || [];
-        if (rows.length === 0) {
-            return interaction.editReply({
-                content: '❌ Roster Test sheet is empty.',
-                embeds: [],
-                components: []
-            });
-        }
-
-        // Create a map of UUID -> current Discord name for quick lookup
-        const mismatchMap = new Map();
-        mismatches.forEach(m => {
-            mismatchMap.set(m.uuid, m.currentName);
-        });
-
-        // Update Column C (index 2) for matching UUIDs
-        let updatedCount = 0;
-        for (let i = 0; i < rows.length; i++) {
-            const row = rows[i];
-            const uuid = row[3]; // Column D (UUID)
-
-            if (uuid && mismatchMap.has(uuid)) {
-                row[2] = mismatchMap.get(uuid); // Update Column C (Discord Name)
-                updatedCount++;
-            }
-        }
-
-        if (updatedCount === 0) {
-            return interaction.editReply({
-                content: '❌ No matching entries found in Roster Test sheet.',
-                embeds: [],
-                components: []
-            });
-        }
-
-        // Write updated data back to sheet
-        console.log(`[NAMESYNC] Updating ${updatedCount} entries in Roster Test sheet...`);
-        await sheets.spreadsheets.values.update({
-            spreadsheetId,
-            range: 'Roster Test!A:D',
-            valueInputOption: 'RAW',
-            requestBody: {
-                values: rows,
-            },
-        });
-
-        console.log(`[NAMESYNC] Successfully updated ${updatedCount} entries in Roster Test sheet`);
-
-        // Send success message
-        const successEmbed = new EmbedBuilder()
-            .setColor(0x51CF66)
-            .setTitle('✅ Roster Test Sheet Updated')
-            .setDescription(`Updated **${updatedCount}** Discord name${updatedCount !== 1 ? 's' : ''} in the **Roster Test** sheet (Column C).\n\nPlease review the changes and manually copy Column C to the production **Roster** sheet when ready.`)
-            .setTimestamp();
-
-        await interaction.editReply({
-            embeds: [successEmbed],
-            components: []
-        });
-
-    } catch (error) {
-        console.error(`[NAMESYNC] ERROR in handleUpdateTestSheet:`, error);
-        await interaction.editReply({
-            content: '❌ Failed to update Roster Test sheet. Please check logs and try again.',
-            embeds: [],
-            components: []
-        });
-    }
 }
 
 module.exports = {
@@ -253,6 +150,12 @@ module.exports = {
 
                 // Skip entries without cached Discord name
                 if (!rosterEntry.discordName) continue;
+
+                // Skip users with Leave/AFK/Banned status
+                const leaveStatus = (rosterEntry.leaveStatus || '').toLowerCase();
+                if (leaveStatus === 'leave' || leaveStatus === 'afk' || leaveStatus === 'banned') {
+                    continue;
+                }
 
                 // Look up member in the already-fetched collection
                 const guildMember = allMembers.get(uuid);
@@ -399,11 +302,6 @@ module.exports = {
 
                 const response = buildNameSyncEmbed(cacheData.mismatches, cacheData.totalRosterEntries, page, userId);
                 await interaction.editReply(response);
-
-            } else if (action === 'update') {
-                // Handle updating Roster Test sheet
-                console.log(`[NAMESYNC] Update Test Sheet clicked by ${interaction.user.username}`);
-                await handleUpdateTestSheet(interaction, cacheData.mismatches);
             }
 
         } catch (error) {
