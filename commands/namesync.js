@@ -290,8 +290,14 @@ module.exports = {
             };
 
             try {
-                await redis.setex(cacheKey, 900, JSON.stringify(cacheData)); // 900s = 15min
-                console.log(`[NAMESYNC] Stored ${activeMismatches.length} mismatches in Redis with key: ${cacheKey}`);
+                await redis.connect();
+                const client = redis.getClient();
+                if (client && redis.isReady()) {
+                    await client.setEx(cacheKey, 900, JSON.stringify(cacheData)); // 900s = 15min
+                    console.log(`[NAMESYNC] Stored ${activeMismatches.length} mismatches in Redis with key: ${cacheKey}`);
+                } else {
+                    console.log(`[NAMESYNC] Redis not available, skipping cache storage`);
+                }
             } catch (redisError) {
                 console.error(`[NAMESYNC] ERROR: Failed to store in Redis:`, redisError);
                 // Continue anyway - pagination will just recalculate if needed
@@ -355,7 +361,18 @@ module.exports = {
             let cacheData;
 
             try {
-                const cachedJson = await redis.get(cacheKey);
+                await redis.connect();
+                const client = redis.getClient();
+
+                if (!client || !redis.isReady()) {
+                    return interaction.editReply({
+                        content: '❌ Redis not available. Please run `/namesync` again.',
+                        embeds: [],
+                        components: []
+                    });
+                }
+
+                const cachedJson = await client.get(cacheKey);
                 if (!cachedJson) {
                     return interaction.editReply({
                         content: '❌ Session expired. Please run `/namesync` again.',
