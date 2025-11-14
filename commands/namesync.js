@@ -2,7 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 const rosterCache = require('../utils/rosterCache');
 const redis = require('../utils/redisClient');
 const { google } = require('googleapis');
-const googleAuth = require('../utils/googleAuth');
+const { createGoogleAuth } = require('../utils/googleAuth');
 
 // Items per page to stay well within Discord's limits
 const ITEMS_PER_PAGE = 10;
@@ -101,7 +101,7 @@ function buildNameSyncEmbed(mismatches, totalRosterEntries, page, userId) {
  */
 async function handleUpdateTestSheet(interaction, mismatches) {
     try {
-        const auth = await googleAuth.authorize();
+        const auth = createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
         const sheets = google.sheets({ version: 'v4', auth });
         const spreadsheetId = process.env.TEST_MODE === 'true' ? process.env.TEST_SSOT_ID : process.env.PROD_SSOT_ID;
 
