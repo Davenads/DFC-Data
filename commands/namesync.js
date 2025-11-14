@@ -74,17 +74,21 @@ module.exports = {
 
             // Add active mismatches section
             if (activeMismatches.length > 0) {
-                const mismatchText = activeMismatches
+                // Limit display to prevent exceeding 6000 char embed limit
+                const MAX_DISPLAY = 15;
+                const displayMismatches = activeMismatches.slice(0, MAX_DISPLAY);
+                const hasMore = activeMismatches.length > MAX_DISPLAY;
+
+                const mismatchText = displayMismatches
                     .map(entry => `**${entry.arenaName}**\nCached: \`${entry.cachedName}\` → Current: \`${entry.currentName}\``)
                     .join('\n\n');
 
-                // Check if we need to truncate
+                // Check if we need to split into multiple fields
                 if (mismatchText.length > 1024) {
-                    // Split into multiple fields
                     const chunks = [];
                     let currentChunk = '';
 
-                    for (const entry of activeMismatches) {
+                    for (const entry of displayMismatches) {
                         const line = `**${entry.arenaName}**\nCached: \`${entry.cachedName}\` → Current: \`${entry.currentName}\`\n\n`;
 
                         if ((currentChunk + line).length > 1024) {
@@ -115,6 +119,14 @@ module.exports = {
                         value: mismatchText
                     });
                 }
+
+                // Add truncation notice if needed
+                if (hasMore) {
+                    embed.addFields({
+                        name: '📋 Note',
+                        value: `Showing first ${MAX_DISPLAY} of ${activeMismatches.length} mismatches to stay within Discord's character limits.`
+                    });
+                }
             } else {
                 embed.addFields({
                     name: '✅ No Mismatches Found',
@@ -124,7 +136,7 @@ module.exports = {
 
             // Add summary footer
             embed.setFooter({
-                text: `${activeMismatches.length} mismatch${activeMismatches.length !== 1 ? 'es' : ''} found`
+                text: `${activeMismatches.length} mismatch${activeMismatches.length !== 1 ? 'es' : ''} found • Today at ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
             });
 
             return interaction.editReply({ embeds: [embed] });
