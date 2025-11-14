@@ -28,11 +28,8 @@ module.exports = {
             console.log(`[NAMESYNC] Deferring reply for ${invokedBy}`);
             await interaction.deferReply();
 
-            // Fetch all guild members into cache
-            console.log(`[NAMESYNC] Fetching guild members...`);
-            const fetchStart = Date.now();
-            await interaction.guild.members.fetch();
-            console.log(`[NAMESYNC] Guild members fetched in ${Date.now() - fetchStart}ms`);
+            // Use cached guild members instead of fetching all (prevents timeout on large guilds)
+            console.log(`[NAMESYNC] Using cached guild members (${interaction.guild.members.cache.size} cached)`);
 
             // Get cached roster
             console.log(`[NAMESYNC] Retrieving roster from cache...`);
