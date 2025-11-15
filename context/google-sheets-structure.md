@@ -7,27 +7,43 @@
 
 ## Overview
 
-The DFC-Data bot uses **two primary Google Sheets** with a **split SSoT architecture** (each sheet is the authoritative source for different data domains):
+The DFC-Data bot uses **two primary Google Sheets** with a **distributed SSoT (Single Source of Truth) architecture**. Each sheet is authoritative for different data domains:
 
-1. **[DFC] Official Rankings** (QUERY_SPREADSHEET_ID)
-   - SSoT for: **Roster** and **Signups**
-   - Display/query sheet for bot commands
-   - IMPORTRANGE'd data: Duel Data (from Data Input)
+### 1. **[DFC] Official Rankings** (QUERY_SPREADSHEET_ID)
+**SSoT Domains:**
+- ⭐ **Roster** - Player registration (Arena Name ↔ Discord mapping)
+- ⭐ **Signups** - Weekly tournament signups (via Google Forms)
 
-2. **[DFC] Data Input** (PROD_SSOT_ID)
-   - SSoT for: **Duel Data** (matches, results, ETL)
-   - Raw data and ETL transformations
-   - IMPORTRANGE'd data: Roster, Signups (from Official Rankings)
+**Additional Functions:**
+- Display/query sheet for bot commands
+- Mirrors Duel Data from [DFC] Data Input via IMPORTRANGE
 
-**⚠️ Important**: The naming is confusing! "Data Input" suggests it's the main SSoT, but it's only the SSoT for **duel data**. Roster and signup data actually live in "Official Rankings".
+### 2. **[DFC] Data Input** (PROD_SSOT_ID)
+**SSoT Domains:**
+- ⭐ **Duel Data** - Match results, ETL transformations, statistics
 
-### Data Domain Authority:
+**Additional Functions:**
+- Raw data processing and ETL transformations
+- Mirrors Roster and Signups from [DFC] Official Rankings via IMPORTRANGE
 
-| Data Type | SSoT Location | Mirror Location |
-|-----------|---------------|-----------------|
-| **Roster** | [DFC] Official Rankings | [DFC] Data Input |
-| **Signups** | [DFC] Official Rankings | [DFC] Data Input |
-| **Duel Data** | [DFC] Data Input | [DFC] Official Rankings |
+**⚠️ Important**: The sheet naming is confusing! "[DFC] Data Input" suggests it's the main SSoT, but it's ONLY authoritative for **duel/match data**. Roster and signup data originate in "[DFC] Official Rankings".
+
+---
+
+### Data Domain Authority (Quick Reference):
+
+| Data Domain | SSoT Sheet | SSoT Tab | Mirror Sheet | Mirror Tab | Data Flow Direction |
+|-------------|------------|----------|--------------|------------|---------------------|
+| **Roster** | [DFC] Official Rankings | Roster | [DFC] Data Input | Roster | Official Rankings → Data Input |
+| **Signups** | [DFC] Official Rankings | DFC Signups / DFC Recent Signups | [DFC] Data Input | Recent Signups | Official Rankings → Data Input |
+| **Duel Data** | [DFC] Data Input | Duel Data / DUEL_DATA_OUTPUT | [DFC] Official Rankings | Duel Data | Data Input → Official Rankings |
+
+**Key Principles:**
+- Each domain has ONE authoritative source (SSoT)
+- Mirror copies exist for redundancy and cross-sheet analytics
+- IMPORTRANGE formulas keep mirrors synchronized
+- Bot write operations ONLY target SSoT tabs
+- Bot read operations can use either SSoT or cache
 
 This architecture provides data redundancy, enables external analytics, and allows different teams to manage different data domains.
 
@@ -58,12 +74,17 @@ This architecture provides data redundancy, enables external analytics, and allo
 
 **Sheet ID**: `17PlXUTm83d8YjtKfG9hl0Y6gpzBhKwa7iYLjN0mi4Cg`
 **Environment Variable**: `QUERY_SPREADSHEET_ID`
-**Purpose**:
-- SSoT for **Roster** and **Signup** data
-- Display/query sheet for bot commands
-- IMPORTRANGE formulas pull **Duel Data** from [DFC] Data Input
 
-### Tabs
+**SSoT Responsibilities** (Authoritative Data):
+- ⭐ **Roster** - Player registration and Discord mapping
+- ⭐ **DFC Signups** - Raw signup form responses (all-time)
+- ⭐ **DFC Recent Signups** - Processed signups (last 10 days)
+
+**Additional Functions**:
+- Display/query sheet for bot commands
+- IMPORTRANGE formulas pull **Duel Data** from [DFC] Data Input for analytics
+
+### Tabs (SSoT Tabs ⭐ | Mirror Tabs)
 
 #### 1. Roster (SSoT) ⭐ **ROSTER SSoT**
 **Purpose**: Master roster of all registered DFC players
@@ -297,17 +318,23 @@ Build: Trap sin, WW barb
 
 **Sheet ID**: `19kLTnQCXMQkXbQw90G9QQcrYtxDszTtVMWM0JLq0aaw`
 **Environment Variable**: `PROD_SSOT_ID`
-**Purpose**:
-- SSoT for **Duel Data** (match results, ETL processing)
-- Raw data and ETL transformations via `buildETL()` Apps Script
-- IMPORTRANGE formulas pull **Roster** and **Signups** from [DFC] Official Rankings
 
-### Tabs
+**SSoT Responsibilities** (Authoritative Data):
+- ⭐ **Duel Data** - Raw match result form responses
+- ⭐ **DUEL_DATA_OUTPUT** - ETL-transformed duel log (19 columns)
+- ⭐ **ETL OUTPUT** - Per-dueler statistics and title streaks
+
+**Additional Functions**:
+- ETL transformations via `duel data.gs` Apps Script
+- IMPORTRANGE formulas pull **Roster** and **Signups** from [DFC] Official Rankings for cross-referencing
+
+### Tabs (Mirror Tabs | SSoT Tabs ⭐)
 
 #### 1. Roster (IMPORTRANGE Mirror - NOT SSoT)
 **Purpose**: Read-only mirror of roster data from [DFC] Official Rankings
-**Formula**: `=SORT(IMPORTRANGE("https://docs.google.com/spreadsheets/d/1ApQkP-EqC77MK1udc2BNF5eTMpa95pp14Xmtbd20RPA","'Roster'!A2:K"),1, TRUE)`
-**Note**: This is NOT the source of truth - it's a mirror for convenience
+**Formula**: `=SORT(IMPORTRANGE("https://docs.google.com/spreadsheets/d/17PlXUTm83d8YjtKfG9hl0Y6gpzBhKwa7iYLjN0mi4Cg","'Roster'!A2:K"),1, TRUE)`
+**Data Flow**: [DFC] Official Rankings "Roster" (SSoT) → IMPORTRANGE → [DFC] Data Input "Roster" (Mirror)
+**Note**: This is NOT the source of truth - it's a read-only mirror for convenience
 
 **Columns** (A-K):
 - **A**: Arena Name
@@ -334,38 +361,61 @@ Build: Trap sin, WW barb
 
 **Data Flow**: IMPORTRANGE from [DFC] Official Rankings "Roster" tab (actual SSoT)
 
-#### 2. Duel Data (Raw Form Responses)
+#### 2. Duel Data (Raw Form Responses) ⭐ **DUEL DATA SSoT**
 **Purpose**: Raw match result submissions from Google Forms
+**Location**: [DFC] Data Input (PROD_SSOT_ID)
+**Note**: This is the SOURCE OF TRUTH for all match/duel data
 
-**Columns** (A-Q, 17 columns):
-- Timestamp
-- Email Address
-- Duel Date
-- Match Type (HLD/LLD/Melee)
-- Winner
-- Winner Class
-- Winner Build
-- Loser
-- Loser Class
-- Loser Build
-- Round Wins
-- Round Losses
-- Mirror Match (Yes/No)
-- Mirror Type (Class/Build)
-- Title Match (Yes/No)
-- Class Matchup
-- Build Matchup
+**Columns** (A-AB, 28 columns):
+
+**Match Metadata (10 columns):**
+1. Timestamp (A)
+2. Email Address (B)
+3. Duel Date (C)
+4. Round Wins (D)
+5. Round Losses (E)
+6. Match Type (F) - HLD/LLD/Melee
+7. Mirror (G) - Yes/No
+8. Mirror Type (H) - Class/Build
+9. Title (I) - Yes/No
+10. Notes (J)
+
+**Winner Data (9 columns):**
+11. Winner (K) - Player Arena Name
+12. Winner Class (L) - Amazon/Assassin/Barbarian/Druid/Necromancer/Paladin/Sorceress
+13. Winner Amazon Build (M)
+14. Winner Assassin Build (N)
+15. Winner Barbarian Build (O)
+16. Winner Druid Build (P)
+17. Winner Necromancer Build (Q)
+18. Winner Paladin Build (R)
+19. Winner Sorceress Build (S)
+
+**Loser Data (9 columns):**
+20. Loser (T) - Player Arena Name
+21. Loser Class (U) - Amazon/Assassin/Barbarian/Druid/Necromancer/Paladin/Sorceress
+22. Loser Amazon Build (V)
+23. Loser Assassin Build (W)
+24. Loser Barbarian Build (X)
+25. Loser Druid Build (Y)
+26. Loser Necromancer Build (Z)
+27. Loser Paladin Build (AA)
+28. Loser Sorceress Build (AB)
+
+**Note**: Class-specific build columns allow the Google Form to conditionally show the relevant build field based on selected class. Only the column matching the selected class will be populated; others remain empty.
 
 **Bot Access**:
 - **Read**: `duel data.gs` Apps Script for ETL processing
 - **Write**: Google Forms POST from `/reportwin` command
-- **Direct Bot Read**: `duelDataCache.js` (range: `Duel Data!A2:Q`)
+- **Direct Bot Read**: `duelDataCache.js` (range: `Duel Data!A2:AB`)
 - **Cache**: Redis (TTL: 5 minutes)
 
-**Important**: This is the **raw source data**. The Apps Script processes this into DUEL_DATA_OUTPUT.
+**Important**: This is the **raw source data** with 28 columns. The Apps Script ETL process consolidates the class-specific build columns into single "Winner Build" and "Loser Build" fields in DUEL_DATA_OUTPUT.
 
-#### 3. DUEL_DATA_OUTPUT (Transformed - 19 Columns)
+#### 3. DUEL_DATA_OUTPUT (Transformed - 19 Columns) ⭐ **ETL DUEL LOG SSoT**
 **Purpose**: Clean duel log with one row per duel (ETL output from Apps Script)
+**Location**: [DFC] Data Input (PROD_SSOT_ID)
+**Note**: This is the AUTHORITATIVE transformed duel log used by all analytics
 
 **Generated By**: `duel data.gs` script via `saveDuelMapToLog_()` function
 
@@ -398,8 +448,10 @@ Build: Trap sin, WW barb
 
 **Data Flow**: IMPORTRANGE'd into [DFC] Official Rankings "Duel Data" tab
 
-#### 4. ETL OUTPUT (Per-Dueler Fact Table)
+#### 4. ETL OUTPUT (Per-Dueler Fact Table) ⭐ **DUELER STATS SSoT**
 **Purpose**: Per-dueler statistics with title streak tracking
+**Location**: [DFC] Data Input (PROD_SSOT_ID)
+**Note**: This is the AUTHORITATIVE per-dueler statistics table
 
 **Generated By**: `duel data.gs` script via `buildETL()` function
 
@@ -421,10 +473,10 @@ Build: Trap sin, WW barb
 - Used for statistical queries and player performance analysis
 
 #### 5. Recent Signups (IMPORTRANGE Mirror - NOT SSoT)
-**Formula**: `=SORT(IMPORTRANGE("https://docs.google.com/spreadsheets/d/1ApQkP-EqC77MK1udc2BNF5eTMpa95pp14Xmtbd20RPA","'DFC Recent Signups'!A2:E"),1, TRUE)`
+**Formula**: `=SORT(IMPORTRANGE("https://docs.google.com/spreadsheets/d/17PlXUTm83d8YjtKfG9hl0Y6gpzBhKwa7iYLjN0mi4Cg","'DFC Recent Signups'!A2:E"),1, TRUE)`
 
 **Purpose**: Read-only mirror of processed signup data from [DFC] Official Rankings
-**Data Source**: IMPORTRANGE from QUERY_SPREADSHEET_ID "DFC Recent Signups" tab
+**Data Flow**: [DFC] Official Rankings "DFC Recent Signups" (SSoT) → IMPORTRANGE → [DFC] Data Input "Recent Signups" (Mirror)
 **Note**: This is NOT the source of truth for signups - it's a mirror for convenience
 
 **Columns** (A-F):
@@ -531,12 +583,13 @@ The **`duel data.gs`** Google Apps Script performs Extract-Transform-Load operat
 
 1. Raw Form Submissions
    ↓
-   [Duel Data] tab (17 columns, raw Google Forms responses)
+   [Duel Data] tab (28 columns, raw Google Forms responses)
    ↓
    ┌────────────────────────────────────────┐
    │  duel data.gs - buildDuelLog()         │
    │  - Assigns unique Duel_IDs (D0001...)  │
    │  - Normalizes player names (lowercase) │
+   │  - Consolidates class-specific builds  │
    │  - Chronological ordering              │
    │  - Stable duel key generation          │
    └────────────────────────────────────────┘
@@ -819,48 +872,139 @@ async def gforms(request: Request):
 
 ---
 
+## SSoT (Single Source of Truth) Quick Reference
+
+This section provides a comprehensive lookup table for determining which sheet and tab is authoritative for each data type.
+
+### SSoT Ownership by Data Domain
+
+| Data Domain | SSoT Sheet | SSoT Tab | Bot Write Operations | Bot Read Operations | Cache Module |
+|-------------|------------|----------|---------------------|---------------------|--------------|
+| **Roster (Player Registration)** | [DFC] Official Rankings | Roster | `/register` appends rows | `rosterCache.js` | 1 week TTL |
+| **Signups (Raw Form Data)** | [DFC] Official Rankings | DFC Signups | Google Forms POST (Voxel + `/signup`) | Not directly read | N/A |
+| **Signups (Processed, Last 10 Days)** | [DFC] Official Rankings | DFC Recent Signups | N/A (ARRAYFORMULA) | `signupsCache.js` | On-demand |
+| **Duel Data (Raw Form Responses)** | [DFC] Data Input | Duel Data | Google Forms POST (`/reportwin`) | `duelDataCache.js` | 5 min TTL |
+| **Duel Data (ETL Transformed)** | [DFC] Data Input | DUEL_DATA_OUTPUT | N/A (Apps Script) | Via IMPORTRANGE | N/A |
+| **Duel Data (Per-Dueler Stats)** | [DFC] Data Input | ETL OUTPUT | N/A (Apps Script) | Via IMPORTRANGE | N/A |
+| **Rankings** | [DFC] Official Rankings | Official Rankings | N/A (calculated) | `rankingsCache.js` | 60 min TTL |
+| **Player List** | [DFC] Official Rankings | Player List | N/A (calculated) | `playerListCache.js` | On-demand |
+
+### Write Operation Rules
+
+**CRITICAL**: Bot write operations MUST ONLY target SSoT tabs. Never write to mirror tabs.
+
+| Operation Type | Target Sheet | Target Tab | Method | Command |
+|---------------|--------------|------------|--------|---------|
+| Player Registration | [DFC] Official Rankings | Roster | `sheets.spreadsheets.values.append()` | `/register` |
+| Weekly Signup | Google Forms → [DFC] Official Rankings | DFC Signups | Google Forms POST | `/signup` (bot) or Voxel form |
+| Match Result | Google Forms → [DFC] Data Input | Duel Data | Google Forms POST | `/reportwin` |
+
+**Note**: All form submissions use Google Forms as an intermediary, which automatically writes to the respective SSoT tabs.
+
+### Read Operation Rules
+
+Bot commands can read from:
+1. **Redis cache** (preferred for performance)
+2. **SSoT sheet directly** (fallback if cache miss)
+3. **Mirror sheet** (only if SSoT unavailable - rare)
+
+**Best Practice**: Always read from cache when available, fall back to SSoT sheet on cache miss.
+
+### IMPORTRANGE Data Flow Summary
+
+```
+[DFC] Official Rankings                    [DFC] Data Input
+========================                   =================
+
+⭐ Roster (SSoT)        -----------------> Roster (Mirror)
+   - Bot writes here                        - IMPORTRANGE read-only
+   - rosterCache reads                      - For cross-referencing
+
+⭐ DFC Signups (SSoT)
+   - Google Forms writes
+   - Raw all-time data
+         ↓
+⭐ DFC Recent Signups (SSoT)
+   - ARRAYFORMULA (10 days) ------------> Recent Signups (Mirror)
+   - signupsCache reads                    - IMPORTRANGE read-only
+                                           - Roster validation
+
+Duel Data (Mirror)     <----------------- ⭐ Duel Data (SSoT)
+   - IMPORTRANGE only                        - Google Forms writes
+                                             - duelDataCache reads
+                                                   ↓
+                                           ⭐ DUEL_DATA_OUTPUT (SSoT)
+                                             - Apps Script ETL
+                                                   ↓
+                                           ⭐ ETL OUTPUT (SSoT)
+                                             - Per-dueler stats
+```
+
+### Mirror Tab Warning
+
+**⚠️ DO NOT WRITE TO MIRROR TABS**
+
+The following tabs are **READ-ONLY mirrors** and must NEVER be written to by bot commands:
+
+**In [DFC] Official Rankings:**
+- `Duel Data` (mirrors from [DFC] Data Input → DUEL_DATA_OUTPUT)
+
+**In [DFC] Data Input:**
+- `Roster` (mirrors from [DFC] Official Rankings → Roster)
+- `Recent Signups` (mirrors from [DFC] Official Rankings → DFC Recent Signups)
+
+Writing to mirror tabs will cause data inconsistencies and will be overwritten by IMPORTRANGE.
+
+---
+
 ## Bot Access Patterns
 
 ### Read Operations
 
 | Command | Sheet | Tab | Range | Cache Module | TTL |
 |---------|-------|-----|-------|--------------|-----|
-| `/register` | SSoT | Roster | A2:J500 | rosterCache.js | 1 week |
-| `/signup` | Forms | - | - | signupsCache.js | - |
-| `/reportwin` | SSoT | Duel Data | A2:Q | duelDataCache.js | 5 min |
-| `/stats` | SSoT | Duel Data | A2:Q | duelDataCache.js | 5 min |
-| `/rankings` | Official | Official Rankings | - | rankingsCache.js | 60 min |
-| `/recentduels` | SSoT | Duel Data | A2:Q | duelDataCache.js | 5 min |
-| `/recentsignups` | Official | DFC Signups | A:E | signupsCache.js | - |
-| `/namesync` | SSoT | Roster | A2:J500 | rosterCache.js | 1 week |
+| `/register` | [DFC] Official Rankings | Roster | A2:J500 | rosterCache.js | 1 week |
+| `/signup` | [DFC] Official Rankings | DFC Recent Signups | A:E | signupsCache.js | On-demand |
+| `/reportwin` | [DFC] Data Input | Duel Data | A2:AB | duelDataCache.js | 5 min |
+| `/stats` | [DFC] Data Input | Duel Data | A2:AB | duelDataCache.js | 5 min |
+| `/rankings` | [DFC] Official Rankings | Official Rankings | - | rankingsCache.js | 60 min |
+| `/recentduels` | [DFC] Data Input | Duel Data | A2:AB | duelDataCache.js | 5 min |
+| `/recentsignups` | [DFC] Official Rankings | DFC Recent Signups | A:E | signupsCache.js | On-demand |
+| `/namesync` | [DFC] Official Rankings | Roster | A2:J500 | rosterCache.js | 1 week |
+
+**Note**: All read operations prefer Redis cache, fall back to direct sheet reads on cache miss.
 
 ### Write Operations
 
 | Command | Sheet | Tab | Method | Data Format |
 |---------|-------|-----|--------|-------------|
-| `/register` | SSoT | Roster | Append | [Arena Name, Data Name, Discord Name, UUID, ...] |
-| `/signup` | Forms | Signup Responses | POST | Google Forms entry fields |
-| `/reportwin` | Forms | Duel Data | POST | Google Forms entry fields |
+| `/register` | [DFC] Official Rankings | Roster | `sheets.values.append()` | [Arena Name, Data Name, Discord Name, UUID, ...] |
+| `/signup` | Google Forms → [DFC] Official Rankings | DFC Signups | Google Forms POST | entry fields (handle, division, class, build) |
+| `/reportwin` | Google Forms → [DFC] Data Input | Duel Data | Google Forms POST | entry fields (winner, loser, scores, etc.) |
 
-**Note**: All form submissions go through Google Forms POST requests, which automatically populate the respective tabs.
+**Note**: All form submissions go through Google Forms POST requests, which automatically populate the respective SSoT tabs.
 
 ---
 
 ## Important Notes
 
 ### Deprecated Features
-- **"DFC bot signups" tab**: NO LONGER USED
-- **Direct sheet writes for signups**: Replaced with Google Forms embedded responses (Voxel + Bot)
-- **Old ELO system**: Legacy commands exist but deprecated
+- **"DFC bot signups" tab**: NO LONGER USED (replaced by "DFC Signups" Google Forms integration)
+- **Direct sheet writes for signups**: Now use Google Forms POST → "DFC Signups" tab (SSoT)
+- **Old ELO system**: Legacy SPREADSHEET_ID (`1ApQkP-EqC77MK1udc2BNF5eTMpa95pp14Xmtbd20RPA`) - deprecated, no longer SSoT for any domain
 
 ### Case Sensitivity
 - **Apps Script**: Uses `normName_()` for case-insensitive player name matching
 - **Bot Commands**: Some commands (e.g., `/namesync`) use case-sensitive comparison (may cause false positives)
 
 ### Data Consistency
-- **SSoT is authoritative**: [DFC] Data Input is the source of truth
-- **IMPORTRANGE formulas**: [DFC] Official Rankings pulls from SSoT
-- **ETL processing**: Apps Script ensures DUEL_DATA_OUTPUT is always up-to-date
+- **Distributed SSoT architecture**: Each data domain has ONE authoritative source
+  - **Roster SSoT**: [DFC] Official Rankings → "Roster" tab
+  - **Signups SSoT**: [DFC] Official Rankings → "DFC Signups" and "DFC Recent Signups" tabs
+  - **Duel Data SSoT**: [DFC] Data Input → "Duel Data", "DUEL_DATA_OUTPUT", "ETL OUTPUT" tabs
+- **IMPORTRANGE formulas**: Mirror tabs automatically sync from SSoT tabs
+- **ETL processing**: Apps Script in [DFC] Data Input ensures DUEL_DATA_OUTPUT and ETL OUTPUT are always up-to-date
+- **Write operations**: MUST target SSoT tabs only, never mirror tabs
 
 ### Redis Fallback
 - All bot commands gracefully fall back to live Google Sheets queries if Redis is unavailable
@@ -1031,23 +1175,44 @@ function reconcileDiscordHandles() {
 ## Common Development Tasks
 
 ### Adding a New Tab
-1. Create tab in **[DFC] Data Input** (SSoT)
-2. Set up IMPORTRANGE formula in **[DFC] Official Rankings** if needed
+
+**CRITICAL**: First determine which sheet should be the SSoT for your new data domain.
+
+**If adding a new Roster or Signup-related tab**:
+1. Create tab in **[DFC] Official Rankings** (SSoT for player/signup data)
+2. Set up IMPORTRANGE formula in **[DFC] Data Input** if cross-referencing needed
 3. Create cache module in `utils/` directory
-4. Update bot commands to read from new cache
+4. Update bot commands to write to **[DFC] Official Rankings** and read from cache
+
+**If adding a new Duel Data or Match-related tab**:
+1. Create tab in **[DFC] Data Input** (SSoT for duel data)
+2. Set up IMPORTRANGE formula in **[DFC] Official Rankings** if needed for analytics
+3. Create cache module in `utils/` directory
+4. Update bot commands to write to **[DFC] Data Input** and read from cache
+
+**General Rules**:
+- Never create duplicate SSoT tabs in both sheets for the same data
+- Always set up IMPORTRANGE from SSoT → Mirror (one direction only)
+- Document which sheet is SSoT in this file
 
 ### Modifying Sheet Structure
-1. Update Google Sheet columns
-2. Update Apps Script (`duel data.gs`) if ETL affected
-3. Update cache modules with new column ranges
-4. Update bot commands to use new column structure
-5. Test with `TEST_SSOT_ID` before deploying to production
+1. Identify which sheet is SSoT for the data you're modifying
+2. Update Google Sheet columns in the SSoT sheet
+3. Update IMPORTRANGE formulas if column ranges changed
+4. Update Apps Script (`duel data.gs`) if ETL affected
+5. Update cache modules with new column ranges
+6. Update bot commands to use new column structure
+7. Test with `TEST_SSOT_ID` before deploying to production
+8. **Never modify mirror tabs directly** - always change SSoT and let IMPORTRANGE sync
 
 ### Debugging Data Issues
-1. Check Redis cache first (`/refreshcache` to clear)
-2. Verify Google Sheets formulas (IMPORTRANGE permissions)
-3. Check Apps Script execution logs for ETL errors
-4. Verify Google Forms entry field IDs match bot code
+1. **Identify SSoT location**: Determine which sheet/tab is authoritative for the data in question
+2. Check Redis cache first (`/refreshcache` to clear)
+3. **Verify data at SSoT source**: Always check SSoT tab first, not mirror tab
+4. Verify IMPORTRANGE formulas and permissions (if data missing in mirror)
+5. Check Apps Script execution logs for ETL errors
+6. Verify Google Forms entry field IDs match bot code
+7. **If data is incorrect in mirror but correct in SSoT**: Wait for IMPORTRANGE refresh or trigger manually
 
 ---
 
