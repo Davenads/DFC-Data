@@ -6,6 +6,7 @@ debug-ss/
 # Google Apps Scripts (reference files, deployed separately)
 Duel Data Forms.gs
 duel data.gs
+roster-reconciliation.gs
 
 # Backup and alternate version files
 *.backup
@@ -31,3 +32,5 @@ recentduels-pagination-plan.md
 # Claude Code local settings (user-specific)
 .claude/settings.local.json
 .claude/CLAUDE.md
+
+Duel_Data_Columns_Raw.csv
