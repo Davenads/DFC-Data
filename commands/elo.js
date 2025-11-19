@@ -2,7 +2,6 @@ require('dotenv').config();
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { google } = require('googleapis');
 const { EmbedBuilder } = require('discord.js');
-const { createGoogleAuth } = require('../utils/googleAuth');
 const rosterCache = require('../utils/rosterCache');
 
 // Initialize Google Sheets API
@@ -22,13 +21,13 @@ module.exports = {
                 .setRequired(true)
                 .setAutocomplete(true)
         ),
-    async execute(interaction) {
+    async execute(interaction, sheets, auth) {
         const duelerName = interaction.options.getString('dueler');
         const timestamp = new Date().toISOString();
         const user = interaction.user;
         const guildName = interaction.guild ? interaction.guild.name : 'DM';
         const channelName = interaction.channel ? interaction.channel.name : 'Unknown';
-        
+
         console.log(`[${timestamp}] Executing elo command:
         User: ${user.tag} (${user.id})
         Server: ${guildName} (${interaction.guildId || 'N/A'})
@@ -37,12 +36,8 @@ module.exports = {
 
         try {
             // Fetch data from the Google Sheet
-            const auth = createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets.readonly']);
-
-            const client = await auth.getClient();
-
             const res = await sheets.spreadsheets.values.get({
-                auth: client,
+                auth: auth,
                 spreadsheetId: SPREADSHEET_ID,
                 range: `${SHEET_NAME}!A:P`, // Adjust range if necessary to include all relevant columns
             });
