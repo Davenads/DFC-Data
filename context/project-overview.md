@@ -1,7 +1,7 @@
 # DFC-Data Bot Project Overview
 
 ## Purpose
-DFC-Data is a Discord bot designed to manage and facilitate the Diablo Fighting Championship (DFC) events hosted by content creator Coooley. The bot automates player registration, event signups, matchups, and result tracking for weekly PvP events in Diablo, using Google Sheets as the central database.
+DFC-Data is a Discord bot designed to manage and facilitate the Diablo Fighting Championship (DFC) events hosted by content creator Coooley. The bot automates player registration, event signups, and result tracking for weekly PvP events in Diablo, using Google Sheets as the central database.
 
 ## Key Features
 
@@ -11,9 +11,9 @@ DFC-Data is a Discord bot designed to manage and facilitate the Diablo Fighting 
 - **Statistics**: Track player performance, wins, losses, etc.
 
 ### Event Management
-- **Matchup Creation**: Generate matchups for the weekly fight card
 - **Result Reporting**: Players report match results
 - **Rankings**: Display current player rankings based on performance
+- **Trend Analysis**: Analyze duel trends and statistics over time
 
 ## Technical Architecture
 

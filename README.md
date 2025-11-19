@@ -6,13 +6,14 @@ DFC-Data is a Discord bot built to manage and facilitate the Diablo Fighting Cha
 
 - **Player Registration**: Players can register for the DFC using the `/register` command, linking their Discord account with an arena name in the Google Sheets database
 - **Tournament Signups**: Registered players can sign up for weekly tournaments using `/signup`, specifying their character class and build preferences
-- **Automated Matchmaking**: Tournament managers can generate matchups using the `/matchup` command, creating balanced fight cards based on player signups
-- **Results Tracking**: Players can report match outcomes using `/reportwin`, automatically updating player statistics, ELO ratings, and tournament standings
+- **Results Tracking**: Players can report match outcomes using `/reportwin`, automatically updating player statistics and tournament standings
 - **Official Rankings**: View current DFC rankings based on tournament performance with `/rankings`, including champion status and top 20 players
 - **Player Statistics**: Access detailed player stats including W/L records, winrates, recent matches, and ranking positions using `/stats`
+- **Duel Trends Analysis**: Analyze match trends over custom time periods with `/dueltrends`, including build popularity, class matchups, and win rates
 - **Interactive Help System**: Comprehensive help menu with `/help` showing all available commands and their usage
-- **Recent Activity Tracking**: Monitor recent tournament signups and player activity with `/recentsignups`
+- **Recent Activity Tracking**: Monitor recent tournament signups and duels with `/recentsignups` and `/recentduels`
 - **Historical Data**: Access rule change history and tournament evolution with `/changelog`
+- **Discord Sync**: Moderators can check for roster username mismatches with `/namesync` to maintain data accuracy
 
 ## Folder Structure
 
@@ -22,18 +23,21 @@ DFC-DATA/
 │   ├── help.js               # Interactive help menu command
 │   ├── register.js           # Player registration command
 │   ├── signup.js             # Tournament signup command
-│   ├── matchup.js            # Matchmaking command (manager only)
 │   ├── reportwin.js          # Match result reporting command
 │   ├── rankings.js           # Official DFC rankings command
 │   ├── stats.js              # Player statistics command
 │   ├── recentsignups.js      # Recent signup tracking command
 │   ├── recentduels.js        # Recent duels tracking command
+│   ├── dueltrends.js         # Duel trends and statistics analysis command
 │   ├── fightcard.js          # Fight card display command
+│   ├── namesync.js           # Discord username sync checker command (moderator only)
 │   ├── refreshcache.js       # Cache refresh command (moderator only)
 │   ├── changelog.js          # Rule change history command
-│   ├── elo.js                # Legacy ELO rating command (deprecated)
 │   ├── rankings-legacy.js    # Legacy rankings command (deprecated)
-│   └── stats-legacy.js       # Legacy statistics command (deprecated)
+│   └── archived/             # Archived commands (no longer deployed)
+│       ├── matchup.js        # Matchmaking command (archived)
+│       ├── elo.js            # ELO rating command (archived)
+│       └── stats-legacy.js   # Legacy statistics command (archived)
 ├── handlers/                  # Command loading and management
 │   └── commandHandler.js     # Loads and registers all slash commands
 ├── context/                   # Project documentation and context
@@ -126,7 +130,6 @@ node index.js
 - **/help**: Displays an interactive help menu with all available commands and their descriptions
 - **/register**: Registers a player for the DFC roster with their Discord account and arena name
 - **/signup**: Signs up a registered player for weekly tournaments, specifying class and build details
-- **/matchup**: Creates matchups for weekly fight cards (requires manager role permissions)
 - **/reportwin**: Reports match results and updates player standings and ELO ratings
 
 ### Statistics & Rankings Commands
@@ -134,16 +137,21 @@ node index.js
 - **/stats**: Shows simplified player statistics including W/L record, winrate, rank, and recent match history
 - **/recentsignups**: Views recent tournament signups with pagination, filtered by tournament cutoff dates
 - **/recentduels**: Shows recent duels from the last X days (1-30 days, defaults to 7) with match details and class information
+- **/dueltrends**: Analyzes duel trends and statistics over a specified time period, showing build/class trends, matchup analysis, and general statistics
 - **/fightcard**: Displays the current fight card with upcoming matches, showing player matchups and divisions (HLD/LLD/Melee)
 
 ### Legacy/Deprecated Commands
-These commands are being phased out and are not endorsed by the DFC:
-- **/elo**: Views player ELO ratings (deprecated - use `/stats` or `/rankings` instead)
-- **/rankings-legacy**: Old rankings system based on ELO metrics (deprecated - use `/rankings` instead)  
-- **/stats-legacy**: Legacy player statistics with detailed ELO and Efficiency Index (deprecated - use `/stats` instead)
+- **/rankings-legacy**: Old rankings system based on ELO metrics (deprecated - use `/rankings` instead)
+
+### Archived Commands (No Longer Available)
+These commands have been archived and are no longer deployed:
+- **/matchup**: Matchmaking command (archived - feature discontinued)
+- **/elo**: ELO rating command (archived - backend no longer supports logic)
+- **/stats-legacy**: Legacy player statistics with detailed ELO and Efficiency Index (archived - use `/stats` instead)
 
 ### Additional Commands
 - **/changelog**: Views the history of DFC rule changes with match type filtering
+- **/namesync**: Checks for Discord username mismatches in the roster (requires Moderator role)
 - **/refreshcache**: Manually refreshes the Redis cache for duel data (requires Moderator role)
 
 ## Google Sheets Integration

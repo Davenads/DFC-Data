@@ -35,12 +35,13 @@ module.exports = {
 - Players provide their class and build information
 - Data is written to the "DFC Bot Signups" tab
 
-### 3. Matchup Command
-**File:** `commands/matchup.js`
+### 3. Matchup Command (ARCHIVED)
+**File:** `commands/archived/matchup.js`
+**Status:** Archived - Feature discontinued
 **Purpose:** Create matchups for weekly events
-- Restricted to users with manager role
-- Creates match pairings from signed up players
-- Updates the fight card in Google Sheets
+- Previously restricted to users with manager role
+- Created match pairings from signed up players
+- Updated the fight card in Google Sheets
 
 ### 4. ReportWin Command
 **File:** `commands/reportwin.js`
@@ -61,11 +62,12 @@ module.exports = {
 - Displays individual player performance stats
 - Formatted in embeds for clean presentation
 
-### 7. Elo Command
-**File:** `commands/elo.js`
+### 7. Elo Command (ARCHIVED)
+**File:** `commands/archived/elo.js`
+**Status:** Archived - Backend no longer supports logic
 **Purpose:** Display or update player ELO ratings
-- Shows ELO ratings for players
-- May include functionality to recalculate ELO after matches
+- Previously showed ELO ratings for players
+- Included functionality to recalculate ELO after matches
 
 ### 8. Recent Duels Command
 **File:** `commands/recentduels.js`
@@ -109,8 +111,27 @@ module.exports = {
 - Takes optional days parameter (1-90, defaults to 30 days)
 - Displays 2-3 embeds with comprehensive trend analysis:
   - **Build & Class Trends**: Most popular builds and class distribution
-  - **Matchup Analysis**: Common class matchups with win rate breakdowns  
+  - **Matchup Analysis**: Common class matchups with win rate breakdowns
   - **General Statistics**: Total duels, active players, most active participants
 - Uses cached duel data for fast analysis
 - Calculates percentages, win rates, and usage statistics
 - Ephemeral responses with tip for parameter usage
+
+### 13. Name Sync Command
+**File:** `commands/namesync.js`
+**Purpose:** Check for Discord username mismatches in the roster
+- Restricted to users with @Moderator role
+- Cross-references roster sheet (Column C: Discord Name) against live Discord usernames
+- Displays mismatches with pagination (10 items per page)
+- Shows total roster entries and mismatch count
+- Uses colored embeds (red for mismatches found, green for all synced)
+- Includes interactive pagination buttons for navigating results
+- Ephemeral responses to keep moderation activities private
+
+### 14. Stats Legacy Command (ARCHIVED)
+**File:** `commands/archived/stats-legacy.js`
+**Status:** Archived
+**Purpose:** Legacy player statistics with detailed ELO and Efficiency Index
+- Previously displayed detailed player statistics
+- Included ELO ratings and Efficiency Index calculations
+- Replaced by simplified `/stats` command
