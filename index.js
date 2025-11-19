@@ -6,6 +6,7 @@ const { google } = require('googleapis');
 const http = require('http');
 const cron = require('node-cron');
 const { createGoogleAuth } = require('./utils/googleAuth');
+const { logCommandExecution } = require('./utils/auditLogger');
 const redisClient = require('./utils/redisClient');
 const duelDataCache = require('./utils/duelDataCache');
 const rosterCache = require('./utils/rosterCache');
@@ -246,21 +247,38 @@ client.on('interactionCreate', async interaction => {
         const command = client.commands.get(interaction.commandName);
         if (!command) return;
 
-        try {
-            // Check if the command is restricted by role
-            if (command.role && !interaction.member.roles.cache.some(role => role.name === command.role)) {
-                return interaction.reply({
-                    content: `You do not have the required ${command.role} role to use this command.`,
-                    ephemeral: true
-                });
-            }
-
-            // Execute the command
-            await command.execute(interaction, sheets, auth);
-        } catch (error) {
-            console.error(error);
-            await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+        // Check if the command is restricted by role
+        if (command.role && !interaction.member.roles.cache.some(role => role.name === command.role)) {
+            return interaction.reply({
+                content: `You do not have the required ${command.role} role to use this command.`,
+                ephemeral: true
+            });
         }
+
+        // Wrap command execution with audit logging
+        await logCommandExecution(
+            client,
+            interaction,
+            interaction.commandName,
+            async () => {
+                try {
+                    // Execute the command
+                    await command.execute(interaction, sheets, auth);
+                } catch (error) {
+                    console.error(error);
+                    const errorMessage = {
+                        content: 'There was an error while executing this command!',
+                        ephemeral: true
+                    };
+                    if (interaction.replied || interaction.deferred) {
+                        await interaction.followUp(errorMessage);
+                    } else {
+                        await interaction.reply(errorMessage);
+                    }
+                    throw error; // Re-throw for audit logging
+                }
+            }
+        );
     } else if (interaction.isButton()) {
         // Button Interaction Handling
         const timestamp = new Date().toISOString();
