@@ -3,6 +3,7 @@ const { SlashCommandBuilder } = require('@discordjs/builders');
 const { google } = require('googleapis');
 const { EmbedBuilder } = require('discord.js');
 const { createGoogleAuth } = require('../utils/googleAuth');
+const rosterCache = require('../utils/rosterCache');
 
 // Initialize Google Sheets API
 const sheets = google.sheets('v4');
@@ -105,37 +106,25 @@ module.exports = {
         const focusedValue = interaction.options.getFocused();
 
         try {
-            // Get the guild and find the DFC Dueler role
-            const guild = interaction.guild;
-            if (!guild) {
-                await interaction.respond([]);
-                return;
-            }
+            // Get roster data from cache
+            const roster = await rosterCache.getCachedRoster();
 
-            const dfcDuelerRole = guild.roles.cache.find(role => role.name === 'DFC Dueler');
-            if (!dfcDuelerRole) {
-                console.error('DFC Dueler role not found');
-                await interaction.respond([]);
-                return;
-            }
+            // Get all registered players from roster
+            const players = Object.entries(roster)
+                .filter(([uuid, data]) => data.dataName) // Ensure dataName exists
+                .map(([uuid, data]) => data.dataName);
 
-            // Fetch all members with the DFC Dueler role
-            await guild.members.fetch();
-            const duelers = guild.members.cache
-                .filter(member => member.roles.cache.has(dfcDuelerRole.id))
-                .map(member => member.displayName);
-
-            // Remove duplicates and filter by focused value
-            const uniqueDuelers = [...new Set(duelers)];
-            const filtered = uniqueDuelers.filter(name =>
-                name.toLowerCase().includes(focusedValue.toLowerCase())
+            // Filter by focused value
+            const searchTerm = focusedValue.toLowerCase();
+            const filtered = players.filter(name =>
+                name.toLowerCase().includes(searchTerm)
             );
 
             await interaction.respond(
                 filtered.slice(0, 25).map(name => ({ name, value: name }))
             );
         } catch (error) {
-            console.error('Error fetching duelers for autocomplete:', error);
+            console.error('Error fetching players for autocomplete:', error);
             await interaction.respond([]);
         }
     },

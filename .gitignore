@@ -22,12 +22,14 @@ signup-multiclass-announcement.md
 dfc-announcement.md
 refresh-cache-logs.md
 debug-logs.md
+docs/audit-logging-implementation.md
 
 # Conversation summaries
 conversation-summary.md
 
 # Planning documents
 recentduels-pagination-plan.md
+docs/stats-autocomplete-timeout-fix.md
 
 # Claude Code local settings (user-specific)
 .claude/settings.local.json

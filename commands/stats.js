@@ -37,44 +37,26 @@ module.exports = {
         return;
       }
 
-      const dfcDuelerRole = guild.roles.cache.find(role => role.name === 'DFC Dueler');
-      if (!dfcDuelerRole) {
-        console.error(`[${timestamp}] [AUTOCOMPLETE] DFC Dueler role not found`);
-        await interaction.respond([]);
-        return;
-      }
-
-      // Fetch all members with the DFC Dueler role and roster data in parallel
+      // Fetch roster data from cache
       const fetchStart = Date.now();
-      const [, roster] = await Promise.all([
-        guild.members.fetch(),
-        rosterCache.getCachedRoster()
-      ]);
-      console.log(`[${timestamp}] [AUTOCOMPLETE] Guild members and roster fetched in ${Date.now() - fetchStart}ms`);
+      const roster = await rosterCache.getCachedRoster();
+      console.log(`[${timestamp}] [AUTOCOMPLETE] Roster fetched in ${Date.now() - fetchStart}ms`);
 
-      // Get members with DFC Dueler role who are registered in the roster
-      const duelerPlayers = [];
-      guild.members.cache.forEach(member => {
-        if (member.roles.cache.has(dfcDuelerRole.id)) {
-          const rosterEntry = roster[member.id];
-          if (rosterEntry && rosterEntry.dataName) {
-            duelerPlayers.push({
-              arenaName: rosterEntry.dataName,
-              discordName: member.displayName,
-              uuid: member.id
-            });
-          }
-        }
-      });
+      // Get all registered players from roster
+      const duelerPlayers = Object.entries(roster)
+        .filter(([uuid, data]) => data.dataName) // Ensure dataName exists
+        .map(([uuid, data]) => ({
+          arenaName: data.dataName,
+          discordName: data.discordName,
+          uuid: uuid
+        }));
 
-      console.log(`[${timestamp}] [AUTOCOMPLETE] Found ${duelerPlayers.length} DFC Duelers registered in roster`);
+      console.log(`[${timestamp}] [AUTOCOMPLETE] Found ${duelerPlayers.length} registered players in roster`);
 
-      // Log diagnostic info if no duelers found
+      // Log diagnostic info if no players found
       if (duelerPlayers.length === 0) {
-        const totalMembers = guild.members.cache.size;
-        const membersWithRole = guild.members.cache.filter(m => m.roles.cache.has(dfcDuelerRole.id)).size;
         const rosterSize = Object.keys(roster).length;
-        console.log(`[${timestamp}] [AUTOCOMPLETE] DEBUG: Total members: ${totalMembers}, Members with DFC Dueler role: ${membersWithRole}, Roster entries: ${rosterSize}`);
+        console.log(`[${timestamp}] [AUTOCOMPLETE] DEBUG: Roster entries: ${rosterSize}`);
       }
 
       const searchTerm = focusedValue.toLowerCase();
