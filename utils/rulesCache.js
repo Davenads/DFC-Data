@@ -83,26 +83,32 @@ class RulesCache {
 
                 return rulesData;
             } catch (googleError) {
-                console.error('Google Docs fetch failed, falling back to local file:', googleError);
+                console.error('Google Docs fetch failed:', googleError.message);
 
-                // Fallback to local markdown file
-                console.log(`Parsing rules from local file: ${RULES_FILE_PATH}...`);
-                const rulesData = await rulesParser.parseMarkdownFile(RULES_FILE_PATH);
+                // Try fallback to local markdown file (for local development)
+                try {
+                    console.log(`Attempting fallback to local file: ${RULES_FILE_PATH}...`);
+                    const rulesData = await rulesParser.parseMarkdownFile(RULES_FILE_PATH);
 
-                console.log('Rules parsed successfully from local file');
-                console.log(`  - HLD classes: ${Object.keys(rulesData.hld.classes).length}`);
-                console.log(`  - LLD classes: ${Object.keys(rulesData.lld.classes).length}`);
-                console.log(`  - Images: ${Object.keys(rulesData.images).length}`);
+                    console.log('Rules parsed successfully from local file');
+                    console.log(`  - HLD classes: ${Object.keys(rulesData.hld.classes).length}`);
+                    console.log(`  - LLD classes: ${Object.keys(rulesData.lld.classes).length}`);
+                    console.log(`  - Images: ${Object.keys(rulesData.images).length}`);
 
-                // Add metadata
-                rulesData.metadata = {
-                    lastFetched: new Date().toISOString(),
-                    source: 'local-file',
-                    filePath: RULES_FILE_PATH,
-                    parseMethod: 'local-file-fallback'
-                };
+                    // Add metadata
+                    rulesData.metadata = {
+                        lastFetched: new Date().toISOString(),
+                        source: 'local-file',
+                        filePath: RULES_FILE_PATH,
+                        parseMethod: 'local-file-fallback'
+                    };
 
-                return rulesData;
+                    return rulesData;
+                } catch (fileError) {
+                    console.error('Local file fallback also failed:', fileError.message);
+                    console.error('Rules cache unavailable - Google Docs API must be configured correctly');
+                    throw new Error('Rules unavailable: Google Docs API failed and no local file. Ensure service account has access to document and Google Docs API is enabled.');
+                }
             }
         } catch (error) {
             console.error('Error fetching and parsing rules:', error);
