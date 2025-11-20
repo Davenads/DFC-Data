@@ -314,6 +314,65 @@ class RulesParser {
     }
 
     /**
+     * Format class rules with proper numbering and hierarchy for Discord
+     * Renumbers main rules starting at 1, converts sub-rules to bullets
+     * @param {string} content - Raw class rule content
+     * @returns {string} - Formatted content
+     */
+    formatClassRules(content) {
+        const lines = content.split('\n');
+        const formattedLines = [];
+        let currentRuleNumber = 0;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const trimmedLine = line.trim();
+
+            // Skip the class name header (first line)
+            if (i === 0) {
+                continue;
+            }
+
+            // Skip empty lines
+            if (!trimmedLine) {
+                continue;
+            }
+
+            // Check if line is indented (sub-rule indicator)
+            const isIndented = line.startsWith('   ') || line.startsWith('\t');
+
+            // Detect main rule (starts with number at beginning of line, not indented)
+            const mainRuleMatch = trimmedLine.match(/^(\d+)\.\s+(.+)$/);
+            if (mainRuleMatch && !isIndented) {
+                currentRuleNumber++;
+                const ruleText = mainRuleMatch[2];
+                formattedLines.push(`${currentRuleNumber}. ${ruleText}`);
+                continue;
+            }
+
+            // Detect sub-rule (indented AND starts with number or letter)
+            const subRuleMatch = trimmedLine.match(/^[a-z0-9]+[\.\)]\s+(.+)$/i);
+            if (subRuleMatch && isIndented) {
+                const subRuleText = subRuleMatch[1];
+                formattedLines.push(`   • ${subRuleText}`);
+                continue;
+            }
+
+            // If line doesn't match patterns but isn't empty, it might be a continuation
+            // or a rule without numbering - add it as-is with slight indent if we're in a rule
+            if (currentRuleNumber > 0 && isIndented) {
+                formattedLines.push(`   ${trimmedLine}`);
+            } else if (currentRuleNumber > 0) {
+                formattedLines.push(trimmedLine);
+            } else {
+                formattedLines.push(trimmedLine);
+            }
+        }
+
+        return formattedLines.join('\n');
+    }
+
+    /**
      * Split content into chunks that fit Discord's embed limits
      * @param {string} content - Content to split
      * @param {number} maxLength - Maximum length per chunk (default 1900 to leave room for formatting)

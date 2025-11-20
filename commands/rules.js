@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const rulesCache = require('../utils/rulesCache');
 const rulesParser = require('../utils/rulesParser');
+const { getClassEmoji } = require('../utils/emojis');
 
 const RULES_DOC_URL = 'https://docs.google.com/document/d/1YwECuHx-N-24rsC4wUWYonhnWxKmdzKRpAtcPeHJpXE/edit';
 
@@ -154,8 +155,10 @@ module.exports = {
       return;
     }
 
-    // Convert and split content if needed
-    const content = rulesParser.convertToDiscordMarkdown(rulesContent.content);
+    // Format class rules with proper numbering and hierarchy
+    const formattedContent = rulesParser.formatClassRules(rulesContent.content);
+    // Convert to Discord-friendly markdown
+    const content = rulesParser.convertToDiscordMarkdown(formattedContent);
     const chunks = rulesParser.splitContent(content, 4000); // Discord embed description limit
 
     // Create embeds for each chunk
@@ -165,7 +168,8 @@ module.exports = {
         .setColor(0x3498db);
 
       if (i === 0) {
-        embed.setTitle(`📜 ${className} Rules (${format})`);
+        const classEmoji = getClassEmoji(className);
+        embed.setTitle(`${classEmoji} ${className} Rules - ${format}`);
       }
 
       if (i === chunks.length - 1) {
@@ -193,7 +197,8 @@ module.exports = {
 
     // HLD Rules
     if (hldRules && hldRules.content) {
-      const hldContent = rulesParser.convertToDiscordMarkdown(hldRules.content);
+      const formattedHld = rulesParser.formatClassRules(hldRules.content);
+      const hldContent = rulesParser.convertToDiscordMarkdown(formattedHld);
       const hldChunks = rulesParser.splitContent(hldContent, 4000);
 
       hldChunks.forEach((chunk, i) => {
@@ -202,7 +207,8 @@ module.exports = {
           .setColor(0x3498db);
 
         if (i === 0) {
-          embed.setTitle(`📜 ${className} Rules - HLD (High Level)`);
+          const classEmoji = getClassEmoji(className);
+          embed.setTitle(`${classEmoji} ${className} Rules - HLD`);
         }
 
         if (i === hldChunks.length - 1) {
@@ -215,7 +221,8 @@ module.exports = {
 
     // LLD Rules
     if (lldRules && lldRules.content) {
-      const lldContent = rulesParser.convertToDiscordMarkdown(lldRules.content);
+      const formattedLld = rulesParser.formatClassRules(lldRules.content);
+      const lldContent = rulesParser.convertToDiscordMarkdown(formattedLld);
       const lldChunks = rulesParser.splitContent(lldContent, 4000);
 
       lldChunks.forEach((chunk, i) => {
@@ -224,7 +231,8 @@ module.exports = {
           .setColor(0x9b59b6);
 
         if (i === 0) {
-          embed.setTitle(`📜 ${className} Rules - LLD (Low Level)`);
+          const classEmoji = getClassEmoji(className);
+          embed.setTitle(`${classEmoji} ${className} Rules - LLD`);
         }
 
         if (i === lldChunks.length - 1) {
