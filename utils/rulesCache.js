@@ -8,12 +8,16 @@ const CACHE_KEY = 'dfc-data:rules-document';
 const CACHE_TIMESTAMP_KEY = 'dfc-data:rules-timestamp';
 const CACHE_TTL = 604800; // 1 week in seconds
 
-// Google Docs document ID
-const RULES_DOC_ID = process.env.TEST_MODE === 'true'
+// Google Docs document IDs
+const PRIMARY_RULES_DOC_ID = process.env.TEST_MODE === 'true'
     ? (process.env.TEST_RULES_DOC_ID || '1YwECuHx-N-24rsC4wUWYonhnWxKmdzKRpAtcPeHJpXE')
     : (process.env.PROD_RULES_DOC_ID || '1YwECuHx-N-24rsC4wUWYonhnWxKmdzKRpAtcPeHJpXE');
 
-// Fallback to local file if Google Docs fails
+const FALLBACK_RULES_DOC_ID = process.env.TEST_MODE === 'true'
+    ? (process.env.PROD_RULES_DOC_ID || '1YwECuHx-N-24rsC4wUWYonhnWxKmdzKRpAtcPeHJpXE')
+    : (process.env.TEST_RULES_DOC_ID || '1YwECuHx-N-24rsC4wUWYonhnWxKmdzKRpAtcPeHJpXE');
+
+// Fallback to local file if all Google Docs attempts fail
 const RULES_FILE_PATH = path.join(__dirname, '../docs/Official-DFC-Rules.md');
 
 class RulesCache {
@@ -61,14 +65,13 @@ class RulesCache {
      */
     async fetchLiveData() {
         try {
-            console.log(`Fetching rules from Google Docs (${RULES_DOC_ID})...`);
-
-            // Try Google Docs API first
+            // Try primary Google Docs document first
+            console.log(`Fetching rules from primary Google Doc (${PRIMARY_RULES_DOC_ID})...`);
             try {
-                const markdownText = await this.fetchFromGoogleDocs();
+                const markdownText = await this.fetchFromGoogleDocs(PRIMARY_RULES_DOC_ID);
                 const rulesData = await rulesParser.parseMarkdown(markdownText);
 
-                console.log('Rules parsed successfully from Google Docs');
+                console.log('Rules parsed successfully from primary Google Doc');
                 console.log(`  - HLD classes: ${Object.keys(rulesData.hld.classes).length}`);
                 console.log(`  - LLD classes: ${Object.keys(rulesData.lld.classes).length}`);
                 console.log(`  - Images: ${Object.keys(rulesData.images).length}`);
@@ -76,14 +79,40 @@ class RulesCache {
                 // Add metadata
                 rulesData.metadata = {
                     lastFetched: new Date().toISOString(),
-                    source: 'google-docs',
-                    documentId: RULES_DOC_ID,
+                    source: 'google-docs-primary',
+                    documentId: PRIMARY_RULES_DOC_ID,
                     parseMethod: 'google-docs-api'
                 };
 
                 return rulesData;
-            } catch (googleError) {
-                console.error('Google Docs fetch failed:', googleError.message);
+            } catch (primaryError) {
+                console.error('Primary Google Doc fetch failed:', primaryError.message);
+
+                // Try fallback Google Docs document
+                if (FALLBACK_RULES_DOC_ID && FALLBACK_RULES_DOC_ID !== PRIMARY_RULES_DOC_ID) {
+                    console.log(`Trying fallback Google Doc (${FALLBACK_RULES_DOC_ID})...`);
+                    try {
+                        const markdownText = await this.fetchFromGoogleDocs(FALLBACK_RULES_DOC_ID);
+                        const rulesData = await rulesParser.parseMarkdown(markdownText);
+
+                        console.log('Rules parsed successfully from fallback Google Doc');
+                        console.log(`  - HLD classes: ${Object.keys(rulesData.hld.classes).length}`);
+                        console.log(`  - LLD classes: ${Object.keys(rulesData.lld.classes).length}`);
+                        console.log(`  - Images: ${Object.keys(rulesData.images).length}`);
+
+                        // Add metadata
+                        rulesData.metadata = {
+                            lastFetched: new Date().toISOString(),
+                            source: 'google-docs-fallback',
+                            documentId: FALLBACK_RULES_DOC_ID,
+                            parseMethod: 'google-docs-api-fallback'
+                        };
+
+                        return rulesData;
+                    } catch (fallbackError) {
+                        console.error('Fallback Google Doc fetch failed:', fallbackError.message);
+                    }
+                }
 
                 // Try fallback to local markdown file (for local development)
                 try {
@@ -118,15 +147,16 @@ class RulesCache {
 
     /**
      * Fetch document content from Google Docs API and convert to markdown
+     * @param {string} documentId - Google Docs document ID to fetch
      */
-    async fetchFromGoogleDocs() {
+    async fetchFromGoogleDocs(documentId) {
         const docs = google.docs('v1');
         const auth = createGoogleAuth();
 
         try {
             const response = await docs.documents.get({
                 auth,
-                documentId: RULES_DOC_ID
+                documentId: documentId
             });
 
             const document = response.data;
