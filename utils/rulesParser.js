@@ -324,6 +324,12 @@ class RulesParser {
         const formattedLines = [];
         let currentRuleNumber = 0;
 
+        // Debug logging
+        console.log('[FORMAT] Total lines:', lines.length);
+        if (lines.length > 0) {
+            console.log('[FORMAT] First 3 lines raw:', JSON.stringify(lines.slice(0, 3)));
+        }
+
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             const trimmedLine = line.trim();
@@ -369,7 +375,11 @@ class RulesParser {
             }
         }
 
-        return formattedLines.join('\n');
+        const result = formattedLines.join('\n');
+        console.log('[FORMAT] Formatted lines count:', formattedLines.length);
+        console.log('[FORMAT] Rules found:', currentRuleNumber);
+        console.log('[FORMAT] First 200 chars of result:', result.substring(0, 200));
+        return result;
     }
 
     /**
