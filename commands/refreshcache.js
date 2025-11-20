@@ -146,6 +146,9 @@ module.exports = {
 
       const rosterCount = Object.keys(rosterMap).length;
       const rulesSource = rulesData?.metadata?.source || 'unknown';
+      const rulesDocId = rulesData?.metadata?.documentId ?
+        `${rulesData.metadata.source} (${rulesData.metadata.documentId.substring(0, 8)}...)` :
+        rulesSource;
 
       const embed = new EmbedBuilder()
         .setColor(0x00FF00)
@@ -156,7 +159,7 @@ module.exports = {
           { name: '👥 Players Cached', value: playerList.length.toString(), inline: true },
           { name: '📋 Roster Entries', value: rosterCount.toString(), inline: true },
           { name: '📝 Signup Rows Cached', value: signupsData.length.toString(), inline: true },
-          { name: '📜 Rules Source', value: rulesSource, inline: true },
+          { name: '📜 Rules Source', value: rulesDocId, inline: true },
           { name: '\u200B', value: '\u200B', inline: true }, // Spacer
           { name: 'Previous Duel Update', value: oldDuelDate, inline: true },
           { name: 'Previous Player Update', value: oldPlayerDate, inline: true },
