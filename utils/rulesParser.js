@@ -134,13 +134,16 @@ class RulesParser {
         const classNames = ['Assassin', 'Sorceress', 'Druid', 'Necromancer', 'Paladin', 'Amazon', 'Barbarian'];
 
         classNames.forEach(className => {
-            const classIdx = this.findLineIndex(lines, new RegExp(`^${className}$`));
+            // Match class name with or without bold formatting (**ClassName** or ClassName)
+            const classIdx = this.findLineIndex(lines, new RegExp(`^(\\*\\*)?${className}(\\*\\*)?$`));
             if (classIdx === -1) return;
 
             // Find the next class or end of section
             let nextIdx = lines.length;
             for (let i = classIdx + 1; i < lines.length; i++) {
-                if (classNames.some(name => lines[i].trim() === name)) {
+                const trimmedLine = lines[i].trim();
+                // Check for exact match or bold formatted class name (**ClassName**)
+                if (classNames.some(name => trimmedLine === name || trimmedLine === `**${name}**`)) {
                     nextIdx = i;
                     break;
                 }
