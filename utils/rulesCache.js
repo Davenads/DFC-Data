@@ -208,8 +208,16 @@ class RulesCache {
                     }
                 }
 
-                // Add the line (preserving blank lines)
-                lines.push(lineText.trimEnd());
+                // Preserve indentation from Google Docs paragraph style
+                const paragraphStyle = paragraph.paragraphStyle || {};
+                const indentStart = paragraphStyle.indentStart ? paragraphStyle.indentStart.magnitude : 0;
+
+                // Convert indentation (Google Docs uses points, ~18pt = 1 indent level = 3 spaces)
+                const indentLevel = Math.round(indentStart / 18);
+                const indentation = '   '.repeat(Math.max(0, indentLevel));
+
+                // Add the line with preserved indentation
+                lines.push(indentation + lineText.trimEnd());
             }
         }
 
