@@ -44,7 +44,7 @@ class RulesParser {
      */
     extractIntroduction(lines) {
         const startIdx = 0;
-        const endIdx = this.findLineIndex(lines, /^\*\*Stream Specific Rules:/);
+        const endIdx = this.findLineIndex(lines, /^\*{0,2}Stream Specific Rules:/);
 
         if (endIdx === -1) return { content: '', lineStart: 0, lineEnd: 0 };
 
@@ -60,8 +60,8 @@ class RulesParser {
      * Extract Stream Specific Rules section
      */
     extractStreamRules(lines) {
-        const startIdx = this.findLineIndex(lines, /^\*\*Stream Specific Rules:/);
-        const endIdx = this.findLineIndex(lines, /^\*\*Basic Rules/);
+        const startIdx = this.findLineIndex(lines, /^\*{0,2}Stream Specific Rules:/);
+        const endIdx = this.findLineIndex(lines, /^\*{0,2}Basic Rules/);
 
         if (startIdx === -1 || endIdx === -1) return { content: '', lineStart: 0, lineEnd: 0 };
 
@@ -77,8 +77,8 @@ class RulesParser {
      * Extract Basic Rules section
      */
     extractBasicRules(lines) {
-        const startIdx = this.findLineIndex(lines, /^\*\*Basic Rules/);
-        const endIdx = this.findLineIndex(lines, /^Section 1: High Level/);
+        const startIdx = this.findLineIndex(lines, /^\*{0,2}Basic Rules/);
+        const endIdx = this.findLineIndex(lines, /^\*{0,2}Section 1: High Level/);
 
         if (startIdx === -1 || endIdx === -1) return { content: '', lineStart: 0, lineEnd: 0 };
 
@@ -94,8 +94,8 @@ class RulesParser {
      * Extract HLD section with class-specific rules
      */
     extractHLDSection(lines) {
-        const startIdx = this.findLineIndex(lines, /^Section 1: High Level/);
-        const endIdx = this.findLineIndex(lines, /^Section 2:/);
+        const startIdx = this.findLineIndex(lines, /^\*{0,2}Section 1: High Level/);
+        const endIdx = this.findLineIndex(lines, /^\*{0,2}Section 2:/);
 
         if (startIdx === -1 || endIdx === -1) {
             return { general: { content: '', lineStart: 0, lineEnd: 0 }, classes: {} };
@@ -161,8 +161,8 @@ class RulesParser {
      * Extract Melee section
      */
     extractMeleeSection(lines) {
-        const startIdx = this.findLineIndex(lines, /^Section 2:/);
-        const endIdx = this.findLineIndex(lines, /^Section 3:/);
+        const startIdx = this.findLineIndex(lines, /^\*{0,2}Section 2:/);
+        const endIdx = this.findLineIndex(lines, /^\*{0,2}Section 3:/);
 
         if (startIdx === -1 || endIdx === -1) return { content: '', lineStart: 0, lineEnd: 0 };
 
@@ -178,8 +178,8 @@ class RulesParser {
      * Extract Team section
      */
     extractTeamSection(lines) {
-        const startIdx = this.findLineIndex(lines, /^Section 3:/);
-        const endIdx = this.findLineIndex(lines, /^Section 4:/);
+        const startIdx = this.findLineIndex(lines, /^\*{0,2}Section 3:/);
+        const endIdx = this.findLineIndex(lines, /^\*{0,2}Section 4:/);
 
         if (startIdx === -1 || endIdx === -1) return { content: '', lineStart: 0, lineEnd: 0 };
 
@@ -195,7 +195,7 @@ class RulesParser {
      * Extract LLD section with class restrictions
      */
     extractLLDSection(lines) {
-        const startIdx = this.findLineIndex(lines, /^Section 4:/);
+        const startIdx = this.findLineIndex(lines, /^\*{0,2}Section 4:/);
 
         if (startIdx === -1) {
             return { general: { content: '', lineStart: 0, lineEnd: 0 }, classes: {} };
