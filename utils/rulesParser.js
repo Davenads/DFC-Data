@@ -142,8 +142,13 @@ class RulesParser {
             let nextIdx = lines.length;
             for (let i = classIdx + 1; i < lines.length; i++) {
                 const trimmedLine = lines[i].trim();
-                // Check for exact match or bold formatted class name (**ClassName**)
-                if (classNames.some(name => trimmedLine === name || trimmedLine === `**${name}**`)) {
+                // Check for class name with various markdown formats (plain, bold, or malformed)
+                if (classNames.some(name =>
+                    trimmedLine === name ||
+                    trimmedLine === `**${name}**` ||
+                    trimmedLine === `${name}**` ||
+                    trimmedLine === `**${name}`
+                )) {
                     nextIdx = i;
                     break;
                 }
