@@ -3,11 +3,12 @@ const duelDataCache = require('../utils/duelDataCache');
 const playerListCache = require('../utils/playerListCache');
 const rosterCache = require('../utils/rosterCache');
 const signupsCache = require('../utils/signupsCache');
+const rulesCache = require('../utils/rulesCache');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('refreshcache')
-    .setDescription('Manually refresh Duel Data, Player List, Roster, and Signups caches')
+    .setDescription('Manually refresh all caches (Duel Data, Player List, Roster, Signups, Rules)')
     .setDefaultMemberPermissions('0'), // Restrict to administrators
 
   async execute(interaction) {
@@ -35,6 +36,7 @@ module.exports = {
       const oldPlayerTimestamp = await playerListCache.getCacheTimestamp();
       const oldRosterTimestamp = await rosterCache.getCacheTimestamp();
       const oldSignupsTimestamp = await signupsCache.getCacheTimestamp();
+      const oldRulesTimestamp = await rulesCache.getCacheTimestamp();
 
       const oldDuelDate = oldDuelTimestamp ? new Date(oldDuelTimestamp).toLocaleString('en-US', {
         timeZone: 'America/New_York',
@@ -72,12 +74,22 @@ module.exports = {
         timeZoneName: 'short'
       }) : 'Never';
 
+      const oldRulesDate = oldRulesTimestamp ? new Date(oldRulesTimestamp).toLocaleString('en-US', {
+        timeZone: 'America/New_York',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZoneName: 'short'
+      }) : 'Never';
+
       // Refresh all caches
-      const [duelData, playerList, rosterMap, signupsData] = await Promise.all([
+      const [duelData, playerList, rosterMap, signupsData, rulesData] = await Promise.all([
         duelDataCache.refreshCache(),
         playerListCache.refreshPlayerListCache(),
         rosterCache.refreshCache(),
-        signupsCache.refreshCache()
+        signupsCache.refreshCache(),
+        rulesCache.refreshCache()
       ]);
       
       // Get new cache timestamps
@@ -85,6 +97,7 @@ module.exports = {
       const newPlayerTimestamp = await playerListCache.getCacheTimestamp();
       const newRosterTimestamp = await rosterCache.getCacheTimestamp();
       const newSignupsTimestamp = await signupsCache.getCacheTimestamp();
+      const newRulesTimestamp = await rulesCache.getCacheTimestamp();
 
       const newDuelDate = new Date(newDuelTimestamp).toLocaleString('en-US', {
         timeZone: 'America/New_York',
@@ -122,24 +135,34 @@ module.exports = {
         timeZoneName: 'short'
       });
 
+      const newRulesDate = new Date(newRulesTimestamp).toLocaleString('en-US', {
+        timeZone: 'America/New_York',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZoneName: 'short'
+      });
+
       const rosterCount = Object.keys(rosterMap).length;
+      const rulesSource = rulesData?.metadata?.source || 'unknown';
 
       const embed = new EmbedBuilder()
         .setColor(0x00FF00)
         .setTitle('✅ Cache Refresh Complete')
-        .setDescription('All caches (Duel Data, Player List, Roster, and Signups) have been successfully refreshed.')
+        .setDescription('All caches (Duel Data, Player List, Roster, Signups, Rules) have been successfully refreshed.')
         .addFields(
           { name: '📊 Duel Rows Cached', value: duelData.length.toString(), inline: true },
           { name: '👥 Players Cached', value: playerList.length.toString(), inline: true },
           { name: '📋 Roster Entries', value: rosterCount.toString(), inline: true },
           { name: '📝 Signup Rows Cached', value: signupsData.length.toString(), inline: true },
-          { name: '\u200B', value: '\u200B', inline: true }, // Spacer
+          { name: '📜 Rules Source', value: rulesSource, inline: true },
           { name: '\u200B', value: '\u200B', inline: true }, // Spacer
           { name: 'Previous Duel Update', value: oldDuelDate, inline: true },
           { name: 'Previous Player Update', value: oldPlayerDate, inline: true },
           { name: 'Previous Roster Update', value: oldRosterDate, inline: true },
           { name: 'Previous Signups Update', value: oldSignupsDate, inline: true },
-          { name: '\u200B', value: '\u200B', inline: true }, // Spacer
+          { name: 'Previous Rules Update', value: oldRulesDate, inline: true },
           { name: '\u200B', value: '\u200B', inline: true }, // Spacer
           { name: '🆕 All Updated', value: 'Just now', inline: false }
         )
@@ -148,7 +171,7 @@ module.exports = {
 
       await interaction.editReply({ embeds: [embed] });
 
-      console.log(`[${timestamp}] Manual cache refresh completed successfully by ${user.tag} (${user.id}) - ${duelData.length} duel rows, ${playerList.length} players, ${rosterCount} roster entries, and ${signupsData.length} signup rows cached`);
+      console.log(`[${timestamp}] Manual cache refresh completed successfully by ${user.tag} (${user.id}) - ${duelData.length} duel rows, ${playerList.length} players, ${rosterCount} roster entries, ${signupsData.length} signup rows, and rules (${rulesSource}) cached`);
     } catch (error) {
       console.error(`[${timestamp}] Manual cache refresh failed for ${user.tag} (${user.id}):`, error);
       

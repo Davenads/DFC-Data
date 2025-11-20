@@ -6,7 +6,10 @@ const { JWT } = require('google-auth-library');
  * @param {string[]} scopes - Google API scopes to authorize
  * @returns {JWT} Google Auth JWT client
  */
-function createGoogleAuth(scopes = ['https://www.googleapis.com/auth/spreadsheets']) {
+function createGoogleAuth(scopes = [
+  'https://www.googleapis.com/auth/spreadsheets',
+  'https://www.googleapis.com/auth/documents.readonly'
+]) {
   // Use direct JWT initialization with email and key
   console.log('Initializing Google Auth with direct JWT approach');
   
