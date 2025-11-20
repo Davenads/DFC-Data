@@ -181,6 +181,9 @@ class RulesCache {
             throw new Error('Invalid Google Docs document structure');
         }
 
+        // Track list nesting levels for proper numbering
+        const listCounters = new Map();
+
         for (const element of document.body.content) {
             if (element.paragraph) {
                 const paragraph = element.paragraph;
@@ -208,6 +211,27 @@ class RulesCache {
                     }
                 }
 
+                // Handle list numbering from bullet metadata
+                let listPrefix = '';
+                if (paragraph.bullet) {
+                    const listId = paragraph.bullet.listId;
+                    const nestingLevel = paragraph.bullet.nestingLevel || 0;
+                    const listKey = `${listId}_${nestingLevel}`;
+
+                    // Initialize or increment counter for this list level
+                    if (!listCounters.has(listKey)) {
+                        listCounters.set(listKey, 1);
+                    } else {
+                        listCounters.set(listKey, listCounters.get(listKey) + 1);
+                    }
+
+                    const counter = listCounters.get(listKey);
+                    listPrefix = `${counter}. `;
+                } else {
+                    // Reset all counters when we exit lists
+                    listCounters.clear();
+                }
+
                 // Preserve indentation from Google Docs paragraph style
                 const paragraphStyle = paragraph.paragraphStyle || {};
                 const indentStart = paragraphStyle.indentStart ? paragraphStyle.indentStart.magnitude : 0;
@@ -216,8 +240,8 @@ class RulesCache {
                 const indentLevel = Math.round(indentStart / 18);
                 const indentation = '   '.repeat(Math.max(0, indentLevel));
 
-                // Add the line with preserved indentation
-                lines.push(indentation + lineText.trimEnd());
+                // Add the line with preserved indentation and list numbering
+                lines.push(indentation + listPrefix + lineText.trimEnd());
             }
         }
 
