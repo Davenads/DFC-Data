@@ -125,9 +125,10 @@ module.exports = {
         const loser = match[4];      // Column E - Loser name
         const matchType = (match[8] || '').toUpperCase(); // Column I - Match type
 
-        // Try to find round wins/losses data (check multiple possible indices)
-        const roundWins = match[9] || match[7] || match[15] || match[16] || 0;  // Will test which index is correct
-        const roundLosses = match[10] || match[8] || match[16] || match[17] || 0; // Will test which index is correct
+        // Column H (index 7) = Round Losses from winner's perspective
+        // In Bo5 (first to 3), winner loses match[7] rounds, loser always loses 3 rounds
+        const winnerRoundsLost = parseInt(match[7]) || 0;
+        const loserRoundsLost = 3; // Standard Bo5 format (first to 3)
 
         // Normalize match type (handle variations)
         let division = matchType;
@@ -146,29 +147,26 @@ module.exports = {
         // Track winner stats including rounds
         if (winner) {
           if (!divisions[division][winner]) {
-            divisions[division][winner] = { wins: 0, losses: 0, roundsWon: 0, roundsLost: 0, duels: 0 };
+            divisions[division][winner] = { wins: 0, losses: 0, roundsLost: 0, duels: 0 };
           }
           divisions[division][winner].wins++;
           divisions[division][winner].duels++;
-          divisions[division][winner].roundsWon += parseInt(roundWins) || 0;
-          divisions[division][winner].roundsLost += parseInt(roundLosses) || 0;
+          divisions[division][winner].roundsLost += winnerRoundsLost;
         }
 
         // Track loser stats including rounds
         if (loser) {
           if (!divisions[division][loser]) {
-            divisions[division][loser] = { wins: 0, losses: 0, roundsWon: 0, roundsLost: 0, duels: 0 };
+            divisions[division][loser] = { wins: 0, losses: 0, roundsLost: 0, duels: 0 };
           }
           divisions[division][loser].losses++;
           divisions[division][loser].duels++;
-          // Loser gets inverse of winner's rounds
-          divisions[division][loser].roundsWon += parseInt(roundLosses) || 0;
-          divisions[division][loser].roundsLost += parseInt(roundWins) || 0;
+          divisions[division][loser].roundsLost += loserRoundsLost;
         }
 
         // Debug first few matches
         if (matchIndex < 3) {
-          console.log(`[${timestamp}] [rankings-test] Match ${matchIndex}: ${winner} vs ${loser}, rounds: ${roundWins}-${roundLosses}`);
+          console.log(`[${timestamp}] [rankings-test] Match ${matchIndex}: ${winner} (lost ${winnerRoundsLost} rounds) vs ${loser} (lost ${loserRoundsLost} rounds)`);
         }
       });
 
@@ -206,7 +204,6 @@ module.exports = {
             winRate,
             totalMatches,
             arl,
-            roundsWon: stats.roundsWon || 0,
             roundsLost: stats.roundsLost || 0,
             duels
           };
@@ -217,8 +214,7 @@ module.exports = {
           if (b.wins !== a.wins) return b.wins - a.wins;
           // Tiebreaker: win% (descending)
           return b.winRate - a.winRate;
-        })
-        .slice(0, 10); // Top 10
+        }); // Get all players, will slice to top 10 later
 
       console.log(`[${timestamp}] [rankings-test] Sorted and filtered to top ${sortedPlayers.length} players (took ${Date.now() - sortStart}ms)`);
 
@@ -244,53 +240,42 @@ module.exports = {
         .setTimestamp()
         .setFooter({ text: 'DFC Rankings - Win-Based (Last 100 Days)' });
 
-      // Build description with champion at the top (if exists)
+      // Build description with champion included in rankings
       console.log(`[${timestamp}] [rankings-test] Building embed description...`);
       let description = '';
 
       const champion = champions[selectedDivision];
+      const championName = champion ? champion.arenaName.toLowerCase() : null;
+
       if (champion) {
         console.log(`[${timestamp}] [rankings-test] ${selectedDivision} champion: ${champion.dataName || champion.arenaName}`);
-        // Find champion's stats in the ranking
-        const championStats = sortedPlayers.find(p =>
-          p.name.toLowerCase() === champion.arenaName.toLowerCase()
-        );
-
-        if (championStats) {
-          console.log(`[${timestamp}] [rankings-test] Champion has recent stats: ${championStats.wins}W/${championStats.losses}L, ARL: ${championStats.arl.toFixed(2)}`);
-          description += `**👑 CHAMPION**\n`;
-          description += `**${champion.dataName}** - ${championStats.wins}W/${championStats.losses}L (${championStats.winRate.toFixed(1)}%) - ARL ${championStats.arl.toFixed(2)}\n\n`;
-          description += `**━━━━━━━━━━━━━━━━**\n\n`;
-        } else {
-          // Champion exists but has no recent matches in last 100 days
-          console.log(`[${timestamp}] [rankings-test] Champion has no recent matches`);
-          description += `**👑 CHAMPION**\n`;
-          description += `**${champion.dataName}** - No recent matches\n\n`;
-          description += `**━━━━━━━━━━━━━━━━**\n\n`;
-        }
-      } else {
-        console.log(`[${timestamp}] [rankings-test] No champion set for ${selectedDivision}`);
       }
 
-      // Add top 10 rankings (excluding champion if already shown)
-      const championName = champion ? champion.arenaName.toLowerCase() : null;
-      let rank = 1;
+      // Show top 10 rankings (including champion with crown emoji)
       let playersAdded = 0;
+      const top10 = sortedPlayers.slice(0, 10);
 
-      sortedPlayers.forEach((player) => {
-        // Skip champion in regular rankings
-        if (championName && player.name.toLowerCase() === championName) {
-          console.log(`[${timestamp}] [rankings-test] Skipping champion ${player.name} in regular rankings`);
-          return;
+      top10.forEach((player, index) => {
+        const rank = index + 1;
+        const isChampion = championName && player.name.toLowerCase() === championName;
+
+        // Add medal/rank indicator
+        let indicator;
+        if (isChampion) {
+          indicator = '👑'; // Crown for champion
+          console.log(`[${timestamp}] [rankings-test] Champion ${player.name} at rank ${rank} with ARL: ${player.arl.toFixed(2)}`);
+        } else if (rank === 1) {
+          indicator = '🥇';
+        } else if (rank === 2) {
+          indicator = '🥈';
+        } else if (rank === 3) {
+          indicator = '🥉';
+        } else {
+          indicator = `**${rank}.**`;
         }
 
-        const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `**${rank}.**`;
-        description += `${medal} **${player.name}** - ${player.wins}W/${player.losses}L (${player.winRate.toFixed(1)}%) - ARL ${player.arl.toFixed(2)}\n`;
-        rank++;
+        description += `${indicator} **${player.name}** - ${player.wins}W/${player.losses}L (${player.winRate.toFixed(1)}%) - ARL ${player.arl.toFixed(2)}\n`;
         playersAdded++;
-
-        // Limit to top 10 (excluding champion)
-        if (rank > 10) return;
       });
 
       console.log(`[${timestamp}] [rankings-test] Added ${playersAdded} players to rankings`);
