@@ -47,20 +47,19 @@ module.exports = {
       console.log(`[${timestamp}] [rankings-test] Fetched ${duelRows.length} duel data rows in ${Date.now() - fetchDuelStart}ms`);
 
       // Fetch roster data to get champion information (Column G)
+      // Use same spreadsheet as rosterCache for consistency
       const fetchRosterStart = Date.now();
       const sheets = google.sheets('v4');
       const auth = createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
 
-      const spreadsheetId = process.env.TEST_MODE === 'true'
-        ? process.env.QUERY_SPREADSHEET_ID // Test environment (for now, using QUERY_SPREADSHEET_ID for both)
-        : process.env.QUERY_SPREADSHEET_ID; // Production environment
+      const spreadsheetId = process.env.SPREADSHEET_ID; // Same as rosterCache.js
 
       console.log(`[${timestamp}] [rankings-test] Using spreadsheet ID: ${spreadsheetId.substring(0, 10)}...`);
 
       const rosterResponse = await sheets.spreadsheets.values.get({
         auth,
         spreadsheetId: spreadsheetId,
-        range: 'Roster!A2:G500', // Extended to include column G (Current Champ)
+        range: 'Roster!A2:J500', // Same range as rosterCache (columns A-J)
       });
 
       const rosterRows = rosterResponse.data.values || [];
