@@ -113,10 +113,21 @@ module.exports = {
 
       let matchTypeCount = { HLD: 0, LLD: 0, MELEE: 0, unknown: 0 };
 
-      recentMatches.forEach(match => {
+      // Debug: Log first match structure to find round data columns
+      if (recentMatches.length > 0) {
+        const sampleMatch = recentMatches[0];
+        console.log(`[${timestamp}] [rankings-test] Sample match data (${sampleMatch.length} columns):`,
+          sampleMatch.map((val, idx) => `[${idx}]=${val}`).join(', '));
+      }
+
+      recentMatches.forEach((match, matchIndex) => {
         const winner = match[1];     // Column B - Winner name
         const loser = match[4];      // Column E - Loser name
         const matchType = (match[8] || '').toUpperCase(); // Column I - Match type
+
+        // Try to find round wins/losses data (check multiple possible indices)
+        const roundWins = match[9] || match[7] || match[15] || match[16] || 0;  // Will test which index is correct
+        const roundLosses = match[10] || match[8] || match[16] || match[17] || 0; // Will test which index is correct
 
         // Normalize match type (handle variations)
         let division = matchType;
@@ -132,20 +143,32 @@ module.exports = {
 
         if (!divisions[division]) return;
 
-        // Track winner stats
+        // Track winner stats including rounds
         if (winner) {
           if (!divisions[division][winner]) {
-            divisions[division][winner] = { wins: 0, losses: 0 };
+            divisions[division][winner] = { wins: 0, losses: 0, roundsWon: 0, roundsLost: 0, duels: 0 };
           }
           divisions[division][winner].wins++;
+          divisions[division][winner].duels++;
+          divisions[division][winner].roundsWon += parseInt(roundWins) || 0;
+          divisions[division][winner].roundsLost += parseInt(roundLosses) || 0;
         }
 
-        // Track loser stats
+        // Track loser stats including rounds
         if (loser) {
           if (!divisions[division][loser]) {
-            divisions[division][loser] = { wins: 0, losses: 0 };
+            divisions[division][loser] = { wins: 0, losses: 0, roundsWon: 0, roundsLost: 0, duels: 0 };
           }
           divisions[division][loser].losses++;
+          divisions[division][loser].duels++;
+          // Loser gets inverse of winner's rounds
+          divisions[division][loser].roundsWon += parseInt(roundLosses) || 0;
+          divisions[division][loser].roundsLost += parseInt(roundWins) || 0;
+        }
+
+        // Debug first few matches
+        if (matchIndex < 3) {
+          console.log(`[${timestamp}] [rankings-test] Match ${matchIndex}: ${winner} vs ${loser}, rounds: ${roundWins}-${roundLosses}`);
         }
       });
 
@@ -168,13 +191,25 @@ module.exports = {
 
       console.log(`[${timestamp}] [rankings-test] Found ${Object.keys(players).length} players in ${selectedDivision}`);
 
-      // Calculate win% and sort
+      // Calculate win%, ARL, and sort
       const sortStart = Date.now();
       const sortedPlayers = Object.entries(players)
         .map(([name, stats]) => {
           const totalMatches = stats.wins + stats.losses;
           const winRate = totalMatches > 0 ? (stats.wins / totalMatches) * 100 : 0;
-          return { name, wins: stats.wins, losses: stats.losses, winRate, totalMatches };
+          const duels = stats.duels || totalMatches;
+          const arl = duels > 0 ? (stats.roundsLost / duels) : 0; // Average Rounds Lost per duel
+          return {
+            name,
+            wins: stats.wins,
+            losses: stats.losses,
+            winRate,
+            totalMatches,
+            arl,
+            roundsWon: stats.roundsWon || 0,
+            roundsLost: stats.roundsLost || 0,
+            duels
+          };
         })
         .filter(p => p.totalMatches > 0) // Only players with matches
         .sort((a, b) => {
@@ -198,7 +233,9 @@ module.exports = {
 
       // Log top 3 for debugging
       console.log(`[${timestamp}] [rankings-test] Top 3 in ${selectedDivision}:`,
-        sortedPlayers.slice(0, 3).map((p, i) => `${i + 1}. ${p.name} (${p.wins}W/${p.losses}L - ${p.winRate.toFixed(1)}%)`).join(', ')
+        sortedPlayers.slice(0, 3).map((p, i) =>
+          `${i + 1}. ${p.name} (${p.wins}W/${p.losses}L - ${p.winRate.toFixed(1)}% - ARL:${p.arl.toFixed(2)})`
+        ).join(', ')
       );
 
       const embed = new EmbedBuilder()
@@ -220,9 +257,9 @@ module.exports = {
         );
 
         if (championStats) {
-          console.log(`[${timestamp}] [rankings-test] Champion has recent stats: ${championStats.wins}W/${championStats.losses}L`);
+          console.log(`[${timestamp}] [rankings-test] Champion has recent stats: ${championStats.wins}W/${championStats.losses}L, ARL: ${championStats.arl.toFixed(2)}`);
           description += `**👑 CHAMPION**\n`;
-          description += `**${champion.dataName}** - ${championStats.wins}W/${championStats.losses}L (${championStats.winRate.toFixed(1)}%)\n\n`;
+          description += `**${champion.dataName}** - ${championStats.wins}W/${championStats.losses}L (${championStats.winRate.toFixed(1)}%) - ARL ${championStats.arl.toFixed(2)}\n\n`;
           description += `**━━━━━━━━━━━━━━━━**\n\n`;
         } else {
           // Champion exists but has no recent matches in last 100 days
@@ -248,7 +285,7 @@ module.exports = {
         }
 
         const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `**${rank}.**`;
-        description += `${medal} **${player.name}** - ${player.wins}W/${player.losses}L (${player.winRate.toFixed(1)}%)\n`;
+        description += `${medal} **${player.name}** - ${player.wins}W/${player.losses}L (${player.winRate.toFixed(1)}%) - ARL ${player.arl.toFixed(2)}\n`;
         rank++;
         playersAdded++;
 
