@@ -1,7 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { google } = require('googleapis');
-const { createGoogleAuth } = require('../utils/googleAuth');
-const duelDataCache = require('../utils/duelDataCache');
+const rankingsCache = require('../utils/rankingsCache');
 const { getMatchTypeEmoji } = require('../utils/emojis');
 
 module.exports = {
@@ -34,151 +32,18 @@ module.exports = {
     await interaction.deferReply({ ephemeral: true });
 
     try {
-      const DAYS = 100;
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - DAYS);
+      console.log(`[${timestamp}] [rankings-test] Fetching rankings for division: ${selectedDivision}`);
 
-      console.log(`[${timestamp}] [rankings-test] Starting data fetch for division: ${selectedDivision}`);
-      console.log(`[${timestamp}] [rankings-test] Cutoff date: ${cutoffDate.toISOString()}`);
+      // Fetch rankings from cache (falls back to computation if cache miss)
+      const fetchStart = Date.now();
+      const rankingsData = await rankingsCache.getRankings(selectedDivision);
+      console.log(`[${timestamp}] [rankings-test] Retrieved rankings in ${Date.now() - fetchStart}ms`);
 
-      // Fetch duel data from cache
-      const fetchDuelStart = Date.now();
-      const duelRows = await duelDataCache.getCachedData();
-      console.log(`[${timestamp}] [rankings-test] Fetched ${duelRows.length} duel data rows in ${Date.now() - fetchDuelStart}ms`);
+      const sortedPlayers = rankingsData.players;
+      const champion = rankingsData.champion;
+      const DAYS = rankingsData.daysWindow;
 
-      // Fetch roster data to get champion information (Column G)
-      // Use same spreadsheet as rosterCache for consistency
-      const fetchRosterStart = Date.now();
-      const sheets = google.sheets('v4');
-      const auth = createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
-
-      const spreadsheetId = process.env.SPREADSHEET_ID; // Same as rosterCache.js
-
-      console.log(`[${timestamp}] [rankings-test] Using spreadsheet ID: ${spreadsheetId.substring(0, 10)}...`);
-
-      const rosterResponse = await sheets.spreadsheets.values.get({
-        auth,
-        spreadsheetId: spreadsheetId,
-        range: 'Roster!A2:J500', // Same range as rosterCache (columns A-J)
-      });
-
-      const rosterRows = rosterResponse.data.values || [];
-      console.log(`[${timestamp}] [rankings-test] Fetched ${rosterRows.length} roster rows in ${Date.now() - fetchRosterStart}ms`);
-
-      // Build champion map: { division: arenaName }
-      console.log(`[${timestamp}] [rankings-test] Parsing champion data from roster...`);
-      const champions = {
-        HLD: null,
-        LLD: null,
-        MELEE: null
-      };
-
-      let championCount = 0;
-      rosterRows.forEach(row => {
-        const arenaName = row[0]; // Column A: Arena Name
-        const dataName = row[1];  // Column B: Data Name (for display)
-        const currentChamp = row[6]; // Column G: Current Champ
-
-        if (currentChamp && arenaName) {
-          const division = currentChamp.toUpperCase();
-          if (division === 'HLD' || division === 'LLD' || division === 'MELEE') {
-            champions[division] = { arenaName, dataName: dataName || arenaName };
-            championCount++;
-            console.log(`[${timestamp}] [rankings-test] Found ${division} champion: ${dataName || arenaName}`);
-          }
-        }
-      });
-
-      console.log(`[${timestamp}] [rankings-test] Total champions found: ${championCount}`, champions);
-
-      // Filter matches within last 100 days
-      console.log(`[${timestamp}] [rankings-test] Filtering matches by date range...`);
-      const filterStart = Date.now();
-      const recentMatches = duelRows.filter(row => {
-        if (row.length < 9) return false;
-        const matchDate = new Date(row[0]);
-        return !isNaN(matchDate.getTime()) && matchDate >= cutoffDate;
-      });
-
-      console.log(`[${timestamp}] [rankings-test] Filtered to ${recentMatches.length} matches in last ${DAYS} days (took ${Date.now() - filterStart}ms)`);
-
-      // Calculate stats per division per player
-      console.log(`[${timestamp}] [rankings-test] Calculating player stats per division...`);
-      const calcStart = Date.now();
-      const divisions = {
-        HLD: {},
-        LLD: {},
-        MELEE: {}
-      };
-
-      let matchTypeCount = { HLD: 0, LLD: 0, MELEE: 0, unknown: 0 };
-
-      // Debug: Log first match structure to find round data columns
-      if (recentMatches.length > 0) {
-        const sampleMatch = recentMatches[0];
-        console.log(`[${timestamp}] [rankings-test] Sample match data (${sampleMatch.length} columns):`,
-          sampleMatch.map((val, idx) => `[${idx}]=${val}`).join(', '));
-      }
-
-      recentMatches.forEach((match, matchIndex) => {
-        const winner = match[1];     // Column B - Winner name
-        const loser = match[4];      // Column E - Loser name
-        const matchType = (match[8] || '').toUpperCase(); // Column I - Match type
-
-        // Column H (index 7) = Round Losses from winner's perspective
-        // In Bo5 (first to 3), winner loses match[7] rounds, loser always loses 3 rounds
-        const winnerRoundsLost = parseInt(match[7]) || 0;
-        const loserRoundsLost = 3; // Standard Bo5 format (first to 3)
-
-        // Normalize match type (handle variations)
-        let division = matchType;
-        if (matchType === 'MELEE') division = 'MELEE';
-        else if (matchType === 'HLD') division = 'HLD';
-        else if (matchType === 'LLD') division = 'LLD';
-        else {
-          matchTypeCount.unknown++;
-          return; // Skip unknown match types
-        }
-
-        matchTypeCount[division]++;
-
-        if (!divisions[division]) return;
-
-        // Track winner stats including rounds
-        if (winner) {
-          if (!divisions[division][winner]) {
-            divisions[division][winner] = { wins: 0, losses: 0, roundsLost: 0, duels: 0 };
-          }
-          divisions[division][winner].wins++;
-          divisions[division][winner].duels++;
-          divisions[division][winner].roundsLost += winnerRoundsLost;
-        }
-
-        // Track loser stats including rounds
-        if (loser) {
-          if (!divisions[division][loser]) {
-            divisions[division][loser] = { wins: 0, losses: 0, roundsLost: 0, duels: 0 };
-          }
-          divisions[division][loser].losses++;
-          divisions[division][loser].duels++;
-          divisions[division][loser].roundsLost += loserRoundsLost;
-        }
-
-        // Debug first few matches
-        if (matchIndex < 3) {
-          console.log(`[${timestamp}] [rankings-test] Match ${matchIndex}: ${winner} (lost ${winnerRoundsLost} rounds) vs ${loser} (lost ${loserRoundsLost} rounds)`);
-        }
-      });
-
-      console.log(`[${timestamp}] [rankings-test] Stats calculation completed in ${Date.now() - calcStart}ms`);
-      console.log(`[${timestamp}] [rankings-test] Match type distribution:`, matchTypeCount);
-      console.log(`[${timestamp}] [rankings-test] Unique players per division: HLD=${Object.keys(divisions.HLD).length}, LLD=${Object.keys(divisions.LLD).length}, MELEE=${Object.keys(divisions.MELEE).length}`);
-
-      // Build embed for selected division only
-      console.log(`[${timestamp}] [rankings-test] Building embed for ${selectedDivision}...`);
-      const players = divisions[selectedDivision];
-
-      if (!players || Object.keys(players).length === 0) {
+      if (!sortedPlayers || sortedPlayers.length === 0) {
         console.log(`[${timestamp}] [rankings-test] No player data for ${selectedDivision}`);
         await interaction.editReply({
           content: `⚠️ No ranking data available for ${selectedDivision} in the last ${DAYS} days.`,
@@ -187,58 +52,21 @@ module.exports = {
         return;
       }
 
-      console.log(`[${timestamp}] [rankings-test] Found ${Object.keys(players).length} players in ${selectedDivision}`);
-
-      // Calculate win%, ARL, and sort
-      const sortStart = Date.now();
-      const sortedPlayers = Object.entries(players)
-        .map(([name, stats]) => {
-          const totalMatches = stats.wins + stats.losses;
-          const winRate = totalMatches > 0 ? (stats.wins / totalMatches) * 100 : 0;
-          const duels = stats.duels || totalMatches;
-          const arl = duels > 0 ? (stats.roundsLost / duels) : 0; // Average Rounds Lost per duel
-          return {
-            name,
-            wins: stats.wins,
-            losses: stats.losses,
-            winRate,
-            totalMatches,
-            arl,
-            roundsLost: stats.roundsLost || 0,
-            duels
-          };
-        })
-        .filter(p => p.totalMatches > 0) // Only players with matches
-        .sort((a, b) => {
-          // Primary sort: wins (descending)
-          if (b.wins !== a.wins) return b.wins - a.wins;
-          // Tiebreaker: win% (descending)
-          return b.winRate - a.winRate;
-        }); // Get all players, will slice to top 10 later
-
-      console.log(`[${timestamp}] [rankings-test] Sorted and filtered to top ${sortedPlayers.length} players (took ${Date.now() - sortStart}ms)`);
-
-      if (sortedPlayers.length === 0) {
-        console.log(`[${timestamp}] [rankings-test] No players with matches in ${selectedDivision}`);
-        await interaction.editReply({
-          content: `⚠️ No ranking data available for ${selectedDivision} in the last ${DAYS} days.`,
-          ephemeral: true
-        });
-        return;
-      }
+      console.log(`[${timestamp}] [rankings-test] Found ${sortedPlayers.length} players in ${selectedDivision}`);
 
       // Log top 3 for debugging
-      console.log(`[${timestamp}] [rankings-test] Top 3 in ${selectedDivision}:`,
-        sortedPlayers.slice(0, 3).map((p, i) =>
-          `${i + 1}. ${p.name} (${p.wins}W/${p.losses}L - ${p.winRate.toFixed(1)}% - ARL:${p.arl.toFixed(2)})`
-        ).join(', ')
-      );
+      if (sortedPlayers.length >= 3) {
+        console.log(`[${timestamp}] [rankings-test] Top 3 in ${selectedDivision}:`,
+          sortedPlayers.slice(0, 3).map((p, i) =>
+            `${i + 1}. ${p.name} (${p.wins}W/${p.losses}L - ${p.winRate.toFixed(1)}% - ARL:${p.arl.toFixed(2)})`
+          ).join(', ')
+        );
+      }
 
       const PLAYERS_PER_PAGE = 15;
       const top30 = sortedPlayers.slice(0, 30);
       const totalPages = Math.ceil(top30.length / PLAYERS_PER_PAGE);
 
-      const champion = champions[selectedDivision];
       const championName = champion ? champion.arenaName.toLowerCase() : null;
 
       if (champion) {
@@ -387,128 +215,21 @@ module.exports = {
     await interaction.deferUpdate();
 
     try {
-      const DAYS = 100;
       const PLAYERS_PER_PAGE = 15;
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - DAYS);
 
-      // Fetch duel data from cache
-      const duelRows = await duelDataCache.getCachedData();
+      // Fetch rankings from cache (much faster than recomputing)
+      const rankingsData = await rankingsCache.getRankings(selectedDivision);
+      const sortedPlayers = rankingsData.players;
+      const champion = rankingsData.champion;
+      const DAYS = rankingsData.daysWindow;
 
-      // Fetch roster data for champion information
-      const sheets = google.sheets('v4');
-      const auth = createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
-      const spreadsheetId = process.env.SPREADSHEET_ID;
-
-      const rosterResponse = await sheets.spreadsheets.values.get({
-        auth,
-        spreadsheetId: spreadsheetId,
-        range: 'Roster!A2:J500',
-      });
-
-      const rosterRows = rosterResponse.data.values || [];
-
-      // Build champion map
-      const champions = {
-        HLD: null,
-        LLD: null,
-        MELEE: null
-      };
-
-      rosterRows.forEach(row => {
-        const arenaName = row[0];
-        const dataName = row[1];
-        const currentChamp = row[6];
-
-        if (currentChamp && arenaName) {
-          const division = currentChamp.toUpperCase();
-          if (division === 'HLD' || division === 'LLD' || division === 'MELEE') {
-            champions[division] = { arenaName, dataName: dataName || arenaName };
-          }
-        }
-      });
-
-      // Filter matches within last 100 days
-      const recentMatches = duelRows.filter(row => {
-        if (row.length < 9) return false;
-        const matchDate = new Date(row[0]);
-        return !isNaN(matchDate.getTime()) && matchDate >= cutoffDate;
-      });
-
-      // Calculate stats per division per player
-      const divisions = {
-        HLD: {},
-        LLD: {},
-        MELEE: {}
-      };
-
-      recentMatches.forEach((match) => {
-        const winner = match[1];
-        const loser = match[4];
-        const matchType = (match[8] || '').toUpperCase();
-        const winnerRoundsLost = parseInt(match[7]) || 0;
-        const loserRoundsLost = 3;
-
-        let division = matchType;
-        if (!['HLD', 'LLD', 'MELEE'].includes(division)) return;
-
-        if (!divisions[division]) return;
-
-        // Track winner stats
-        if (winner) {
-          if (!divisions[division][winner]) {
-            divisions[division][winner] = { wins: 0, losses: 0, roundsLost: 0, duels: 0 };
-          }
-          divisions[division][winner].wins++;
-          divisions[division][winner].duels++;
-          divisions[division][winner].roundsLost += winnerRoundsLost;
-        }
-
-        // Track loser stats
-        if (loser) {
-          if (!divisions[division][loser]) {
-            divisions[division][loser] = { wins: 0, losses: 0, roundsLost: 0, duels: 0 };
-          }
-          divisions[division][loser].losses++;
-          divisions[division][loser].duels++;
-          divisions[division][loser].roundsLost += loserRoundsLost;
-        }
-      });
-
-      // Build rankings for selected division
-      const players = divisions[selectedDivision];
-
-      if (!players || Object.keys(players).length === 0) {
+      if (!sortedPlayers || sortedPlayers.length === 0) {
         await interaction.editReply({
           content: `⚠️ No ranking data available for ${selectedDivision} in the last ${DAYS} days.`,
           components: []
         });
         return;
       }
-
-      // Calculate and sort players
-      const sortedPlayers = Object.entries(players)
-        .map(([name, stats]) => {
-          const totalMatches = stats.wins + stats.losses;
-          const winRate = totalMatches > 0 ? (stats.wins / totalMatches) * 100 : 0;
-          const duels = stats.duels || totalMatches;
-          const arl = duels > 0 ? (stats.roundsLost / duels) : 0;
-          return {
-            name,
-            wins: stats.wins,
-            losses: stats.losses,
-            winRate,
-            totalMatches,
-            arl,
-            roundsLost: stats.roundsLost || 0,
-            duels
-          };
-        })
-        .filter(p => p.totalMatches > 0)
-        .sort((a, b) => {
-          if (b.wins !== a.wins) return b.wins - a.wins;
-          return b.winRate - a.winRate;
-        });
 
       const top30 = sortedPlayers.slice(0, 30);
       const totalPages = Math.ceil(top30.length / PLAYERS_PER_PAGE);
@@ -523,7 +244,6 @@ module.exports = {
 
       console.log(`[${timestamp}] [rankings-test] Navigating from page ${currentPage} to ${newPage}`);
 
-      const champion = champions[selectedDivision];
       const championName = champion ? champion.arenaName.toLowerCase() : null;
 
       // Build embed for new page
