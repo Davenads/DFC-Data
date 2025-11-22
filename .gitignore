@@ -32,8 +32,12 @@ conversation-summary.md
 recentduels-pagination-plan.md
 docs/stats-autocomplete-timeout-fix.md
 
+# Local setup documentation (machine-specific)
+docs/playwright-mcp-pi5-setup.md
+
 # Claude Code local settings (user-specific)
 .claude/settings.local.json
 .claude/CLAUDE.md
 
 Duel_Data_Columns_Raw.csv
+.vscode/

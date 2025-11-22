@@ -259,12 +259,9 @@ module.exports = {
         const rank = index + 1;
         const isChampion = championName && player.name.toLowerCase() === championName;
 
-        // Add medal/rank indicator
+        // Add medal/rank indicator based on ladder position
         let indicator;
-        if (isChampion) {
-          indicator = '👑'; // Crown for champion
-          console.log(`[${timestamp}] [rankings-test] Champion ${player.name} at rank ${rank} with ARL: ${player.arl.toFixed(2)}`);
-        } else if (rank === 1) {
+        if (rank === 1) {
           indicator = '🥇';
         } else if (rank === 2) {
           indicator = '🥈';
@@ -274,7 +271,16 @@ module.exports = {
           indicator = `**${rank}.**`;
         }
 
-        description += `${indicator} **${player.name}** - ${player.wins}W/${player.losses}L (${player.winRate.toFixed(1)}%) - ARL ${player.arl.toFixed(2)}\n`;
+        // Build base line
+        let line = `${indicator} **${player.name}** - ${player.wins}W/${player.losses}L (${player.winRate.toFixed(1)}%) - ARL ${player.arl.toFixed(2)}`;
+
+        // Append champion indicator at the end if applicable
+        if (isChampion) {
+          line += ' - 👑';
+          console.log(`[${timestamp}] [rankings-test] Champion ${player.name} at rank ${rank} with ARL: ${player.arl.toFixed(2)}`);
+        }
+
+        description += `${line}\n`;
         playersAdded++;
       });
 
