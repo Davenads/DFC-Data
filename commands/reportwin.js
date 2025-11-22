@@ -1,6 +1,8 @@
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const redisClient = require('../utils/redisClient');
 const rosterCache = require('../utils/rosterCache');
+const duelDataCache = require('../utils/duelDataCache');
+const rankingsCache = require('../utils/rankingsCache');
 const { classEmojis, matchTypeEmojis } = require('../utils/emojis');
 
 // Production Form entry IDs
@@ -1039,6 +1041,16 @@ module.exports = {
                     }
 
                     console.log(`[${timestamp}] Form submission successful!`);
+
+                    // Asynchronously refresh caches (fire-and-forget)
+                    Promise.all([
+                        duelDataCache.refreshCache(),
+                        rankingsCache.refreshAllDivisions()
+                    ]).then(() => {
+                        console.log(`[${timestamp}] Cache refreshed successfully after match report`);
+                    }).catch(err => {
+                        console.error(`[${timestamp}] Failed to refresh cache after match report:`, err.message);
+                    });
                 } catch (fetchError) {
                     console.error(`[${timestamp}] ERROR submitting to form:`, fetchError);
                     await interaction.editReply({

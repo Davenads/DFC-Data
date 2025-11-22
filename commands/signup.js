@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { getSignupData, setSignupData, clearSignupData } = require('../utils/signupCache');
 const { classEmojiIds } = require('../utils/emojis');
+const signupsCache = require('../utils/signupsCache');
 
 // Class name abbreviations for form submission (to minimize cell string length)
 const classAbbreviations = {
@@ -492,6 +493,15 @@ module.exports = {
                 );
 
                 console.log(`[${timestamp}] Form submission status: ${formResponse.status}`);
+
+                // Asynchronously refresh signups cache (fire-and-forget)
+                signupsCache.refreshCache()
+                    .then(() => {
+                        console.log(`[${timestamp}] Cache refreshed successfully after signup`);
+                    })
+                    .catch(err => {
+                        console.error(`[${timestamp}] Failed to refresh cache after signup:`, err.message);
+                    });
 
                 // Create confirmation embed
                 const embed = new EmbedBuilder()

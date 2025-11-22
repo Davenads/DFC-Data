@@ -4,8 +4,10 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "NODE_ENV=production node index.js",
-    "dev": "node index.js"
+    "start": "node index.js",
+    "dev": "node index.js",
+    "deploy-cmds": "node deploy-commands.js",
+    "deploy-cmds-prod": "TEST_MODE=false node deploy-commands.js"
   },
   "engines": {
     "node": "20.x"

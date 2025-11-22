@@ -1,6 +1,8 @@
 const NodeCache = require('node-cache');
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { EmbedBuilder } = require('discord.js');
+const rosterCache = require('../utils/rosterCache');
+const playerListCache = require('../utils/playerListCache');
 
 // Create a cache instance
 const cache = new NodeCache({ stdTTL: 300 }); // Cache expires in 300 seconds (5 minutes)
@@ -108,6 +110,16 @@ module.exports = {
                 console.error('Error updating cache with new UUID data:', error);
                 // Continue, as this is a non-critical failure
             }
+
+            // Asynchronously refresh Redis caches (fire-and-forget)
+            Promise.all([
+                rosterCache.refreshCache(),
+                playerListCache.refreshPlayerListCache()
+            ]).then(() => {
+                console.log(`[${timestamp}] Cache refreshed successfully after player registration`);
+            }).catch(err => {
+                console.error(`[${timestamp}] Failed to refresh cache after player registration:`, err.message);
+            });
 
             // Create an embed to confirm successful registration
             const isSelfRegistration = targetUser.id === commandUser.id;
