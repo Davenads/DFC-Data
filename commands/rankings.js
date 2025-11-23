@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const rankingsCache = require('../utils/rankingsCache');
-const { getMatchTypeEmoji } = require('../utils/emojis');
+const { deckardCainEmoji } = require('../utils/emojis');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -121,7 +121,7 @@ module.exports = {
 
         const embed = new EmbedBuilder()
           .setColor(0xFFD700) // Gold color
-          .setTitle(`${getMatchTypeEmoji(selectedDivision)} ${selectedDivision} Rankings (Last ${DAYS} Days) - Page ${page}/${totalPages}`)
+          .setTitle(`${deckardCainEmoji} ${selectedDivision} Rankings (Last ${DAYS} Days) - Page ${page}/${totalPages}`)
           .setDescription(description || 'No data available for this page.')
           .setTimestamp()
           .setFooter({ text: 'DFC Rankings - Win-Based (Last 100 Days)' });
@@ -287,7 +287,7 @@ module.exports = {
 
         const embed = new EmbedBuilder()
           .setColor(0xFFD700)
-          .setTitle(`${getMatchTypeEmoji(selectedDivision)} ${selectedDivision} Rankings (Last ${DAYS} Days) - Page ${page}/${totalPages}`)
+          .setTitle(`${deckardCainEmoji} ${selectedDivision} Rankings (Last ${DAYS} Days) - Page ${page}/${totalPages}`)
           .setDescription(description || 'No data available for this page.')
           .setTimestamp()
           .setFooter({ text: 'DFC Rankings - Win-Based (Last 100 Days)' });

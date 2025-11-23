@@ -35,6 +35,9 @@ const matchTypeEmojis = {
     TEAMS: '👥' // Using generic emoji until custom emoji is available
 };
 
+// Deckard Cain emoji (used for rankings/info displays)
+const deckardCainEmoji = '<:DeckardCain:953116506542182451>';
+
 // Legacy fallback emojis for commands that may need unicode emojis
 // These are used when custom Discord emojis aren't available or for external display
 const unicodeClassEmojis = {
@@ -77,6 +80,7 @@ module.exports = {
     classEmojiIds,
     matchTypeEmojis,
     unicodeClassEmojis,
+    deckardCainEmoji,
     getClassEmoji,
     getMatchTypeEmoji
 };
