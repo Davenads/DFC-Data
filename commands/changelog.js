@@ -36,8 +36,8 @@ module.exports = {
             if (record.matchType === 'HLD') matchTypeEmoji = '🏆';
             else if (record.matchType === 'Melee') matchTypeEmoji = '⚔️';
             else if (record.matchType === 'All') matchTypeEmoji = '🌐';
-            
-            const entryText = `${matchTypeEmoji} **${date}** (${record.matchType})\n${record.change}\n\n`;
+
+            const entryText = `${matchTypeEmoji} **${date}**\n${record.change}\n\n`;
             
             // Check if adding this entry would exceed the limit
             if (currentMessage.length + entryText.length > maxLength) {

@@ -3,7 +3,7 @@ const redisClient = require('../utils/redisClient');
 const rosterCache = require('../utils/rosterCache');
 const duelDataCache = require('../utils/duelDataCache');
 const rankingsCache = require('../utils/rankingsCache');
-const { classEmojis, matchTypeEmojis } = require('../utils/emojis');
+const { classEmojis } = require('../utils/emojis');
 
 // Production Form entry IDs
 const PROD_FORM_ENTRIES = {
@@ -1065,7 +1065,7 @@ module.exports = {
                     .setColor(0xFFA500)
                     .setTitle('🏆 Match Result Reported')
                     .addFields(
-                        { name: 'Match Type', value: `${matchTypeEmojis[data.matchType]} **${data.matchType}**`, inline: true },
+                        { name: 'Match Type', value: `**${data.matchType}**`, inline: true },
                         { name: 'Date', value: `**${data.duelDate}**`, inline: true },
                         { name: 'Title', value: `**${data.title}**`, inline: true },
                         { name: 'Winner', value: `**${data.winner}**\n${classEmojis[data.winnerClass]} ${data.winnerClass} - ${data.winnerBuild}`, inline: true },
