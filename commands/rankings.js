@@ -196,9 +196,9 @@ module.exports = {
 
     // Parse customId: rankings_[action]_[division]_[currentPage]
     const parts = interaction.customId.split('_');
-    const action = parts[2]; // 'prev', 'next', or 'pageinfo'
-    const selectedDivision = parts[3]; // 'HLD', 'LLD', or 'MELEE'
-    const currentPage = parseInt(parts[4]);
+    const action = parts[1]; // 'prev', 'next', or 'pageinfo'
+    const selectedDivision = parts[2]; // 'HLD', 'LLD', or 'MELEE'
+    const currentPage = parseInt(parts[3]);
 
     console.log(`[${timestamp}] [rankings] Button clicked:`, {
       action,
