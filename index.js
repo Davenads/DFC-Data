@@ -56,6 +56,42 @@ for (const file of commandFiles) {
     console.log(`Command loaded: ${command.data.name}`);
 }
 
+// Button Routing Map - Centralized O(1) button-to-command routing
+// Maps button customId prefixes to their command handler names
+// This provides fast, explicit routing without iterating through all commands
+const BUTTON_ROUTING = {
+    // Signup command handles multiple prefixes
+    'signup': 'signup',
+    'signupmulti': 'signup',
+    'signupclass': 'signup',
+    'signupback': 'signup',
+    'signupcontinuemodal': 'signup',
+    'signupmodal': 'signup',
+
+    // Rankings command
+    'rankings': 'rankings',
+
+    // Report win command
+    'reportwin': 'reportwin',
+    'reportmirror': 'reportwin',
+    'reportwinclass': 'reportwin',
+    'reportloseclass': 'reportwin',
+    'mirrortoggle': 'reportwin',
+    'reportcontinue': 'reportwin',
+    'reportdetails': 'reportwin',
+    'reportplayers': 'reportwin',
+
+    // Namesync command
+    'namesync': 'namesync',
+
+    // Recent signups command
+    'recentsignups': 'recentsignups',
+
+    // Help command (handles specific button IDs)
+    'show': 'help',  // show_deprecated
+    'back': 'help'   // back_to_help
+};
+
 // Event listener for when the bot becomes ready and online
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
@@ -290,36 +326,48 @@ client.on('interactionCreate', async interaction => {
             }
         );
     } else if (interaction.isButton()) {
-        // Button Interaction Handling
+        // Button Interaction Handling with Centralized Routing
         const timestamp = new Date().toISOString();
         const user = interaction.user;
-        
+
         console.log(`[${timestamp}] Button interaction: ${interaction.customId} from ${user.tag} (${user.id})`);
 
-        // Find the command that handles this button
-        let handled = false;
-        for (const command of client.commands.values()) {
-            if (command.handleButton && typeof command.handleButton === 'function') {
+        // O(1) lookup: Extract prefix and find command via routing map
+        const prefix = interaction.customId.split('_')[0];
+        const commandName = BUTTON_ROUTING[prefix];
+
+        if (commandName) {
+            const command = client.commands.get(commandName);
+
+            if (command?.handleButton && typeof command.handleButton === 'function') {
                 try {
+                    console.log(`[${timestamp}] Routing button to command: ${commandName}`);
                     const result = await command.handleButton(interaction, sheets, auth);
+
                     if (result || interaction.replied || interaction.deferred) {
-                        console.log(`[${timestamp}] Button interaction handled by ${command.data?.name || 'unknown'}`);
-                        handled = true;
-                        break;
+                        console.log(`[${timestamp}] Button interaction handled by ${commandName}`);
+                    } else {
+                        // Command declined the button (returned false)
+                        console.warn(`[${timestamp}] Command ${commandName} declined button: ${interaction.customId}`);
+                        if (!interaction.replied && !interaction.deferred) {
+                            await interaction.reply({ content: 'This interaction is no longer available.', ephemeral: true });
+                        }
                     }
                 } catch (error) {
-                    console.error(`[${timestamp}] Error handling button interaction in ${command.data?.name || 'unknown'}:`, error);
+                    console.error(`[${timestamp}] Error handling button interaction in ${commandName}:`, error);
                     if (!interaction.replied && !interaction.deferred) {
                         await interaction.reply({ content: 'There was an error handling this interaction!', ephemeral: true });
                     }
-                    handled = true;
-                    break;
+                }
+            } else {
+                console.warn(`[${timestamp}] Command ${commandName} found but has no handleButton function`);
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.reply({ content: 'This interaction is no longer available.', ephemeral: true });
                 }
             }
-        }
-        
-        if (!handled) {
-            console.warn(`[${timestamp}] No handler found for button: ${interaction.customId}`);
+        } else {
+            // No routing entry found for this prefix
+            console.warn(`[${timestamp}] No routing entry for button prefix: ${prefix} (full customId: ${interaction.customId})`);
             if (!interaction.replied && !interaction.deferred) {
                 await interaction.reply({ content: 'This interaction is no longer available.', ephemeral: true });
             }
