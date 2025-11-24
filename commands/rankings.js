@@ -194,6 +194,11 @@ module.exports = {
     const timestamp = new Date().toISOString();
     const user = interaction.user;
 
+    // Only handle rankings buttons
+    if (!interaction.customId.startsWith('rankings_')) {
+      return false;
+    }
+
     // Parse customId: rankings_[action]_[division]_[currentPage]
     const parts = interaction.customId.split('_');
     const action = parts[1]; // 'prev', 'next', or 'pageinfo'
