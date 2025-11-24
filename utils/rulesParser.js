@@ -172,13 +172,18 @@ class RulesParser {
         const startIdx = this.findLineIndex(lines, /^\*{0,2}Section 2:/);
         const endIdx = this.findLineIndex(lines, /^\*{0,2}Section 3:/);
 
-        if (startIdx === -1 || endIdx === -1) return { content: '', lineStart: 0, lineEnd: 0 };
+        if (startIdx === -1 || endIdx === -1) {
+            return { general: { content: '', lineStart: 0, lineEnd: 0 }, classes: {} };
+        }
 
         const content = lines.slice(startIdx, endIdx).join('\n').trim();
         return {
-            content,
-            lineStart: startIdx + 1,
-            lineEnd: endIdx
+            general: {
+                content,
+                lineStart: startIdx + 1,
+                lineEnd: endIdx
+            },
+            classes: {}
         };
     }
 
@@ -189,13 +194,18 @@ class RulesParser {
         const startIdx = this.findLineIndex(lines, /^\*{0,2}Section 3:/);
         const endIdx = this.findLineIndex(lines, /^\*{0,2}Section 4:/);
 
-        if (startIdx === -1 || endIdx === -1) return { content: '', lineStart: 0, lineEnd: 0 };
+        if (startIdx === -1 || endIdx === -1) {
+            return { general: { content: '', lineStart: 0, lineEnd: 0 }, classes: {} };
+        }
 
         const content = lines.slice(startIdx, endIdx).join('\n').trim();
         return {
-            content,
-            lineStart: startIdx + 1,
-            lineEnd: endIdx
+            general: {
+                content,
+                lineStart: startIdx + 1,
+                lineEnd: endIdx
+            },
+            classes: {}
         };
     }
 

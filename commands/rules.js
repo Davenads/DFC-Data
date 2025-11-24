@@ -44,7 +44,7 @@ module.exports = {
 
     try {
       // Defer reply since fetching/parsing may take time
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: 64 }); // 64 = EPHEMERAL flag
 
       // Fetch rules from cache
       const fetchStart = Date.now();
