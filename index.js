@@ -65,7 +65,9 @@ const BUTTON_ROUTING = {
     'signupmulti': 'signup',
     'signupclass': 'signup',
     'signupback': 'signup',
+    'signupcontinue': 'signup',
     'signupcontinuemodal': 'signup',
+    'signupproceed': 'signup',
     'signupmodal': 'signup',
 
     // Rankings command
