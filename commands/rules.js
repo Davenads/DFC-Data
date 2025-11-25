@@ -10,6 +10,16 @@ module.exports = {
     .setName('rules')
     .setDescription('View DFC tournament rules')
     .addStringOption(option =>
+      option.setName('format')
+        .setDescription('Select duel format')
+        .setRequired(false)
+        .addChoices(
+          { name: 'HLD (High Level)', value: 'HLD' },
+          { name: 'LLD (Low Level)', value: 'LLD' },
+          { name: 'Melee', value: 'Melee' },
+          { name: 'Team', value: 'Team' }
+        ))
+    .addStringOption(option =>
       option.setName('class')
         .setDescription('Select a character class')
         .setRequired(false)
@@ -21,16 +31,6 @@ module.exports = {
           { name: 'Necromancer', value: 'Necromancer' },
           { name: 'Paladin', value: 'Paladin' },
           { name: 'Sorceress', value: 'Sorceress' }
-        ))
-    .addStringOption(option =>
-      option.setName('format')
-        .setDescription('Select duel format')
-        .setRequired(false)
-        .addChoices(
-          { name: 'HLD (High Level)', value: 'HLD' },
-          { name: 'LLD (Low Level)', value: 'LLD' },
-          { name: 'Melee', value: 'Melee' },
-          { name: 'Team', value: 'Team' }
         )),
 
   async execute(interaction) {
@@ -58,9 +58,9 @@ module.exports = {
           .setDescription(
             `**Welcome to the DFC Rules!**\n\n` +
             `Use the options below to view specific rules:\n` +
-            `• \`/rules [class]\` - View all rules for a specific class\n` +
-            `• \`/rules [format]\` - View all rules for a format (HLD, LLD, Melee, Team)\n` +
-            `• \`/rules [class] [format]\` - View specific class rules for a format\n\n` +
+            `• \`/rules format:[format]\` - View all rules for a format (HLD, LLD, Melee, Team)\n` +
+            `• \`/rules class:[class]\` - View all rules for a specific class\n` +
+            `• \`/rules format:[format] class:[class]\` - View specific class rules for a format\n\n` +
             `**Quick Links:**\n` +
             `[📄 View Full Rules Document](${RULES_DOC_URL})\n\n` +
             `**General Rule Categories:**\n` +
@@ -359,7 +359,7 @@ module.exports = {
 
       // Add footer to last embed
       if (embeds.length > 0) {
-        embeds[embeds.length - 1].setFooter({ text: `/rules [class] ${format} for specific class | /rules for more options` });
+        embeds[embeds.length - 1].setFooter({ text: `/rules format:${format} class:[class] for specific class | /rules for more options` });
       }
     }
 
