@@ -174,8 +174,13 @@ client.once('ready', async () => {
     }, {
         timezone: "America/New_York"
     });
-    
+
     console.log('Cache refresh scheduled for Thursday 5:30pm ET, Friday 2:00am ET, and Friday 11:00pm ET');
+
+    // Schedule signup notifications
+    const { scheduleSignupNotifications } = require('./utils/signupNotifications');
+    scheduleSignupNotifications(client);
+    console.log('Signup notifications scheduled: Friday 12:00am ET (open) and Tuesday 5:00pm ET (closing)');
 });
 
 /**
