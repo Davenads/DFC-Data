@@ -13,6 +13,7 @@ roster-reconciliation.gs
 *.url-version
 
 # Announcement drafts (not needed in production)
+/disc_mds
 announcement.md
 discord-announcement.md
 discord-announcement-update.md
@@ -24,6 +25,8 @@ refresh-cache-logs.md
 debug-logs.md
 docs/audit-logging-implementation.md
 docs/Official-DFC-Rules.md
+cmd_announcement.md
+
 
 # Conversation summaries
 conversation-summary.md

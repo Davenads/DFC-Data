@@ -5,8 +5,8 @@ const duelDataCache = require('../utils/duelDataCache');
 const rankingsCache = require('../utils/rankingsCache');
 const { classEmojis } = require('../utils/emojis');
 
-// Production Form entry IDs
-const PROD_FORM_ENTRIES = {
+// Google Form entry IDs for match result submission
+const FORM_ENTRIES = {
     duelDate: 'entry.666586256',
     matchType: 'entry.781478868',
     title: 'entry.2023271252',
@@ -40,47 +40,6 @@ const PROD_FORM_ENTRIES = {
         Sorceress: 'entry.1431447468'
     }
 };
-
-// Test Form entry IDs
-// NOTE: Test form currently uses the SAME entry IDs as production form
-// Verified 2025-11-05 by extracting from https://docs.google.com/forms/d/e/1FAIpQLSe5Vx_8h4PCn46JzJ_WVohVIGkQwy6HZ4eGXrjKAqO8_o8d3A/viewform
-const TEST_FORM_ENTRIES = {
-    duelDate: 'entry.666586256',
-    matchType: 'entry.781478868',
-    title: 'entry.2023271252',
-    roundWins: 'entry.163517227',
-    roundLosses: 'entry.1181419043',
-    mirror: 'entry.609831919',
-    mirrorType: 'entry.609696423',
-    winner: 'entry.1277410118',
-    winnerClass: 'entry.680532683',
-    loser: 'entry.163644941',
-    loserClass: 'entry.1258194465',
-    notes: 'entry.1405294917',
-    // Winner builds by class
-    winnerBuilds: {
-        Amazon: 'entry.1213271713',
-        Assassin: 'entry.1581661749',
-        Barbarian: 'entry.431357945',
-        Druid: 'entry.589644688',
-        Necromancer: 'entry.1267787377',
-        Paladin: 'entry.706357155',
-        Sorceress: 'entry.835898849'
-    },
-    // Loser builds by class
-    loserBuilds: {
-        Amazon: 'entry.1175026707',
-        Assassin: 'entry.1900276267',
-        Barbarian: 'entry.385883979',
-        Druid: 'entry.1436103576',
-        Necromancer: 'entry.1513417734',
-        Paladin: 'entry.1927282053',
-        Sorceress: 'entry.1431447468'
-    }
-};
-
-// Select form entries based on TEST_MODE
-const FORM_ENTRIES = process.env.TEST_MODE === 'true' ? TEST_FORM_ENTRIES : PROD_FORM_ENTRIES;
 
 // Helper function to get/set Redis data for a user's reportwin session
 async function getReportData(userId) {
@@ -866,8 +825,6 @@ module.exports = {
 
                 await interaction.deferReply({ ephemeral: true });
 
-                const testMode = process.env.TEST_MODE === 'true';
-
                 // Look up reporter info from Roster cache
                 console.log(`[${timestamp}] Looking up reporter info for UUID: ${userId}`);
                 const reporterInfo = await rosterCache.getUserByUUID(userId);
@@ -883,14 +840,11 @@ module.exports = {
                     foundInRoster: !!reporterInfo
                 });
 
-                // Choose environment based on TEST_MODE
-                const formId = testMode ? process.env.TEST_FORM_ID : process.env.PROD_FORM_ID;
+                // Submit to Google Form
+                const formId = process.env.FORM_ID;
                 const formUrl = `https://docs.google.com/forms/d/e/${formId}/formResponse`;
-                const environment = testMode ? 'TEST' : 'PRODUCTION';
 
-                console.log(`[${timestamp}] ${environment} MODE: Submitting to Google Form...`);
-                console.log(`[${timestamp}] TEST_MODE env var:`, process.env.TEST_MODE);
-                console.log(`[${timestamp}] testMode boolean:`, testMode);
+                console.log(`[${timestamp}] Submitting to Google Form...`);
                 console.log(`[${timestamp}] Form ID:`, formId);
                 console.log(`[${timestamp}] Form URL: ${formUrl}`);
 
