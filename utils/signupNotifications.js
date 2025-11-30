@@ -6,7 +6,7 @@
  * - Tuesday 5:00 PM ET: "Signup Closing Soon"
  */
 
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const cron = require('node-cron');
 
 /**
@@ -18,8 +18,8 @@ function createSignupOpenEmbed() {
     .setColor(0x00FF00) // Green
     .setTitle('🎮 Tournament Signups Now Open!')
     .setDescription(
-      `The weekly DFC tournament signup window is now open!\n\n` +
-      `Use \`/signup\` to register for this week's tournament.\n\n` +
+      `The weekly DFC Event signup window is now open!\n\n` +
+      `Click the **Start Signup** button below or type \`/signup\` to register.\n\n` +
       `📅 **Signup Window Schedule:**\n` +
       `• **Opens:** Friday 12:00 AM ET\n` +
       `• **Closes:** Tuesday 11:00 PM ET\n\n` +
@@ -40,11 +40,26 @@ function createSignupClosingEmbed() {
     .setDescription(
       `⚠️ **Last chance to sign up for this week's tournament!**\n\n` +
       `Signups close in **6 hours** at **11:00 PM ET tonight**.\n\n` +
-      `Use \`/signup\` now if you haven't already registered!\n\n` +
+      `Click the **Start Signup** button below or type \`/signup\` now!\n\n` +
       `Don't miss out on this week's action! ⚔️`
     )
     .setFooter({ text: 'DFC Signup Notifications' })
     .setTimestamp();
+}
+
+/**
+ * Creates the action row with Start Signup button
+ * @returns {ActionRowBuilder} Action row containing signup button
+ */
+function createSignupButton() {
+  return new ActionRowBuilder()
+    .addComponents(
+      new ButtonBuilder()
+        .setCustomId('notification_startsignup')
+        .setLabel('Start Signup')
+        .setEmoji('📝')
+        .setStyle(ButtonStyle.Success)
+    );
 }
 
 /**
@@ -100,10 +115,14 @@ async function sendNotification(client, type, overrideChannelId = null) {
       return;
     }
 
+    // Create signup button
+    const button = createSignupButton();
+
     // Send notification (non-blocking with error handling)
     channel.send({
       content: `<@&${roleId}>`, // Mention @DFC Dueler role
-      embeds: [embed]
+      embeds: [embed],
+      components: [button]
     }).catch(err => {
       console.error(`[${timestamp}] [Signup Notifications] Failed to send ${type} notification:`, err.message);
     });

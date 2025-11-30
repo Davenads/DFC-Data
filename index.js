@@ -91,7 +91,10 @@ const BUTTON_ROUTING = {
 
     // Help command (handles specific button IDs)
     'show': 'help',  // show_deprecated
-    'back': 'help'   // back_to_help
+    'back': 'help',  // back_to_help
+
+    // Notification buttons
+    'notification': 'signup'  // notification_startsignup
 };
 
 // Event listener for when the bot becomes ready and online
@@ -346,7 +349,19 @@ client.on('interactionCreate', async interaction => {
         if (commandName) {
             const command = client.commands.get(commandName);
 
-            if (command?.handleButton && typeof command.handleButton === 'function') {
+            // Special handling for notification_startsignup button - invoke execute instead of handleButton
+            if (interaction.customId === 'notification_startsignup') {
+                try {
+                    console.log(`[${timestamp}] Notification button clicked - invoking signup command execute`);
+                    await command.execute(interaction, sheets, auth);
+                    console.log(`[${timestamp}] Signup command executed successfully from notification button`);
+                } catch (error) {
+                    console.error(`[${timestamp}] Error executing signup from notification button:`, error);
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({ content: 'There was an error starting signup!', ephemeral: true });
+                    }
+                }
+            } else if (command?.handleButton && typeof command.handleButton === 'function') {
                 try {
                     console.log(`[${timestamp}] Routing button to command: ${commandName}`);
                     const result = await command.handleButton(interaction, sheets, auth);
