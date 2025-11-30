@@ -67,39 +67,30 @@ function createSignupButton() {
  * Sends signup notification to the appropriate channel
  * @param {Client} client - Discord.js client
  * @param {string} type - Notification type: 'open' or 'closing'
- * @param {string} overrideChannelId - Optional channel ID to override environment-based selection (for testing)
+ * @param {string} overrideChannelId - Optional channel ID override (for testing)
+ * @param {string} overrideRoleId - Optional role ID override (for testing)
  */
-async function sendNotification(client, type, overrideChannelId = null) {
+async function sendNotification(client, type, overrideChannelId = null, overrideRoleId = null) {
   const timestamp = new Date().toISOString();
 
   try {
-    // Determine which environment we're in
-    const isTestMode = process.env.TEST_MODE === 'true';
+    // Use overrides if provided (for testing), otherwise use production env vars
+    const channelId = overrideChannelId || process.env.SIGNUP_NOTIFICATION_CHANNEL_PROD;
+    const roleId = overrideRoleId || process.env.DFC_DUELER_ROLE_ID_PROD;
 
-    // Select channel ID (use override if provided, otherwise environment-based)
-    const channelId = overrideChannelId || (isTestMode
-      ? process.env.SIGNUP_NOTIFICATION_CHANNEL_TEST
-      : process.env.SIGNUP_NOTIFICATION_CHANNEL_PROD);
-
-    // Select role ID based on environment
-    const roleId = isTestMode
-      ? process.env.DFC_DUELER_ROLE_ID_TEST
-      : process.env.DFC_DUELER_ROLE_ID_PROD;
-
-    // Validate environment variables
+    // Validate required parameters
     if (!channelId) {
-      console.warn(`[${timestamp}] [Signup Notifications] Missing channel ID for ${isTestMode ? 'TEST' : 'PRODUCTION'} environment`);
+      console.warn(`[${timestamp}] [Signup Notifications] Missing channel ID`);
       return;
     }
 
     if (!roleId) {
-      console.warn(`[${timestamp}] [Signup Notifications] Missing role ID for ${isTestMode ? 'TEST' : 'PRODUCTION'} environment (TEST_MODE=${process.env.TEST_MODE})`);
-      console.warn(`[${timestamp}] [Signup Notifications] DFC_DUELER_ROLE_ID_TEST=${process.env.DFC_DUELER_ROLE_ID_TEST}`);
-      console.warn(`[${timestamp}] [Signup Notifications] DFC_DUELER_ROLE_ID_PROD=${process.env.DFC_DUELER_ROLE_ID_PROD}`);
+      console.warn(`[${timestamp}] [Signup Notifications] Missing role ID`);
       return;
     }
 
-    console.log(`[${timestamp}] [Signup Notifications] Using role ID: ${roleId} (${isTestMode ? 'TEST' : 'PRODUCTION'} mode)`);
+    const isTestMode = overrideChannelId !== null;
+    console.log(`[${timestamp}] [Signup Notifications] Sending ${type} notification to channel ${channelId} with role ${roleId} (${isTestMode ? 'TEST' : 'PRODUCTION'})`);
 
     // Get channel from cache
     const channel = client.channels.cache.get(channelId);
@@ -131,8 +122,6 @@ async function sendNotification(client, type, overrideChannelId = null) {
     }).catch(err => {
       console.error(`[${timestamp}] [Signup Notifications] Failed to send ${type} notification:`, err.message);
     });
-
-    console.log(`[${timestamp}] [Signup Notifications] Sent "${type}" notification to channel ${channelId} (${isTestMode ? 'TEST' : 'PRODUCTION'})`);
 
   } catch (error) {
     console.error(`[${timestamp}] [Signup Notifications] Unexpected error in sendNotification:`, error.message);

@@ -45,11 +45,12 @@ module.exports = {
     await interaction.deferReply({ ephemeral: true });
 
     try {
-      // Hardcoded test channel ID (always send to test channel)
+      // Test environment IDs (hardcoded for test command)
       const testChannelId = '1442946150523998209';
+      const testRoleId = '1299781198205419528';
 
-      // Send notification to test channel
-      await sendNotification(interaction.client, notificationType, testChannelId);
+      // Send notification to test channel with test role
+      await sendNotification(interaction.client, notificationType, testChannelId, testRoleId);
 
       // Get notification type label for confirmation message
       const notificationLabel = notificationType === 'open'
@@ -57,7 +58,7 @@ module.exports = {
         : 'Signup Closing Soon (Tuesday)';
 
       await interaction.editReply({
-        content: `✅ Test notification sent!\n\n**Type:** ${notificationLabel}\n**Channel:** <#${testChannelId}>\n\nCheck the test channel to verify the embed.`
+        content: `✅ Test notification sent!\n\n**Type:** ${notificationLabel}\n**Channel:** <#${testChannelId}>\n**Role:** <@&${testRoleId}>\n\nCheck the test channel to verify the embed.`
       });
 
       console.log(`[${timestamp}] Test notification (${notificationType}) sent successfully by ${user.tag}`);
