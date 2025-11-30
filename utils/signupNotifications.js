@@ -8,6 +8,7 @@
 
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const cron = require('node-cron');
+const { deckardCainEmoji } = require('./emojis');
 
 /**
  * Creates the "Signups Now Open" embed (Friday 12:00 AM ET)
@@ -16,7 +17,7 @@ const cron = require('node-cron');
 function createSignupOpenEmbed() {
   return new EmbedBuilder()
     .setColor(0x00FF00) // Green
-    .setTitle('🎮 Tournament Signups Now Open!')
+    .setTitle(`${deckardCainEmoji} DFC Event Signups Now Open!`)
     .setDescription(
       `The weekly DFC Event signup window is now open!\n\n` +
       `Click the **Start Signup** button below or type \`/signup\` to register.\n\n` +
@@ -36,9 +37,9 @@ function createSignupOpenEmbed() {
 function createSignupClosingEmbed() {
   return new EmbedBuilder()
     .setColor(0xFF6600) // Orange
-    .setTitle('⏰ Signups Closing Soon!')
+    .setTitle(`${deckardCainEmoji} DFC Event Signups Closing Soon!`)
     .setDescription(
-      `⚠️ **Last chance to sign up for this week's tournament!**\n\n` +
+      `⚠️ **Last chance to sign up for this week's event!**\n\n` +
       `Signups close in **6 hours** at **11:00 PM ET tonight**.\n\n` +
       `Click the **Start Signup** button below or type \`/signup\` now!\n\n` +
       `Don't miss out on this week's action! ⚔️`
@@ -92,9 +93,13 @@ async function sendNotification(client, type, overrideChannelId = null) {
     }
 
     if (!roleId) {
-      console.warn(`[${timestamp}] [Signup Notifications] Missing role ID for ${isTestMode ? 'TEST' : 'PRODUCTION'} environment`);
+      console.warn(`[${timestamp}] [Signup Notifications] Missing role ID for ${isTestMode ? 'TEST' : 'PRODUCTION'} environment (TEST_MODE=${process.env.TEST_MODE})`);
+      console.warn(`[${timestamp}] [Signup Notifications] DFC_DUELER_ROLE_ID_TEST=${process.env.DFC_DUELER_ROLE_ID_TEST}`);
+      console.warn(`[${timestamp}] [Signup Notifications] DFC_DUELER_ROLE_ID_PROD=${process.env.DFC_DUELER_ROLE_ID_PROD}`);
       return;
     }
+
+    console.log(`[${timestamp}] [Signup Notifications] Using role ID: ${roleId} (${isTestMode ? 'TEST' : 'PRODUCTION'} mode)`);
 
     // Get channel from cache
     const channel = client.channels.cache.get(channelId);
