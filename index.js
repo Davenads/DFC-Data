@@ -73,6 +73,9 @@ const BUTTON_ROUTING = {
     // Rankings command
     'rankings': 'rankings',
 
+    // Class rankings command
+    'classrankings': 'classrankings',
+
     // Report win command
     'reportwin': 'reportwin',
     'reportmirror': 'reportwin',

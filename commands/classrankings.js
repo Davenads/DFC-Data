@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 const duelDataCache = require('../utils/duelDataCache');
 const { getClassEmoji, deckardCainEmoji, getMatchTypeEmoji } = require('../utils/emojis');
 
@@ -32,7 +32,7 @@ module.exports = {
         if (isNaN(inputDays) || inputDays < 1) {
           return interaction.reply({
             content: 'Invalid number of days. Usage: `!classrankings [days]`',
-            ephemeral: true
+            flags: MessageFlags.Ephemeral
           });
         }
       }
@@ -52,7 +52,7 @@ module.exports = {
     Channel: ${channelName} (${interaction.channelId})
     Days: ${days} ${usedDefault ? '(default)' : '(specified)'}`);
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
       // Create initial embed with division selection
@@ -88,15 +88,14 @@ module.exports = {
             .setStyle(ButtonStyle.Primary)
         );
 
-      await interaction.editReply({ embeds: [embed], components: [row], ephemeral: true });
+      await interaction.editReply({ embeds: [embed], components: [row] });
 
       console.log(`[${timestamp}] Classrankings command displayed division selection for ${user.tag} (${user.id}) - ${days} days`);
     } catch (error) {
       const errorMessage = `[${timestamp}] Error in classrankings command for ${user.tag} (${user.id})`;
       console.error(errorMessage, error);
       await interaction.editReply({
-        content: 'There was an error displaying class rankings. Please try again later.',
-        ephemeral: true
+        content: 'There was an error displaying class rankings. Please try again later.'
       });
     }
   },
@@ -126,7 +125,7 @@ module.exports = {
       if (duelRows.length === 0) {
         return interaction.followUp({
           content: 'No duel data available in cache. Please try refreshing the cache.',
-          ephemeral: true
+          flags: MessageFlags.Ephemeral
         });
       }
 
@@ -138,7 +137,7 @@ module.exports = {
       if (validDuelDates.length === 0) {
         return interaction.followUp({
           content: 'No valid duel dates found in the dataset.',
-          ephemeral: true
+          flags: MessageFlags.Ephemeral
         });
       }
 
@@ -168,7 +167,7 @@ module.exports = {
       if (filteredMatches.length === 0) {
         return interaction.followUp({
           content: `No duels found for ${division} in the last ${actualDays} day${actualDays === 1 ? '' : 's'}.`,
-          ephemeral: true
+          flags: MessageFlags.Ephemeral
         });
       }
 
@@ -317,8 +316,8 @@ module.exports = {
       embed2.setDescription(matchupText || 'No matchup data available');
 
       // Send embeds as follow-ups
-      await interaction.followUp({ embeds: [embed1], ephemeral: true });
-      await interaction.followUp({ embeds: [embed2], ephemeral: true });
+      await interaction.followUp({ embeds: [embed1], flags: MessageFlags.Ephemeral });
+      await interaction.followUp({ embeds: [embed2], flags: MessageFlags.Ephemeral });
 
       console.log(`[${timestamp}] Successfully sent class rankings for ${division} to ${user.tag} (${user.id}) - analyzed ${filteredMatches.length} matches over ${actualDays} days${isLimitedByData ? ` (requested ${days})` : ''}`);
     } catch (error) {
@@ -326,7 +325,7 @@ module.exports = {
       console.error(errorMessage, error);
       await interaction.followUp({
         content: 'There was an error analyzing class rankings. Please try again later.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
   }
