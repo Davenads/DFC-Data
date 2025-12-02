@@ -1,20 +1,11 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const duelDataCache = require('../utils/duelDataCache');
-const { getClassEmoji, deckardCainEmoji } = require('../utils/emojis');
+const { getClassEmoji, deckardCainEmoji, getMatchTypeEmoji } = require('../utils/emojis');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('classrankings')
-    .setDescription('Show class performance statistics and matchup win percentages for a division')
-    .addStringOption(option =>
-      option.setName('division')
-        .setDescription('The division to analyze')
-        .setRequired(true)
-        .addChoices(
-          { name: 'HLD - High Level Duel', value: 'HLD' },
-          { name: 'LLD - Low Level Duel', value: 'LLD' },
-          { name: 'Melee', value: 'Melee' }
-        ))
+    .setDescription('Show class performance statistics and matchup win percentages')
     .addIntegerOption(option =>
       option.setName('days')
         .setDescription('Number of days to analyze (defaults to 30)')
@@ -23,44 +14,24 @@ module.exports = {
 
   async execute(interaction, sheets, auth, prefixArgs = []) {
     // Handle both slash commands and prefix commands
-    let division, inputDays;
+    let inputDays;
 
     const isSlashCommand = prefixArgs.length === 0 &&
       interaction.isCommand && typeof interaction.isCommand === 'function';
 
     if (isSlashCommand) {
       // Real slash command
-      division = interaction.options.getString('division');
       inputDays = interaction.options.getInteger('days');
     } else {
-      // Prefix command (!classrankings hld 30)
+      // Prefix command (!classrankings 30)
       const args = prefixArgs;
 
-      if (args.length === 0) {
-        return interaction.reply({
-          content: 'Please specify a division: `!classrankings <hld|lld|melee> [days]`',
-          ephemeral: true
-        });
-      }
-
-      // First argument is division
-      const divisionArg = args[0].toLowerCase();
-      if (divisionArg === 'hld') division = 'HLD';
-      else if (divisionArg === 'lld') division = 'LLD';
-      else if (divisionArg === 'melee') division = 'Melee';
-      else {
-        return interaction.reply({
-          content: 'Invalid division. Use: hld, lld, or melee',
-          ephemeral: true
-        });
-      }
-
-      // Second argument is days (optional)
-      if (args.length > 1) {
-        inputDays = parseInt(args[1]);
+      // Only parse days argument now
+      if (args.length > 0) {
+        inputDays = parseInt(args[0]);
         if (isNaN(inputDays) || inputDays < 1) {
           return interaction.reply({
-            content: 'Invalid number of days. Please provide a positive integer.',
+            content: 'Invalid number of days. Usage: `!classrankings [days]`',
             ephemeral: true
           });
         }
@@ -79,17 +50,81 @@ module.exports = {
     User: ${user.tag} (${user.id})
     Server: ${guildName} (${interaction.guildId || 'N/A'})
     Channel: ${channelName} (${interaction.channelId})
-    Division: ${division}
     Days: ${days} ${usedDefault ? '(default)' : '(specified)'}`);
 
     await interaction.deferReply({ ephemeral: true });
+
+    try {
+      // Create initial embed with division selection
+      const embed = new EmbedBuilder()
+        .setColor(0x0099ff)
+        .setTitle(`${deckardCainEmoji} Class Rankings & Win Rate Analysis`)
+        .setDescription(
+          'Select a division to view class performance statistics and head-to-head matchup win rates.\n\n' +
+          '📈 **View Full Dashboard:**\n' +
+          '[Looker Studio Dashboard](https://lookerstudio.google.com/reporting/f0aef56a-571d-4216-9b70-ea44614f10eb/page/p_omb02u6xvd)\n\n' +
+          `📅 **Analysis Period:** Last ${days} days`
+        )
+        .setFooter({ text: 'Click a division button below to view rankings' })
+        .setTimestamp();
+
+      // Create action row with division buttons
+      const row = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId(`classrankings_select_HLD_${days}`)
+            .setLabel('HLD')
+            .setEmoji(getMatchTypeEmoji('HLD'))
+            .setStyle(ButtonStyle.Primary),
+          new ButtonBuilder()
+            .setCustomId(`classrankings_select_LLD_${days}`)
+            .setLabel('LLD')
+            .setEmoji(getMatchTypeEmoji('LLD'))
+            .setStyle(ButtonStyle.Primary),
+          new ButtonBuilder()
+            .setCustomId(`classrankings_select_Melee_${days}`)
+            .setLabel('Melee')
+            .setEmoji(getMatchTypeEmoji('MELEE'))
+            .setStyle(ButtonStyle.Primary)
+        );
+
+      await interaction.editReply({ embeds: [embed], components: [row], ephemeral: true });
+
+      console.log(`[${timestamp}] Classrankings command displayed division selection for ${user.tag} (${user.id}) - ${days} days`);
+    } catch (error) {
+      const errorMessage = `[${timestamp}] Error in classrankings command for ${user.tag} (${user.id})`;
+      console.error(errorMessage, error);
+      await interaction.editReply({
+        content: 'There was an error displaying class rankings. Please try again later.',
+        ephemeral: true
+      });
+    }
+  },
+
+  async handleButton(interaction, sheets, auth) {
+    const customId = interaction.customId;
+
+    // Only handle classrankings button interactions
+    if (!customId.startsWith('classrankings_select_')) return;
+
+    // Parse customId: "classrankings_select_HLD_30"
+    const parts = customId.split('_');
+    const division = parts[2]; // HLD, LLD, or Melee
+    const days = parseInt(parts[3]) || 30;
+
+    const timestamp = new Date().toISOString();
+    const user = interaction.user;
+
+    console.log(`[${timestamp}] User ${user.tag} (${user.id}) selected division: ${division} (${days} days)`);
+
+    await interaction.deferUpdate();
 
     try {
       // Get duel data from cache
       const duelRows = await duelDataCache.getCachedData();
 
       if (duelRows.length === 0) {
-        return interaction.editReply({
+        return interaction.followUp({
           content: 'No duel data available in cache. Please try refreshing the cache.',
           ephemeral: true
         });
@@ -101,7 +136,7 @@ module.exports = {
         .filter(date => !isNaN(date.getTime()));
 
       if (validDuelDates.length === 0) {
-        return interaction.editReply({
+        return interaction.followUp({
           content: 'No valid duel dates found in the dataset.',
           ephemeral: true
         });
@@ -131,7 +166,7 @@ module.exports = {
       });
 
       if (filteredMatches.length === 0) {
-        return interaction.editReply({
+        return interaction.followUp({
           content: `No duels found for ${division} in the last ${actualDays} day${actualDays === 1 ? '' : 's'}.`,
           ephemeral: true
         });
@@ -281,17 +316,15 @@ module.exports = {
 
       embed2.setDescription(matchupText || 'No matchup data available');
 
-      // Send initial reply with first embed
-      await interaction.editReply({ embeds: [embed1], ephemeral: true });
-
-      // Send second embed as follow-up
+      // Send embeds as follow-ups
+      await interaction.followUp({ embeds: [embed1], ephemeral: true });
       await interaction.followUp({ embeds: [embed2], ephemeral: true });
 
-      console.log(`[${timestamp}] Classrankings command completed successfully for ${user.tag} (${user.id}) - analyzed ${filteredMatches.length} matches over ${actualDays} days for ${division}${isLimitedByData ? ` (requested ${days})` : ''}`);
+      console.log(`[${timestamp}] Successfully sent class rankings for ${division} to ${user.tag} (${user.id}) - analyzed ${filteredMatches.length} matches over ${actualDays} days${isLimitedByData ? ` (requested ${days})` : ''}`);
     } catch (error) {
-      const errorMessage = `[${timestamp}] Error analyzing class rankings for ${user.tag} (${user.id})`;
+      const errorMessage = `[${timestamp}] Error in classrankings button handler for ${user.tag} (${user.id})`;
       console.error(errorMessage, error);
-      await interaction.editReply({
+      await interaction.followUp({
         content: 'There was an error analyzing class rankings. Please try again later.',
         ephemeral: true
       });
