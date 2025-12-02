@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 const duelDataCache = require('../utils/duelDataCache');
-const { getClassEmoji, deckardCainEmoji, getMatchTypeEmoji } = require('../utils/emojis');
+const { getClassEmoji, deckardCainEmoji, soundAlphaEmoji } = require('../utils/emojis');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -61,7 +61,7 @@ module.exports = {
         .setTitle(`${deckardCainEmoji} Class Rankings & Win Rate Analysis`)
         .setDescription(
           'Select a division to view class performance statistics and head-to-head matchup win rates.\n\n' +
-          '📈 **View Full Dashboard:**\n' +
+          `${soundAlphaEmoji} **View Sound's Dashboard:**\n` +
           '[Looker Studio Dashboard](https://lookerstudio.google.com/reporting/f0aef56a-571d-4216-9b70-ea44614f10eb/page/p_omb02u6xvd)\n\n' +
           `📅 **Analysis Period:** Last ${days} days`
         )
@@ -74,17 +74,14 @@ module.exports = {
           new ButtonBuilder()
             .setCustomId(`classrankings_select_HLD_${days}`)
             .setLabel('HLD')
-            .setEmoji(getMatchTypeEmoji('HLD'))
             .setStyle(ButtonStyle.Primary),
           new ButtonBuilder()
             .setCustomId(`classrankings_select_LLD_${days}`)
             .setLabel('LLD')
-            .setEmoji(getMatchTypeEmoji('LLD'))
             .setStyle(ButtonStyle.Primary),
           new ButtonBuilder()
             .setCustomId(`classrankings_select_Melee_${days}`)
             .setLabel('Melee')
-            .setEmoji(getMatchTypeEmoji('MELEE'))
             .setStyle(ButtonStyle.Primary)
         );
 
