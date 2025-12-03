@@ -64,6 +64,26 @@ function createSignupButton() {
 }
 
 /**
+ * Sends audit log message to the audit channel
+ * @param {Client} client - Discord.js client
+ * @param {string} message - Message to log
+ */
+async function sendAuditLog(client, message) {
+  const auditChannelId = process.env.AUDIT_CHANNEL_ID; // Reuse existing audit channel config
+
+  try {
+    const auditChannel = client.channels.cache.get(auditChannelId);
+    if (auditChannel) {
+      await auditChannel.send(message).catch(() => {
+        // Silent fail for audit logs - don't let audit logging break notifications
+      });
+    }
+  } catch {
+    // Silent fail for audit logs
+  }
+}
+
+/**
  * Sends signup notification to the appropriate channel
  * @param {Client} client - Discord.js client
  * @param {string} type - Notification type: 'open' or 'closing'
@@ -72,6 +92,7 @@ function createSignupButton() {
  */
 async function sendNotification(client, type, overrideChannelId = null, overrideRoleId = null) {
   const timestamp = new Date().toISOString();
+  const FALLBACK_CHANNEL_ID = '733748097913585727'; // Chatroom
 
   try {
     // Use overrides if provided (for testing), otherwise use production env vars
@@ -81,11 +102,13 @@ async function sendNotification(client, type, overrideChannelId = null, override
     // Validate required parameters
     if (!channelId) {
       console.warn(`[${timestamp}] [Signup Notifications] Missing channel ID`);
+      await sendAuditLog(client, `⚠️ **Signup Notification Failed**\nType: ${type}\nReason: Missing channel ID configuration`);
       return;
     }
 
     if (!roleId) {
       console.warn(`[${timestamp}] [Signup Notifications] Missing role ID`);
+      await sendAuditLog(client, `⚠️ **Signup Notification Failed**\nType: ${type}\nReason: Missing role ID configuration`);
       return;
     }
 
@@ -97,6 +120,7 @@ async function sendNotification(client, type, overrideChannelId = null, override
 
     if (!channel) {
       console.warn(`[${timestamp}] [Signup Notifications] Channel ${channelId} not found in cache`);
+      await sendAuditLog(client, `⚠️ **Signup Notification Failed**\nType: ${type}\nChannel: ${channelId}\nReason: Channel not found in cache`);
       return;
     }
 
@@ -114,17 +138,58 @@ async function sendNotification(client, type, overrideChannelId = null, override
     // Create signup button
     const button = createSignupButton();
 
-    // Send notification (non-blocking with error handling)
-    channel.send({
+    // Prepare notification payload
+    const notificationPayload = {
       content: `<@&${roleId}>`, // Mention @DFC Dueler role
       embeds: [embed],
       components: [button]
-    }).catch(err => {
-      console.error(`[${timestamp}] [Signup Notifications] Failed to send ${type} notification:`, err.message);
-    });
+    };
+
+    // Attempt to send to primary channel
+    try {
+      await channel.send(notificationPayload);
+      console.log(`[${timestamp}] [Signup Notifications] Successfully sent ${type} notification to primary channel ${channelId}`);
+      await sendAuditLog(client, `✅ **Signup Notification Sent**\nType: ${type === 'open' ? 'Signups Now Open' : 'Signup Closing Soon'}\nChannel: <#${channelId}>\nTime: ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })} ET`);
+    } catch (err) {
+      // Check if error is permission-related
+      const isPermissionError = err.message && (
+        err.message.includes('Missing Access') ||
+        err.message.includes('Missing Permissions') ||
+        err.code === 50013 || // Missing Permissions Discord API code
+        err.code === 50001    // Missing Access Discord API code
+      );
+
+      if (isPermissionError && !isTestMode) {
+        // Attempt fallback to Chatroom channel
+        console.warn(`[${timestamp}] [Signup Notifications] Permission error in primary channel, attempting fallback to ${FALLBACK_CHANNEL_ID}`);
+
+        const fallbackChannel = client.channels.cache.get(FALLBACK_CHANNEL_ID);
+
+        if (fallbackChannel) {
+          try {
+            await fallbackChannel.send(notificationPayload);
+            console.log(`[${timestamp}] [Signup Notifications] Successfully sent ${type} notification to fallback channel ${FALLBACK_CHANNEL_ID}`);
+            await sendAuditLog(client, `⚠️ **Signup Notification Sent to Fallback**\nType: ${type === 'open' ? 'Signups Now Open' : 'Signup Closing Soon'}\nPrimary Channel: <#${channelId}> (Permission Error)\nFallback Channel: <#${FALLBACK_CHANNEL_ID}>\nTime: ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })} ET`);
+          } catch (fallbackErr) {
+            console.error(`[${timestamp}] [Signup Notifications] Failed to send ${type} notification to fallback channel:`, fallbackErr.message);
+            await sendAuditLog(client, `❌ **Signup Notification Failed (Both Channels)**\nType: ${type}\nPrimary Channel: <#${channelId}> - ${err.message}\nFallback Channel: <#${FALLBACK_CHANNEL_ID}> - ${fallbackErr.message}\nTime: ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })} ET`);
+          }
+        } else {
+          console.error(`[${timestamp}] [Signup Notifications] Fallback channel ${FALLBACK_CHANNEL_ID} not found in cache`);
+          await sendAuditLog(client, `❌ **Signup Notification Failed**\nType: ${type}\nPrimary Channel: <#${channelId}> - ${err.message}\nFallback Channel: Not found in cache\nTime: ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })} ET`);
+        }
+      } else {
+        // Non-permission error or test mode - just log it
+        console.error(`[${timestamp}] [Signup Notifications] Failed to send ${type} notification:`, err.message);
+        if (!isTestMode) {
+          await sendAuditLog(client, `❌ **Signup Notification Failed**\nType: ${type}\nChannel: <#${channelId}>\nError: ${err.message}\nTime: ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })} ET`);
+        }
+      }
+    }
 
   } catch (error) {
     console.error(`[${timestamp}] [Signup Notifications] Unexpected error in sendNotification:`, error.message);
+    await sendAuditLog(client, `❌ **Signup Notification Critical Error**\nType: ${type}\nError: ${error.message}`);
   }
 }
 
