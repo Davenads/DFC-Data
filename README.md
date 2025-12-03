@@ -25,13 +25,16 @@ DFC-DATA/
 │   ├── signup.js             # Tournament signup command
 │   ├── reportwin.js          # Match result reporting command
 │   ├── rankings.js           # Official DFC rankings command
+│   ├── classrankings.js      # Class-specific rankings with win rate analysis
 │   ├── stats.js              # Player statistics command
 │   ├── recentsignups.js      # Recent signup tracking command
 │   ├── recentduels.js        # Recent duels tracking command
 │   ├── dueltrends.js         # Duel trends and statistics analysis command
 │   ├── fightcard.js          # Fight card display command
+│   ├── rules.js              # DFC tournament rules command
 │   ├── namesync.js           # Discord username sync checker command (moderator only)
 │   ├── refreshcache.js       # Cache refresh command (moderator only)
+│   ├── testnotification.js   # Test signup notification command (moderator only)
 │   ├── changelog.js          # Rule change history command
 │   ├── rankings-legacy.js    # Legacy rankings command (deprecated)
 │   └── archived/             # Archived commands (no longer deployed)
@@ -51,7 +54,19 @@ DFC-DATA/
 │   ├── discord-integration.md # Discord API integration details
 │   └── google-sheets-structure.md # Google Sheets schema and structure
 ├── utils/                     # Utility functions and helpers
-│   └── googleAuth.js         # Google Sheets API authentication utilities
+│   ├── googleAuth.js         # Google Sheets API authentication utilities
+│   ├── auditLogger.js        # Command execution audit logging
+│   ├── signupNotifications.js # Automated tournament signup notifications
+│   ├── redisClient.js        # Redis connection and client management
+│   ├── duelDataCache.js      # Match history caching layer
+│   ├── rosterCache.js        # Player roster caching layer
+│   ├── rankingsCache.js      # Official rankings caching layer
+│   ├── signupsCache.js       # Tournament signups caching layer
+│   ├── rulesCache.js         # Tournament rules caching layer
+│   ├── playerListCache.js    # Player autocomplete data caching
+│   ├── emojis.js             # Custom Discord emoji mappings
+│   ├── rulesParser.js        # Google Docs rules parsing utility
+│   └── signupCache.js        # Signup session state management
 ├── config/                    # Configuration files (gitignored)
 ├── .env                       # Environment variables (API keys, tokens)
 ├── .gitignore                # Git ignore patterns
@@ -134,6 +149,7 @@ node index.js
 
 ### Statistics & Rankings Commands
 - **/rankings**: Displays official DFC rankings based on tournament performance with interactive recent matches view
+- **/classrankings**: Shows class-specific rankings with win rate analysis across match types (HLD/LLD/Melee/Teams)
 - **/stats**: Shows simplified player statistics including W/L record, winrate, rank, and recent match history
 - **/recentsignups**: Views recent tournament signups with pagination, filtered by tournament cutoff dates
 - **/recentduels**: Shows recent duels from the last X days (1-30 days, defaults to 7) with match details and class information
@@ -150,20 +166,59 @@ These commands have been archived and are no longer deployed:
 - **/stats-legacy**: Legacy player statistics with detailed ELO and Efficiency Index (archived - use `/stats` instead)
 
 ### Additional Commands
+- **/rules**: Displays current DFC tournament rules and regulations
 - **/changelog**: Views the history of DFC rule changes with match type filtering
 - **/namesync**: Checks for Discord username mismatches in the roster (requires Moderator role)
 - **/refreshcache**: Manually refreshes the Redis cache for duel data (requires Moderator role)
+- **/testnotification**: Manually triggers a test signup notification to verify notification system (requires Moderator role)
 
 ## Google Sheets Integration
 
 The bot uses Google Sheets to store player data, matchups, and results. The `googleConfig.js` file handles Google Sheets API authentication and provides an interface for commands to interact with the Sheets.
 
-### Google Authentication Utilities
+## Utility Modules
 
-The `utils/googleAuth.js` provides utility functions for Google API authentication:
+The bot uses several utility modules to handle caching, authentication, and automation:
 
+### Google Authentication (`utils/googleAuth.js`)
 - `getPrivateKey()`: Formats the Google API private key from environment variables by handling various possible formats (escaped newlines, base64 encoded)
 - `createGoogleAuth(scopes)`: Creates a Google Auth instance with the necessary credentials and scopes, properly handling the private key format
+
+### Caching System
+The bot implements a Redis-based caching layer with Google Sheets fallback for optimal performance:
+
+- **`utils/redisClient.js`**: Manages Redis connection and client lifecycle
+- **`utils/duelDataCache.js`**: Caches match history data from the "Duel Data" sheet (2100+ rows)
+- **`utils/rosterCache.js`**: Caches player roster (Arena Name ↔ Discord ID mapping)
+- **`utils/rankingsCache.js`**: Caches official DFC rankings by division
+- **`utils/signupsCache.js`**: Caches recent tournament signup submissions
+- **`utils/rulesCache.js`**: Caches tournament rules from Google Docs
+- **`utils/playerListCache.js`**: Caches player autocomplete data for slash commands
+- **`utils/signupCache.js`**: Manages temporary signup session state during multi-step signup flow
+
+**Cache Refresh Schedule:**
+- Thursday 5:30 PM ET
+- Friday 2:00 AM ET
+- Friday 11:00 PM ET
+- Manual refresh via `/refreshcache` command
+
+### Automated Notifications (`utils/signupNotifications.js`)
+Sends automated Discord notifications for tournament signup windows:
+- **Friday 12:00 AM ET**: "Signups Now Open" notification
+- **Tuesday 5:00 PM ET**: "Signup Closing Soon" notification
+- **Permission-based fallback**: Automatically posts to fallback channel if primary channel is inaccessible
+- **Audit logging**: Logs all notification attempts to audit channel for monitoring
+
+### Audit Logging (`utils/auditLogger.js`)
+Logs all slash command executions to a dedicated audit channel in production:
+- Command name, user, channel, and timestamp
+- Execution duration and success/failure status
+- Command arguments and error messages
+- Production environment only
+
+### Other Utilities
+- **`utils/emojis.js`**: Centralized custom Discord emoji mappings for classes and match types
+- **`utils/rulesParser.js`**: Parses and formats tournament rules from Google Docs API
 
 ## Deployment
 
