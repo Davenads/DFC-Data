@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { sendNotification } = require('../utils/signupNotifications');
+const { sendEventCommandsNotification } = require('../utils/eventCommandsNotifications');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -12,7 +13,8 @@ module.exports = {
         .setRequired(true)
         .addChoices(
           { name: 'Signups Now Open (Friday)', value: 'open' },
-          { name: 'Signup Closing Soon (Tuesday)', value: 'closing' }
+          { name: 'Signup Closing Soon (Tuesday)', value: 'closing' },
+          { name: 'Event Commands (Thursday)', value: 'eventcommands' }
         )
     )
     .setDefaultMemberPermissions('0'), // Restrict to administrators
@@ -49,17 +51,27 @@ module.exports = {
       const testChannelId = '1442946150523998209';
       const testRoleId = '1299781198205419528';
 
-      // Send notification to test channel with test role
-      await sendNotification(interaction.client, notificationType, testChannelId, testRoleId);
+      // Handle different notification types
+      if (notificationType === 'eventcommands') {
+        // Send event commands notification (no role mention needed)
+        await sendEventCommandsNotification(interaction.client, testChannelId);
 
-      // Get notification type label for confirmation message
-      const notificationLabel = notificationType === 'open'
-        ? 'Signups Now Open (Friday)'
-        : 'Signup Closing Soon (Tuesday)';
+        await interaction.editReply({
+          content: `✅ Test notification sent!\n\n**Type:** Event Commands (Thursday)\n**Channel:** <#${testChannelId}>\n\nCheck the test channel to verify the embed.`
+        });
+      } else {
+        // Send signup notification to test channel with test role
+        await sendNotification(interaction.client, notificationType, testChannelId, testRoleId);
 
-      await interaction.editReply({
-        content: `✅ Test notification sent!\n\n**Type:** ${notificationLabel}\n**Channel:** <#${testChannelId}>\n**Role:** <@&${testRoleId}>\n\nCheck the test channel to verify the embed.`
-      });
+        // Get notification type label for confirmation message
+        const notificationLabel = notificationType === 'open'
+          ? 'Signups Now Open (Friday)'
+          : 'Signup Closing Soon (Tuesday)';
+
+        await interaction.editReply({
+          content: `✅ Test notification sent!\n\n**Type:** ${notificationLabel}\n**Channel:** <#${testChannelId}>\n**Role:** <@&${testRoleId}>\n\nCheck the test channel to verify the embed.`
+        });
+      }
 
       console.log(`[${timestamp}] Test notification (${notificationType}) sent successfully by ${user.tag}`);
 

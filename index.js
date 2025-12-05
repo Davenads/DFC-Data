@@ -187,6 +187,11 @@ client.once('ready', async () => {
     const { scheduleSignupNotifications } = require('./utils/signupNotifications');
     scheduleSignupNotifications(client);
     console.log('Signup notifications scheduled: Friday 12:00am ET (open) and Tuesday 5:00pm ET (closing)');
+
+    // Schedule event commands notification
+    const { scheduleEventCommandsNotification } = require('./utils/eventCommandsNotifications');
+    scheduleEventCommandsNotification(client);
+    console.log('Event commands notification scheduled: Thursday 6:05pm ET');
 });
 
 /**
