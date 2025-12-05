@@ -34,6 +34,7 @@ conversation-summary.md
 # Planning documents
 recentduels-pagination-plan.md
 docs/stats-autocomplete-timeout-fix.md
+classrankings-update-plan.md
 
 # Local setup documentation (machine-specific)
 docs/playwright-mcp-pi5-setup.md

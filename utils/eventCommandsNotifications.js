@@ -30,7 +30,7 @@ function createEventCommandsEmbed() {
       `📖 **Rules & Updates:**\n` +
       `• \`/rules\` - Review tournament rules (with options)\n` +
       `• \`/changelog\` - Check recent rule changes\n\n` +
-      `Good luck to all participants! ⚔️`
+      `Good luck to all duelers! ⚔️`
     )
     .addFields({
       name: '\u200B', // Zero-width space for blank name
