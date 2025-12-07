@@ -16,9 +16,9 @@ const { deckardCainEmoji, soundAlphaEmoji } = require('./emojis');
 function createEventCommandsEmbed() {
   return new EmbedBuilder()
     .setColor(0x0099FF) // Blue
-    .setTitle(`${deckardCainEmoji} DFC Live - Useful Commands`)
+    .setTitle(`${deckardCainEmoji} DFC - Useful Commands`)
     .setDescription(
-      `The weekly DFC Event is underway! Here are the most useful commands for tracking stats and standings:\n\n` +
+      `Here are the most useful commands for tracking stats and standings:\n\n` +
       `📊 **Statistics & Rankings:**\n` +
       `• \`/rankings\` - View top 30 players per division\n` +
       `• \`/classrankings\` - Class-specific rankings and win rates\n` +
