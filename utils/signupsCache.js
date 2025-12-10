@@ -56,6 +56,23 @@ class SignupsCache {
 
             const data = response.data.values || [];
             console.log(`Fetched ${data.length} signup rows from Google Sheets`);
+
+            // Optimization: Only keep header + top 200 most recent signups
+            if (data.length > 1) {
+                const header = data[0];
+                const signupRows = data.slice(1);
+
+                // Sort by timestamp (column A) descending (newest first)
+                const sortedSignups = signupRows
+                    .filter(row => row[0]) // Filter out rows without timestamp
+                    .sort((a, b) => new Date(b[0]) - new Date(a[0]))
+                    .slice(0, 200); // Keep only top 200
+
+                const optimizedData = [header, ...sortedSignups];
+                console.log(`Optimized to ${optimizedData.length} rows (header + top 200 signups)`);
+                return optimizedData;
+            }
+
             return data;
         } catch (error) {
             console.error('Error fetching live signup data from Google Sheets:', error);
