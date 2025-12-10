@@ -59,8 +59,8 @@ async function sendEventCommandsNotification(client, overrideChannelId = null) {
       return;
     }
 
-    const isTestMode = overrideChannelId !== null;
-    console.log(`[${timestamp}] [Event Commands Notifications] Sending notification to channel ${channelId} (${isTestMode ? 'TEST' : 'PRODUCTION'})`);
+    const isScheduled = overrideChannelId === null;
+    console.log(`[${timestamp}] [Event Commands Notifications] Sending notification to channel ${channelId} (${isScheduled ? 'SCHEDULED' : 'MANUAL'})`);
 
     // Get channel from cache
     const channel = client.channels.cache.get(channelId);
@@ -68,6 +68,20 @@ async function sendEventCommandsNotification(client, overrideChannelId = null) {
     if (!channel) {
       console.warn(`[${timestamp}] [Event Commands Notifications] Channel ${channelId} not found in cache`);
       return;
+    }
+
+    // If scheduled (cron trigger), send role ping message first
+    if (isScheduled) {
+      const roleId = process.env.DFC_DUELER_ROLE_ID_PROD;
+      if (roleId) {
+        await channel.send({
+          content: `<@&${roleId}> The event is commencing!`
+        }).catch(err => {
+          console.error(`[${timestamp}] [Event Commands Notifications] Failed to send role ping:`, err.message);
+        });
+      } else {
+        console.warn(`[${timestamp}] [Event Commands Notifications] DFC_DUELER_ROLE_ID_PROD not set, skipping role ping`);
+      }
     }
 
     // Create embed
