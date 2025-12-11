@@ -41,6 +41,9 @@ const deckardCainEmoji = '<:DeckardCain:953116506542182451>';
 // Sound Alpha emoji (web app developer)
 const soundAlphaEmoji = '<:soundalpha:1442642589940453576>';
 
+// Coooley icon
+const coooleyIcon = '<:Coooley_icon_large:1446741586225664172>';
+
 // Legacy fallback emojis for commands that may need unicode emojis
 // These are used when custom Discord emojis aren't available or for external display
 const unicodeClassEmojis = {

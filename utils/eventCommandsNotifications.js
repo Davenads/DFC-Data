@@ -7,7 +7,7 @@
 
 const { EmbedBuilder } = require('discord.js');
 const cron = require('node-cron');
-const { deckardCainEmoji, soundAlphaEmoji } = require('./emojis');
+const { deckardCainEmoji, soundAlphaEmoji, coooleyIconEmoji } = require('./emojis');
 
 /**
  * Creates the "Event Commands" embed (Thursday 6:05 PM ET)
@@ -26,11 +26,11 @@ function createEventCommandsEmbed() {
       `• \`/stats\` - View player stats (with options)\n\n` +
       `🎯 **Event Information:**\n` +
       `• \`/fightcard\` - View current matchups\n` +
-      `• \`/recentsignups\` - See who signed up recently\n\n` +
+      `• \`/recentsignups\` - See who signed up recently (player option)\n\n` +
       `📖 **Rules & Updates:**\n` +
       `• \`/rules\` - Review tournament rules (with options)\n` +
       `• \`/changelog\` - Check recent rule changes\n\n` +
-      `Good luck to all duelers! ⚔️`
+      `Good luck to all duelers! ${coooleyIconEmoji}`
     )
     .addFields({
       name: '\u200B', // Zero-width space for blank name
