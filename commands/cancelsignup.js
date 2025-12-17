@@ -58,11 +58,18 @@ module.exports = {
         const timestamp = new Date().toISOString();
         const user = interaction.user;
 
+        console.log(`[${timestamp}] ========== CANCELSIGNUP BUTTON HANDLER START ==========`);
+        console.log(`[${timestamp}] User: ${user.tag} (${user.id})`);
+        console.log(`[${timestamp}] CustomId: ${interaction.customId}`);
+        console.log(`[${timestamp}] Interaction type: ${interaction.type}`);
+        console.log(`[${timestamp}] Interaction replied: ${interaction.replied}`);
+        console.log(`[${timestamp}] Interaction deferred: ${interaction.deferred}`);
+
         try {
             // Parse button customId: cancelsignup_delete_{unixTimestamp}
             const parts = interaction.customId.split('_');
             if (parts.length !== 3 || parts[1] !== 'delete') {
-                console.error(`[${timestamp}] Invalid customId format: ${interaction.customId}`);
+                console.error(`[${timestamp}] ❌ Invalid customId format: ${interaction.customId}`);
                 await interaction.reply({
                     content: '❌ Invalid button interaction. Please try again.',
                     ephemeral: true
@@ -72,7 +79,7 @@ module.exports = {
 
             const targetTimestamp = parseInt(parts[2]);
             if (isNaN(targetTimestamp)) {
-                console.error(`[${timestamp}] Invalid timestamp in customId: ${parts[2]}`);
+                console.error(`[${timestamp}] ❌ Invalid timestamp in customId: ${parts[2]}`);
                 await interaction.reply({
                     content: '❌ Invalid signup timestamp. Please try again.',
                     ephemeral: true
@@ -80,9 +87,12 @@ module.exports = {
                 return true;
             }
 
-            console.log(`[${timestamp}] ${user.tag} (${user.id}) canceling signup with timestamp ${targetTimestamp}`);
+            console.log(`[${timestamp}] ✓ Parsed timestamp: ${targetTimestamp}`);
+            console.log(`[${timestamp}] ✓ Attempting to defer update...`);
 
             await interaction.deferUpdate(); // Show loading state
+            console.log(`[${timestamp}] ✓ Defer update successful`);
+
 
             const sheets = google.sheets('v4');
             const { createGoogleAuth } = require('../utils/googleAuth');
@@ -92,8 +102,11 @@ module.exports = {
                 ? process.env.TEST_SSOT_ID
                 : process.env.PROD_SSOT_ID;
 
+            console.log(`[${timestamp}] ✓ Using spreadsheet: ${spreadsheetId} (TEST_MODE: ${process.env.TEST_MODE})`);
+
             // Step 1: Fetch only column A (timestamps) from Google Sheets
             // This is more efficient than fetching all columns A:E
+            console.log(`[${timestamp}] → Fetching timestamps from Google Sheets...`);
             const response = await sheets.spreadsheets.values.get({
                 auth,
                 spreadsheetId,
@@ -101,9 +114,12 @@ module.exports = {
             });
 
             const timestamps = response.data.values || [];
+            console.log(`[${timestamp}] ✓ Fetched ${timestamps.length} timestamp rows`);
 
             // Step 2: Find the exact row index by matching timestamp
             const targetDate = new Date(targetTimestamp);
+            console.log(`[${timestamp}] → Searching for timestamp: ${targetDate.toISOString()}`);
+
             const rowIndex = timestamps.findIndex(row => {
                 if (!row[0]) return false;
                 const sheetDate = new Date(row[0]);
@@ -111,7 +127,8 @@ module.exports = {
             });
 
             if (rowIndex === -1) {
-                console.log(`[${timestamp}] Signup not found for timestamp ${targetTimestamp}`);
+                console.log(`[${timestamp}] ❌ Signup not found for timestamp ${targetTimestamp}`);
+                console.log(`[${timestamp}] → Searched ${timestamps.length} rows, no match found`);
                 return interaction.editReply({
                     content: '❌ Signup not found. It may have already been deleted or the data has changed.\n\nUse `/cancelsignup` again to see your current signups.',
                     components: [],
@@ -119,12 +136,15 @@ module.exports = {
                 });
             }
 
-            console.log(`[${timestamp}] Found signup at row ${rowIndex + 1} (0-indexed: ${rowIndex})`);
+            console.log(`[${timestamp}] ✓ Found signup at row ${rowIndex + 1} (0-indexed: ${rowIndex})`);
 
             // Step 3: Get sheet ID for batchUpdate
+            console.log(`[${timestamp}] → Getting sheet ID for batchUpdate...`);
             const sheetId = await getSignupsSheetId(sheets, auth);
+            console.log(`[${timestamp}] ✓ Sheet ID: ${sheetId}`);
 
             // Step 4: Delete the row using batchUpdate
+            console.log(`[${timestamp}] → Deleting row ${rowIndex + 1} from Google Sheets...`);
             await sheets.spreadsheets.batchUpdate({
                 auth,
                 spreadsheetId,
@@ -142,33 +162,58 @@ module.exports = {
                 }
             });
 
-            console.log(`[${timestamp}] Successfully deleted row ${rowIndex + 1} from Google Sheets`);
+            console.log(`[${timestamp}] ✓ Successfully deleted row ${rowIndex + 1} from Google Sheets`);
 
             // Step 5: Invalidate cache immediately
+            console.log(`[${timestamp}] → Refreshing signup cache...`);
             await signupsCache.refreshCache();
-            console.log(`[${timestamp}] Signup cache refreshed after deletion`);
+            console.log(`[${timestamp}] ✓ Signup cache refreshed after deletion`);
 
             // Step 6: Send success message
+            console.log(`[${timestamp}] → Sending success message to user...`);
             await interaction.editReply({
                 content: '✅ **Signup canceled successfully!**\n\nYou can sign up again using `/signup` if you change your mind.',
                 components: [],
                 embeds: []
             });
 
-            console.log(`[${timestamp}] ${user.tag} successfully canceled signup`);
+            console.log(`[${timestamp}] ✓✓✓ ${user.tag} successfully canceled signup ✓✓✓`);
+            console.log(`[${timestamp}] ========== CANCELSIGNUP BUTTON HANDLER END (SUCCESS) ==========`);
 
         } catch (error) {
-            console.error(`[${timestamp}] Error canceling signup for ${user.tag}:`, error);
+            console.error(`[${timestamp}] ========== ERROR IN BUTTON HANDLER ==========`);
+            console.error(`[${timestamp}] Error type: ${error.name}`);
+            console.error(`[${timestamp}] Error message: ${error.message}`);
+            console.error(`[${timestamp}] Error code: ${error.code}`);
+            console.error(`[${timestamp}] Full error:`, error);
+            console.error(`[${timestamp}] Interaction state:`);
+            console.error(`[${timestamp}]   - Replied: ${interaction.replied}`);
+            console.error(`[${timestamp}]   - Deferred: ${interaction.deferred}`);
+            console.error(`[${timestamp}]   - Ephemeral: ${interaction.ephemeral}`);
 
             try {
-                await interaction.editReply({
-                    content: '❌ **Error:** Failed to cancel signup. Please try again or contact a moderator.\n\nIf this issue persists, please DM a moderator.',
-                    components: [],
-                    embeds: []
-                });
+                // Check if we can still edit the reply
+                if (interaction.deferred || interaction.replied) {
+                    await interaction.editReply({
+                        content: '❌ **Error:** Failed to cancel signup. Please try again or contact a moderator.\n\nIf this issue persists, please DM a moderator.',
+                        components: [],
+                        embeds: []
+                    });
+                    console.log(`[${timestamp}] ✓ Sent error message via editReply`);
+                } else {
+                    await interaction.reply({
+                        content: '❌ **Error:** Failed to cancel signup. Please try again or contact a moderator.\n\nIf this issue persists, please DM a moderator.',
+                        ephemeral: true
+                    });
+                    console.log(`[${timestamp}] ✓ Sent error message via reply`);
+                }
             } catch (editError) {
-                console.error(`[${timestamp}] Failed to send error message:`, editError);
+                console.error(`[${timestamp}] ❌ Failed to send error message to user:`, editError);
+                console.error(`[${timestamp}] Edit error type: ${editError.name}`);
+                console.error(`[${timestamp}] Edit error message: ${editError.message}`);
             }
+
+            console.error(`[${timestamp}] ========== CANCELSIGNUP BUTTON HANDLER END (ERROR) ==========`);
         }
 
         return true; // We handled this button
