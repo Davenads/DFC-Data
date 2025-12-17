@@ -98,11 +98,10 @@ module.exports = {
             const { createGoogleAuth } = require('../utils/googleAuth');
             const auth = createGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
 
-            const spreadsheetId = process.env.TEST_MODE === 'true'
-                ? process.env.TEST_SSOT_ID
-                : process.env.PROD_SSOT_ID;
+            // Use SPREADSHEET_ID to match signupsCache.js (not SSOT)
+            const spreadsheetId = process.env.SPREADSHEET_ID;
 
-            console.log(`[${timestamp}] ✓ Using spreadsheet: ${spreadsheetId} (TEST_MODE: ${process.env.TEST_MODE})`);
+            console.log(`[${timestamp}] ✓ Using spreadsheet: ${spreadsheetId}`);
 
             // Step 1: Fetch only column A (timestamps) from Google Sheets
             // This is more efficient than fetching all columns A:E
