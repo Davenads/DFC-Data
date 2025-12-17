@@ -4,43 +4,13 @@ const signupsCache = require('../utils/signupsCache');
 const { filterCurrentWeekSignups, getWeekRangeString, isRegistrationOpen } = require('../utils/dfcWeekUtils');
 const { getClassEmoji } = require('../utils/emojis');
 
-// Cache for sheet ID to avoid repeated metadata queries
-let SIGNUPS_SHEET_ID = null;
-
 /**
- * Get the numeric sheet ID for the "DFC Recent Signups" tab
- * Caches the result to avoid repeated API calls
+ * Get the numeric sheet ID for the "DFC Signups" tab
+ * Hardcoded to avoid API call overhead
  */
-async function getSignupsSheetId(sheets, auth) {
-    if (SIGNUPS_SHEET_ID !== null) {
-        return SIGNUPS_SHEET_ID;
-    }
-
-    try {
-        const spreadsheetId = process.env.TEST_MODE === 'true'
-            ? process.env.TEST_SSOT_ID
-            : process.env.PROD_SSOT_ID;
-
-        const metadata = await sheets.spreadsheets.get({
-            auth,
-            spreadsheetId
-        });
-
-        const sheet = metadata.data.sheets.find(
-            s => s.properties.title === 'DFC Recent Signups'
-        );
-
-        if (!sheet) {
-            throw new Error('DFC Recent Signups sheet not found');
-        }
-
-        SIGNUPS_SHEET_ID = sheet.properties.sheetId;
-        console.log(`Cached DFC Recent Signups sheet ID: ${SIGNUPS_SHEET_ID}`);
-        return SIGNUPS_SHEET_ID;
-    } catch (error) {
-        console.error('Error fetching sheet metadata:', error);
-        throw error;
-    }
+function getSignupsSheetId() {
+    // "DFC Signups" tab ID (raw Google Form responses)
+    return 1262938294;
 }
 
 module.exports = {
@@ -104,12 +74,12 @@ module.exports = {
             console.log(`[${timestamp}] ✓ Using spreadsheet: ${spreadsheetId}`);
 
             // Step 1: Fetch only column A (timestamps) from Google Sheets
-            // This is more efficient than fetching all columns A:E
+            // Query "DFC Signups" (raw form data), not "DFC Recent Signups" (computed view)
             console.log(`[${timestamp}] → Fetching timestamps from Google Sheets...`);
             const response = await sheets.spreadsheets.values.get({
                 auth,
                 spreadsheetId,
-                range: 'DFC Recent Signups!A:A'
+                range: 'DFC Signups!A:A'
             });
 
             const timestamps = response.data.values || [];
@@ -139,7 +109,7 @@ module.exports = {
 
             // Step 3: Get sheet ID for batchUpdate
             console.log(`[${timestamp}] → Getting sheet ID for batchUpdate...`);
-            const sheetId = await getSignupsSheetId(sheets, auth);
+            const sheetId = getSignupsSheetId();
             console.log(`[${timestamp}] ✓ Sheet ID: ${sheetId}`);
 
             // Step 4: Delete the row using batchUpdate
