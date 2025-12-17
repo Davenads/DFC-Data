@@ -92,6 +92,9 @@ const BUTTON_ROUTING = {
     // Recent signups command
     'recentsignups': 'recentsignups',
 
+    // Cancel signup command
+    'cancelsignup': 'cancelsignup',
+
     // Help command (handles specific button IDs)
     'show': 'help',  // show_deprecated
     'back': 'help',  // back_to_help
