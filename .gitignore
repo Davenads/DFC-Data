@@ -45,3 +45,9 @@ docs/playwright-mcp-pi5-setup.md
 
 Duel_Data_Columns_Raw.csv
 .vscode/
+
+# Planning command files
+CANCELSIGNUP_PLANNING.md
+CANCELSIGNUP_FLOW_DIAGRAM.md
+CANCELSIGNUP_EMBED_EXAMPLE.md
+test-week-logic.js
