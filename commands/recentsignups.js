@@ -137,7 +137,7 @@ module.exports = {
             // Sort by timestamp (newest first) and take top 20
             recentSignups = recentSignups
                 .sort((a, b) => new Date(b[0]) - new Date(a[0])) // Newest first
-                .slice(0, 20); // Take top 20
+                .slice(0, 50); // Take top 20
 
             if (recentSignups.length === 0) {
                 const noSignupsMessage = playerName
