@@ -106,11 +106,11 @@ module.exports = {
             console.log(`[NAMESYNC] Deferring reply for ${invokedBy}`);
             await interaction.deferReply({ ephemeral: true });
 
-            // Get cached roster
-            console.log(`[NAMESYNC] Retrieving roster from cache...`);
+            // Refresh roster cache to ensure we're comparing against the latest sheet data
+            console.log(`[NAMESYNC] Refreshing roster cache...`);
             const cacheStart = Date.now();
-            const roster = await rosterCache.getCachedRoster();
-            console.log(`[NAMESYNC] Roster retrieved in ${Date.now() - cacheStart}ms`);
+            const roster = await rosterCache.refreshCache();
+            console.log(`[NAMESYNC] Roster refreshed in ${Date.now() - cacheStart}ms`);
 
             if (!roster || Object.keys(roster).length === 0) {
                 console.log(`[NAMESYNC] ERROR: Roster cache is empty`);
