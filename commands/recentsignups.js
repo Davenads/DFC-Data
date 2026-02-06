@@ -118,7 +118,8 @@ module.exports = {
                 console.log(`[${timestamp}] Filtering signups for player: ${playerName} (Discord: ${targetDiscordName})`);
             }
 
-            // Fetch signups from cache (falls back to Google Sheets if cache unavailable)
+            // Refresh signups cache before fetching to ensure fresh data
+            await signupsCache.refreshCache();
             const signups = await signupsCache.getCachedData();
 
             // Skip header row, filter out empty rows, optionally filter by player, sort by timestamp (newest first), and take top 20
