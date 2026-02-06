@@ -118,8 +118,11 @@ module.exports = {
                 console.log(`[${timestamp}] Filtering signups for player: ${playerName} (Discord: ${targetDiscordName})`);
             }
 
-            // Refresh signups cache before fetching to ensure fresh data
-            await signupsCache.refreshCache();
+            // Only refresh cache if data is older than 5 minutes
+            const isStale = await signupsCache.isCacheStale(5 * 60 * 1000);
+            if (isStale) {
+                await signupsCache.refreshCache();
+            }
             const signups = await signupsCache.getCachedData();
 
             // Skip header row, filter out empty rows, optionally filter by player, sort by timestamp (newest first), and take top 20
