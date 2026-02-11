@@ -173,8 +173,10 @@ class RankingsCache {
             .sort((a, b) => {
                 // Primary sort: wins (descending)
                 if (b.wins !== a.wins) return b.wins - a.wins;
-                // Tiebreaker: win% (descending)
-                return b.winRate - a.winRate;
+                // Tiebreaker 1: win% (descending)
+                if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+                // Tiebreaker 2: ARL (ascending - lower is better)
+                return a.arl - b.arl;
             });
 
         console.log(`[${timestamp}] [rankingsCache] Computed ${sortedPlayers.length} ranked players for ${division}`);
