@@ -479,7 +479,7 @@ module.exports = {
                 Classes: ${data.selectedClasses.join(', ')}
                 Builds: ${finalBuildString}`);
 
-                // Submit to Google Form
+                // Submit to Google Form (follow redirects to reach the final response page)
                 const formResponse = await fetch(
                     'https://docs.google.com/forms/d/e/1FAIpQLSeviV0Uz8ufF6P58TsPmI_F2gsnJDLyJTbiy_-FDZgcmb7TfQ/formResponse',
                     {
@@ -487,19 +487,22 @@ module.exports = {
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded',
                         },
-                        body: formData.toString(),
-                        redirect: 'manual'
+                        body: formData.toString()
                     }
                 );
 
-                console.log(`[${timestamp}] Form submission status: ${formResponse.status}, type: ${formResponse.type}`);
+                const responseBody = await formResponse.text();
+                console.log(`[${timestamp}] Form submission status: ${formResponse.status}, final url: ${formResponse.url}`);
+                console.log(`[${timestamp}] Response body snippet: ${responseBody.slice(0, 300)}`);
 
-                // Google Forms redirects (opaqueredirect) on success.
-                // A 200 response means no redirect occurred — the form is disabled or rejected the submission.
-                const isSuccess = formResponse.type === 'opaqueredirect' || formResponse.status === 302;
+                // Detect Google's "form not accepting responses" page regardless of HTTP status.
+                // Google Forms redirects on both success and failure, so status alone is unreliable.
+                const formClosed = /not accepting responses/i.test(responseBody) ||
+                                   /no longer accepting/i.test(responseBody) ||
+                                   /closed/i.test(responseBody);
 
-                if (!isSuccess) {
-                    console.warn(`[${timestamp}] Form submission rejected for ${user.tag} (${user.id}): status=${formResponse.status}, type=${formResponse.type}`);
+                if (!formResponse.ok || formClosed) {
+                    console.warn(`[${timestamp}] Form submission rejected for ${user.tag} (${user.id}): status=${formResponse.status}, formClosed=${formClosed}`);
                     await interaction.editReply({
                         content: '⚠️ Signup failed — the form is not currently accepting responses. DFC may be cancelled this week or the signup form may be unavailable. Please check Discord for announcements.',
                     });
