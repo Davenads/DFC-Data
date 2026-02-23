@@ -492,7 +492,20 @@ module.exports = {
                     }
                 );
 
-                console.log(`[${timestamp}] Form submission status: ${formResponse.status}`);
+                console.log(`[${timestamp}] Form submission status: ${formResponse.status}, type: ${formResponse.type}`);
+
+                // Google Forms redirects (opaqueredirect) on success.
+                // A 200 response means no redirect occurred — the form is disabled or rejected the submission.
+                const isSuccess = formResponse.type === 'opaqueredirect' || formResponse.status === 302;
+
+                if (!isSuccess) {
+                    console.warn(`[${timestamp}] Form submission rejected for ${user.tag} (${user.id}): status=${formResponse.status}, type=${formResponse.type}`);
+                    await interaction.editReply({
+                        content: '⚠️ Signup failed — the form is not currently accepting responses. DFC may be cancelled this week or the signup form may be unavailable. Please check Discord for announcements.',
+                    });
+                    await clearSignupData(interaction.user.id);
+                    return true;
+                }
 
                 // Asynchronously refresh signups cache (fire-and-forget)
                 signupsCache.refreshCache()
