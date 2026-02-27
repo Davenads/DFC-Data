@@ -13,7 +13,8 @@ const classEmojis = {
     Druid: '<:Druid:953116506839973928>',
     Necromancer: '<:Necro:953116507058085918>',
     Paladin: '<:Paladin:953116506928074762>',
-    Sorceress: '<:Sorceress:953116506873552997>'
+    Sorceress: '<:Sorceress:953116506873552997>',
+    Warlock: '<:Warlock:1476970850136883251>'
 };
 
 // Extract emoji IDs for button usage (used in interactive components)
@@ -24,7 +25,8 @@ const classEmojiIds = {
     Druid: '953116506839973928',
     Necromancer: '953116507058085918',
     Paladin: '953116506928074762',
-    Sorceress: '953116506873552997'
+    Sorceress: '953116506873552997',
+    Warlock: '1476970850136883251'
 };
 
 // Match type emojis
@@ -53,7 +55,8 @@ const unicodeClassEmojis = {
     druid: '🐺',
     necromancer: '💀',
     paladin: '🛡️',
-    sorceress: '🔮'
+    sorceress: '🔮',
+    warlock: '🔱'
 };
 
 /**

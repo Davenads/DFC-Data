@@ -11,7 +11,8 @@ const classAbbreviations = {
     Sorceress: 'Sorc',
     Druid: 'Dudu',
     Assassin: 'Sin',
-    Necromancer: 'Necro'
+    Necromancer: 'Necro',
+    Warlock: 'Lock'
 };
 
 /**
@@ -92,7 +93,12 @@ async function updateClassSelectionScreen(interaction, matchType, selectedClasse
                 .setCustomId(`signupclass_${matchType}_Sorceress`)
                 .setLabel('Sorceress')
                 .setEmoji(classEmojiIds.Sorceress)
-                .setStyle(selectedClasses.includes('Sorceress') ? ButtonStyle.Success : ButtonStyle.Secondary)
+                .setStyle(selectedClasses.includes('Sorceress') ? ButtonStyle.Success : ButtonStyle.Secondary),
+            new ButtonBuilder()
+                .setCustomId(`signupclass_${matchType}_Warlock`)
+                .setLabel('Warlock')
+                .setEmoji(classEmojiIds.Warlock)
+                .setStyle(selectedClasses.includes('Warlock') ? ButtonStyle.Success : ButtonStyle.Secondary)
         );
 
     const row3 = new ActionRowBuilder()
