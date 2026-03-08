@@ -183,7 +183,6 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('signup')
         .setDescription('Sign up for the weekly event'),
-    role: 'DFC Dueler',
 
     async execute(interaction, sheets, auth) {
         const timestamp = new Date().toISOString();
